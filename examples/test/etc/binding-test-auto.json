@@ -1,0 +1,30 @@
+{
+  "name": "afb-test",
+  "no-ldpaths": true,
+  "alias": ["/devtools:/usr/share/afb-ui-devtools/binder"],
+  "no_httpd": true,
+  "trace-api": "all",
+  "trace-req": "all",
+  "trace-evt": "all",
+
+  "binding": [
+    {
+        "uid": "rust-demo-binding",
+        "path": "-./target/$HOSTNAME/debug/examples/libafb_demo.so",
+        "info": "RUST sample API binding (Rust)"
+    },
+    {
+        "uid": "tap-test-binding",
+        "path": "./target/$HOSTNAME/debug/examples/libafb_test.so",
+        "info": "Rust testing sample binding API",
+    }
+  ],
+
+  "set" : {
+    "tap-test": {
+      "autostart": true,
+      "autoexit": true,
+      "output": "tap"
+    }
+  }
+}

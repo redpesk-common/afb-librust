@@ -1,0 +1,27 @@
+{
+  "name": "afb-rust",
+  "no-ldpaths": true,
+  "port": 1234,
+  "alias": ["/devtools:/usr/share/afb-ui-devtools/binder"],
+  "monitoring": true,
+
+  "binding": [
+    {
+        "uid": "rust-api",
+        "path": "./target/$HOSTNAME/debug/examples/libafb_demo.so",
+        "info": "RUST sample API binding (Rust)"
+    },
+    {
+        "uid": "hello-world-event",
+        "path": "/var/local/lib/afm/applications/helloworld-binding/lib/afb-helloworld-subscribe-event.so",
+        "info": "Helloworld subscribe demo binding (C/C++)",
+    }
+
+  ],
+
+  "set" : {
+    "rust-api": {
+      "key": "any json for binding 'config' control callback"
+    }
+  }
+}

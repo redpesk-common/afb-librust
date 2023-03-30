@@ -1,0 +1,66 @@
+/*
+ * Copyright (C) 2015-2023 IoT.bzh Company
+ * Author: Fulup Ar Foll <fulup@iot.bzh>
+ *
+ * Redpesk samples code/config use MIT License and can be freely copy/modified even within proprietary code
+ * License: $RP_BEGIN_LICENSE$ SPDX:MIT https://opensource.org/licenses/MIT $RP_END_LICENSE$
+ */
+
+// import libafb dependencies
+libafb::AfbModImport!();
+
+// mySimpleData type is within an external crate to allow sharing with other crate/binding/binder
+extern crate demo_converter;
+use self::demo_converter::MySimpleData;
+
+AfbVerbRegister!(VerbCtrl, callback);
+fn callback(request: &AfbRequest, args: &AfbData) {
+    // check arg0 match MySimpleData grammar
+    let arg0 = args.get::<&MySimpleData>(0);
+    let input = match arg0 {
+        Err(mut error) => {
+            afb_log_msg!(Warning, request, "invalid args[0] error={}", error);
+            request.reply(afb_add_trace!(error), -99);
+            return;
+        }
+        Ok(data) => data,
+    };
+
+    // create a sample simple-data object as response
+    let output = MySimpleData {
+        name: input.name.to_uppercase(),
+        x: input.x + 1,
+        y: input.y - 1,
+    };
+
+    // closure is call from following 'if let' with reply()
+    let reply = || -> Result<(), AfbError> {
+        let mut response = AfbParams::new();
+        response.push(output)?;
+        request.reply(response, 0);
+        Ok(())
+    };
+
+    // if data export fail send an error report
+    if let Err(mut error) = reply() {
+        request.reply(afb_add_trace!(error), 405);
+    }
+}
+
+pub fn register(rootv4: AfbApiV4) -> &'static AfbVerb {
+
+    // custom type should register once per binder
+    demo_converter::register(rootv4).expect("must register custom type");
+
+    // build verb name from Rust module name
+    let mod_name = module_path!().split(':').last().unwrap();
+    afb_log_msg!(Notice, rootv4, "Registering verb={}", mod_name);
+
+    AfbVerb::new(mod_name)
+        .set_callback(Box::new(VerbCtrl {}))
+        .set_info("My 2nd demo verb")
+        .set_usage("any json string")
+        .set_sample("{'x': 1, 'y':99, 'name':'IoT.bzh'}")
+        .expect("invalid json sample")
+        .finalize()
+}

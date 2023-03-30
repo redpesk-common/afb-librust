@@ -1,0 +1,116 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "native-compile-libafb",
+            "type": "cargo",
+            "command": "build",
+            "args": [
+                "--target-dir=target/${env:HOSTNAME}",
+            ],
+            "problemMatcher": [
+                "$rustc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "native-compile-demo",
+            "type": "cargo",
+            "command": "build",
+            "dependsOn": "native-compile-libafb",
+            "args": [
+                "--target-dir=target/${env:HOSTNAME}",
+                "--example",
+                "afb_demo"
+            ],
+            "problemMatcher": [
+                "$rustc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            }
+        },
+        {
+            "label": "native-compile-test",
+            "type": "cargo",
+            "command": "build",
+            "dependsOn": "native-compile-demo",
+            "args": [
+                "--target-dir=target/${env:HOSTNAME}",
+                "--example",
+                "afb_test"
+            ],
+            "problemMatcher": [
+                "$rustc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            }
+        },
+        {
+            "label": "native-compile-bench",
+            "type": "cargo",
+            "command": "build",
+            "dependsOn": "native-compile-test",
+            "args": [
+                "--target-dir=target/${env:HOSTNAME}",
+                "--example",
+                "afb_bench"
+            ],
+            "problemMatcher": [
+                "$rustc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            }
+        },
+        {
+            "label": "cross-compile-libafb",
+            "type": "cargo",
+            "command": "build",
+            "args": [
+                "--target=aarch64-unknown-linux-gnu"
+            ],
+            "problemMatcher": [
+                "$rustc"
+            ],
+            "group": "build"
+        },
+        {
+            "label": "remote-debug-setup",
+            "type": "shell",
+            "command": "${workspaceFolder}/utils/remote-debug.sh",
+            "args": [
+                "${workspaceFolder}",
+                "raspberry.local",
+                "afb-test",
+                "9999"
+            ],
+            "group": "none",
+            "dependsOn": [
+                "cross-compile-rust"
+            ]
+        },
+        {
+            "label": "native-debug-setup",
+            "type": "shell",
+            "command": "eu-strip",
+            "args": [
+                "-g",
+                "-f",
+                "${workspaceFolder}/target/debug/afb-test.debug",
+                "${workspaceFolder}/target/debug/afb-test"
+            ],
+            "group": "none",
+            "dependsOn": [
+                "native-compile-rust"
+            ]
+        },
+    ]
+}

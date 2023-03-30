@@ -1,0 +1,124 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Native 'afb-demo'",
+            "type": "lldb",
+            "preLaunchTask": "native-compile-demo",
+            "request": "launch",
+            "program": "afb-binder",
+            "env": {
+                "LD_LIBRARY_PATH": "/usr/local/lib64"
+            },
+            "args": [
+                "-vvv",
+                "--trap-faults=0",
+                "--config=examples/demo/etc/binding-config.json",
+            ],
+            "cwd": "${workspaceFolder}",
+            "initCommands": [
+                "target stop-hook add -n _start -o continue",
+                "settings set target.disable-aslr false"
+            ]
+        },
+        {
+            "name": "Native 'tap-test-auto'",
+            "type": "lldb",
+            "preLaunchTask": "native-compile-test",
+            "request": "launch",
+            "program": "afb-binder",
+            "env": {
+                "LD_LIBRARY_PATH": "/usr/local/lib64"
+            },
+            "args": [
+                "-vvv",
+                "--trap-faults=1",
+                "--config=examples/test/etc/binding-test-auto.json",
+            ],
+            "cwd": "${workspaceFolder}",
+            "initCommands": [
+                "target stop-hook add -n _start -o continue",
+                "settings set target.disable-aslr false",
+                "process handle -p true -s false -n true SIGVTALRM"
+            ]
+        },
+        {
+            "name": "Native 'tap-test-api'",
+            "type": "lldb",
+            "preLaunchTask": "native-compile-test",
+            "request": "launch",
+            "program": "afb-binder",
+            "env": {
+                "LD_LIBRARY_PATH": "/usr/local/lib64"
+            },
+            "args": [
+                "-vvv",
+                "--trap-faults=1",
+                "--config=examples/test/etc/binding-test-api.json",
+            ],
+            "cwd": "${workspaceFolder}",
+            "initCommands": [
+                "target stop-hook add -n _start -o continue",
+                "settings set target.disable-aslr false",
+                "process handle -p true -s false -n true SIGVTALRM"
+            ]
+        },
+        {
+            "name": "Native 'tap-bench-api'",
+            "type": "lldb",
+            "preLaunchTask": "native-compile-bench",
+            "request": "launch",
+            "program": "afb-binder",
+            "env": {
+                "LD_LIBRARY_PATH": "/usr/local/lib64"
+            },
+            "args": [
+                "-vvv",
+                "--trap-faults=1",
+                "--config=examples/bench/etc/binding-bench-api.json",
+            ],
+            "cwd": "${workspaceFolder}",
+            "initCommands": [
+                "target stop-hook add -n _start -o continue",
+                "settings set target.disable-aslr false",
+                "process handle -p true -s false -n true SIGVTALRM"
+            ]
+        },
+        {
+            "name": "Native 'afb-helloworld'",
+            "type": "lldb",
+            "preLaunchTask": "native-compile-libafb",
+            "request": "launch",
+            "program": "afb-binder",
+            "env": {
+                "LD_LIBRARY_PATH": "/usr/local/lib64"
+            },
+            "args": [
+                "-vvv",
+                "--trap-faults=0",
+                "--config=examples/demo/etc/binding-helloworld.json",
+            ],
+            "cwd": "${workspaceFolder}",
+            "initCommands": [
+                "target stop-hook add -n _start -o continue",
+                "settings set target.disable-aslr false"
+            ]
+        },
+        {
+            // reference https://stackoverflow.com/questions/68888706/remote-debug-of-rust-program-in-visual-studio-code
+            "name": "Remote afb-demo'",
+            "type": "lldb",
+            "request": "custom",
+            "preLaunchTask": "remote-debug-setup",
+            "targetCreateCommands": [
+                "target create ${workspaceFolder}/target/aarch64-unknown-linux-gnu/debug/afb-test"
+            ],
+            "processCreateCommands": [
+                "gdb-remote raspberry.local:9999"
+            ],
+            "initCommands": [
+                "target stop-hook add -n _start -o continue"
+            ],
+        },
+    ]
+}
