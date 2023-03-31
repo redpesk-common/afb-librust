@@ -107,7 +107,7 @@ struct UserTimerData {
 }
 
 AfbTimerRegister!(TimerCtrl, timer_callback, UserTimerData);
-fn timer_callback(_timer: &mut AfbTimer, _decount: u32, userdata: &mut UserTimerData) {
+fn timer_callback(_timer: &AfbTimer, _decount: u32, userdata: &mut UserTimerData) {
     let ctx= userdata.ctx.clone();
 
     let count= ctx.incr_counter();

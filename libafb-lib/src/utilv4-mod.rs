@@ -83,7 +83,7 @@ macro_rules! AfbTimerRegister {
         #[allow(non_camel_case_types)]
         type $timer_name = $userdata;
         impl libafb::utilv4::AfbTimerControl for $userdata {
-            fn timer_callback(&mut self, timer: &mut libafb::utilv4::AfbTimer, decount: u32) {
+            fn timer_callback(&mut self, timer: &libafb::utilv4::AfbTimer, decount: u32) {
                 $callback(timer, decount, self)
             }
         }
@@ -92,21 +92,21 @@ macro_rules! AfbTimerRegister {
         #[allow(non_camel_case_types)]
         struct $timer_name;
         impl libafb::apiv4::AfbTimerControl for $timer_name {
-            fn timer_callback(&mut self, &mut timer: libafb::utilv4::AfbTimer, decount: u32) {
+            fn timer_callback(&mut self, &timer: libafb::utilv4::AfbTimer, decount: u32) {
                 $callback(timer, decount)
             }
         }
     };
 }
 
-pub use AfbEvtfdRegister;
+pub use AfbEvtFdRegister;
 #[macro_export]
-macro_rules! AfbEvtfdRegister {
+macro_rules! AfbEvtFdRegister {
     ($evtfd_name:ident, $callback:ident, $userdata:ident) => {
         #[allow(non_camel_case_types)]
         type $evtfd_name = $userdata;
-        impl libafb::utilv4::AfbEvtfdControl for $userdata {
-            fn evtfd_callback(&mut self, evtfd: &mut libafb::utilv4::AfbEvtfd, revents: u32) {
+        impl libafb::utilv4::AfbEvtFdControl for $userdata {
+            fn evtfd_callback(&mut self, evtfd: &libafb::utilv4::AfbEvtFd, revents: u32) {
                 $callback(evtfd, revents, self)
             }
         }
@@ -114,8 +114,8 @@ macro_rules! AfbEvtfdRegister {
     ($evtfd_name: ident, $callback:ident) => {
         #[allow(non_camel_case_types)]
         struct $evtfd_name;
-        impl libafb::apiv4::AfbEvtfdControl for $evtfd_name {
-            fn evtfd_callback(&mut self, &mut evtfd: libafb::utilv4::AfbEvtfd, revents: u32) {
+        impl libafb::apiv4::AfbEvtFdControl for $evtfd_name {
+            fn evtfd_callback(&mut self, &evtfd: libafb::utilv4::AfbEvtFd, revents: u32) {
                 $callback(evtfd, revents)
             }
         }
@@ -129,7 +129,7 @@ macro_rules! AfbJobRegister {
         #[allow(non_camel_case_types)]
         type $job_name = $userdata;
         impl libafb::utilv4::AfbJobControl for $userdata {
-            fn job_callback(&mut self, job: &mut libafb::utilv4::AfbSchedJob, signal: i32) {
+            fn job_callback(&mut self, job: &libafb::utilv4::AfbSchedJob, signal: i32) {
                 $callback(job, signal, self)
             }
         }
@@ -138,7 +138,7 @@ macro_rules! AfbJobRegister {
         #[allow(non_camel_case_types)]
         struct $job_name;
         impl libafb::utilv4::AfbJobControl for $job_name {
-            fn job_callback(&mut self, &mut job: libafb::utilv4::AfbSchedJob, signal: i32) {
+            fn job_callback(&mut self, &job: libafb::utilv4::AfbSchedJob, signal: i32) {
                 $callback(job, signal)
             }
         }
@@ -551,7 +551,7 @@ impl AfbLogMsg {
 }
 
 pub trait AfbTimerControl {
-    fn timer_callback(&mut self, timer: &mut AfbTimer, decount: u32);
+    fn timer_callback(&mut self, timer: &AfbTimer, decount: u32);
 }
 
 // Afb AfbTimerHandle implementation
@@ -699,7 +699,7 @@ pub extern "C" fn api_schedjob_cb(signal: i32, userdata: *mut std::os::raw::c_vo
 }
 
 pub trait AfbJobControl {
-    fn job_callback(&mut self, jobs: &mut AfbSchedJob, signal: i32);
+    fn job_callback(&mut self, jobs: &AfbSchedJob, signal: i32);
 }
 pub struct AfbSchedJob {
     _uid: &'static str,
@@ -927,7 +927,7 @@ struct TapCtxData {
 }
 
 impl AfbJobControl for TapCtxData {
-    fn job_callback(&mut self, _job: &mut AfbSchedJob, signal: i32) {
+    fn job_callback(&mut self, _job: &AfbSchedJob, signal: i32) {
         let test = unsafe { &mut *(self.test as *mut AfbTapTest) };
         let suite = test.get_suite();
         let event = suite.get_event();
@@ -1585,7 +1585,7 @@ struct TapSuiteAutoRun {
 
 /// autostart is launched as job to complete API initialisation before effectively starting test suite
 impl AfbJobControl for TapSuiteAutoRun {
-    fn job_callback(&mut self, _jobs: &mut AfbSchedJob, _signal: i32) {
+    fn job_callback(&mut self, _jobs: &AfbSchedJob, _signal: i32) {
         let suite = unsafe {&mut *(self.suite as *mut AfbTapSuite)};
         let autostart = unsafe { &mut *(suite.autostart) };
 
@@ -1659,7 +1659,7 @@ impl AfbRqtControl for TapGroupData {
 
 
 pub trait AfbEvtFdControl {
-    fn evtfd_callback(&mut self, evfd: &mut AfbEvtFd, revents: u32);
+    fn evtfd_callback(&mut self, evfd: &AfbEvtFd, revents: u32);
 }
 
 // Afb AfbTimerHandle implementation
@@ -1725,6 +1725,11 @@ impl AfbEvtFd {
 
     pub fn set_info(&mut self, value: &'static str) -> &mut Self {
         self.info = value;
+        self
+    }
+
+    pub fn set_fd(&mut self, sockfd: ::std::os::raw::c_int) -> &mut Self {
+        self.fd = sockfd;
         self
     }
 
