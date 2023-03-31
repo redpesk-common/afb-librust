@@ -92,7 +92,7 @@ macro_rules! AfbTimerRegister {
         #[allow(non_camel_case_types)]
         struct $timer_name;
         impl libafb::apiv4::AfbTimerControl for $timer_name {
-            fn timer_callback(&mut self, &timer: libafb::utilv4::AfbTimer, decount: u32) {
+            fn timer_callback(&mut self, timer: &libafb::utilv4::AfbTimer, decount: u32) {
                 $callback(timer, decount)
             }
         }
@@ -115,7 +115,7 @@ macro_rules! AfbEvtFdRegister {
         #[allow(non_camel_case_types)]
         struct $evtfd_name;
         impl libafb::apiv4::AfbEvtFdControl for $evtfd_name {
-            fn evtfd_callback(&mut self, &evtfd: libafb::utilv4::AfbEvtFd, revents: u32) {
+            fn evtfd_callback(&mut self, evtfd: &libafb::utilv4::AfbEvtFd, revents: u32) {
                 $callback(evtfd, revents)
             }
         }
@@ -138,7 +138,7 @@ macro_rules! AfbJobRegister {
         #[allow(non_camel_case_types)]
         struct $job_name;
         impl libafb::utilv4::AfbJobControl for $job_name {
-            fn job_callback(&mut self, &job: libafb::utilv4::AfbSchedJob, signal: i32) {
+            fn job_callback(&mut self, job: &libafb::utilv4::AfbSchedJob, signal: i32) {
                 $callback(job, signal)
             }
         }
