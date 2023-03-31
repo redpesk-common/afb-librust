@@ -1148,6 +1148,10 @@ impl AfbApi {
         }
     }
 
+    pub fn as_mut(&self) -> &mut Self {
+        unsafe {&mut *(self as *const _ as *mut AfbApi)}
+    }
+
     pub fn get_uid(&self) -> &'static str {
         self._uid
     }
@@ -2209,6 +2213,10 @@ impl AfbGroup {
     // return object getter trait to prevent any malicious modification
     pub fn finalize(&'static mut self) -> &'static AfbGroup {
         self
+    }
+
+    pub fn as_mut(&self) -> &mut Self {
+        unsafe {&mut *(self as *const _ as *mut AfbGroup)}
     }
 
     pub fn as_any(&self) -> &dyn Any {

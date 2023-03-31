@@ -1709,10 +1709,10 @@ pub struct AfbEvtFd {
 }
 
 impl AfbEvtFd {
-    pub fn new(uid: &'static str, fd: std::os::raw::c_int) -> &'static mut Self {
+    pub fn new(uid: &'static str) -> &'static mut Self {
         let timer_box = Box::new(AfbEvtFd {
             uid: uid,
-            fd: fd,
+            fd: 0,
             info: "",
             callback: None,
             autounref: 0,
