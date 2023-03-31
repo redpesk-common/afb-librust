@@ -29,6 +29,7 @@ use std::collections::HashMap;
 use std::ffi::CString;
 use std::fmt;
 use std::sync::{Arc, Condvar, Mutex};
+use bitflags::bitflags;
 
 const AUTOSTART: &str = "autostart";
 const TIMEOUT: u32 = 5;
@@ -93,6 +94,29 @@ macro_rules! AfbTimerRegister {
         impl libafb::apiv4::AfbTimerControl for $timer_name {
             fn timer_callback(&mut self, &mut timer: libafb::utilv4::AfbTimer, decount: u32) {
                 $callback(timer, decount)
+            }
+        }
+    };
+}
+
+pub use AfbEvtfdRegister;
+#[macro_export]
+macro_rules! AfbEvtfdRegister {
+    ($evtfd_name:ident, $callback:ident, $userdata:ident) => {
+        #[allow(non_camel_case_types)]
+        type $evtfd_name = $userdata;
+        impl libafb::utilv4::AfbEvtfdControl for $userdata {
+            fn evtfd_callback(&mut self, evtfd: &mut libafb::utilv4::AfbEvtfd, revents: u32) {
+                $callback(evtfd, revents, self)
+            }
+        }
+    };
+    ($evtfd_name: ident, $callback:ident) => {
+        #[allow(non_camel_case_types)]
+        struct $evtfd_name;
+        impl libafb::apiv4::AfbEvtfdControl for $evtfd_name {
+            fn evtfd_callback(&mut self, &mut evtfd: libafb::utilv4::AfbEvtfd, revents: u32) {
+                $callback(evtfd, revents)
             }
         }
     };
@@ -1643,38 +1667,33 @@ pub trait AfbEvtFdControl {
 #[no_mangle]
 pub extern "C" fn api_evtfd_cb(
     _efd: cglue::afb_evfd_t,
-    fd: ::std::os::raw::c_int,
+    _fd: ::std::os::raw::c_int,
     revents: u32,
     userdata: *mut ::std::os::raw::c_void
 ) {
-    // extract timer+api object from libafb internals
-    let timer_ref = unsafe { &mut *(userdata as *mut AfbTimer) };
+    // extract evtfd+api object from libafb internals
+    let evtfd_ref = unsafe { &mut *(userdata as *mut AfbEvtFd) };
 
-    // call timer calback
-    match timer_ref.callback {
-        Some(timer_control) => unsafe { (*timer_control).timer_callback(timer_ref, decount) },
-        _ => panic!("timer={} no callback defined", timer_ref._uid),
+    // call evtfd calback
+    match evtfd_ref.callback {
+        Some(evtfd_control) => unsafe { (*evtfd_control).evtfd_callback(evtfd_ref, revents) },
+        _ => panic!("evtfd={} no callback defined", evtfd_ref.uid),
     }
 
-// pub const afb_epoll_EPOLLIN: afb_epoll = 0;
-// pub const afb_epoll_EPOLLOUT: afb_epoll = 1;
-// pub const afb_epoll_EPOLLRDHUP: afb_epoll = 2;
-// pub const afb_epoll_EPOLLHUP: afb_epoll = 3;
-// pub const afb_epoll_EPOLLERR: afb_epoll = 4;
-
-
     // clean callback control box
-    if revent == cglue::afb_epoll_EPOLLIN  {
-        let _ctrlbox = unsafe { Box::from_raw(timer_ref) };
+    if revents ==  AfbEvtFdPoll::HUP.bits() {
+        let _ctrlbox = unsafe { Box::from_raw(evtfd_ref) };
     }
 }
 
-enum AfbEvtFdPoll{
-    EPOLLIN,
-    EPOLLOUT,
-    EPOLLRDHUP,
-    EPOLLHUP,
-    EPOLLERR,
+bitflags! {
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+    pub struct AfbEvtFdPoll: u32 {
+        const IN = cglue::afb_epoll_epoll_IN;
+        const OUT= cglue::afb_epoll_epoll_OUT;
+        const HUP= cglue::afb_epoll_epoll_HUP;
+        const ERR= cglue::afb_epoll_epoll_ERR;
+    }
 }
 
 // Event FD add a filedescriptor to mainloop and connect a callback
@@ -1689,8 +1708,6 @@ pub struct AfbEvtFd {
     autoclose: i32,
 }
 
-
-https://github.com/nathansizemore/epoll/blob/master/src/lib.rs
 impl AfbEvtFd {
     pub fn new(uid: &'static str, fd: std::os::raw::c_int) -> &'static mut Self {
         let timer_box = Box::new(AfbEvtFd {
@@ -1701,7 +1718,7 @@ impl AfbEvtFd {
             autounref: 0,
             autoclose: 0,
             efdv4: 0 as cglue::afb_evfd_t,
-            events: AfbEvtFd::EPOLLIN,
+            events: AfbEvtFdPoll::IN.bits(),
         });
         Box::leak(timer_box)
     }
@@ -1721,8 +1738,8 @@ impl AfbEvtFd {
         self
     }
 
-    pub fn set_events(&mut self, events: AfbEvtFd) -> &mut Self {
-        self.events= events;
+    pub fn set_events(&mut self, events: AfbEvtFdPoll) -> &mut Self {
+        self.events= events.bits();
         self
     }
 
@@ -1741,14 +1758,14 @@ impl AfbEvtFd {
 
         let status = unsafe {
             cglue::afb_evfd_create(
-                &self.efd,
+                &mut self.efdv4,
                 self.fd,
                 self.events,
                 Some(api_evtfd_cb),
                 self as *const _ as *mut std::ffi::c_void,
                 self.autounref,
                 self.autoclose,
-            );
+            )
         };
         if status != 0 {
             return Err(AfbError::new(self.uid, "Afb_EvtFd creation fail"));
@@ -1757,15 +1774,23 @@ impl AfbEvtFd {
     }
 
     pub fn get_uid(&self) -> &'static str {
-        self._uid
+        self.uid
     }
 
     pub fn unref(&self) {
-        unsafe { cglue::afb_timer_unref(self._timerv4) };
+        unsafe { cglue::afb_evfd_unref(self.efdv4) };
     }
 
     pub fn addref(&self) {
-        unsafe { cglue::afb_timer_addref(self._timerv4) };
+        unsafe { cglue::afb_evfd_addref(self.efdv4) };
+    }
+
+    pub fn get_fd(&self) -> i32{
+        unsafe { cglue::afb_evfd_get_fd(self.efdv4) }
+    }
+
+    pub fn get_events(&self) -> u32{
+        unsafe { cglue::afb_evfd_get_events(self.efdv4) }
     }
 
     pub fn get_info(&self) -> &'static str {

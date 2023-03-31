@@ -24,6 +24,7 @@
 #define AFB_BINDING_VERSION 4
 // process with gcc -E libafb_glue.h | sed 's/static *inline//' | sed '/^#/d' | sed '/^$/d' >libafb_glue.c
 #include <afb/afb-binding-v4.h>
+#include <sys/epoll.h>
 
 //void afb_verbose(int loglevel, const char *file, int line, const char *function, const char *fmt, ...) __attribute__((format(printf, 5, 6)));
 
@@ -42,9 +43,9 @@ va_end(args);
 }
 
 typedef enum afb_epoll {
-  EPOLLIN,
-  EPOLLOUT,
-  EPOLLRDHUP,
-  EPOLLHUP,
-  EPOLLERR,
+  epoll_IN  = EPOLLIN,
+  epoll_OUT = EPOLLOUT,
+  epoll_HUP = EPOLLHUP,
+  epoll_RDH = EPOLLRDHUP,
+  epoll_ERR = EPOLLERR,
 } afb_epoll_t;

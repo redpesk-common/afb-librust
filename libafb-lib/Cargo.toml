@@ -22,3 +22,4 @@ path = "src/libafb-main.rs"
 
 [dependencies]
 lib_jsonc = {path="../jsonc-lib"}
+bitflags = "2"

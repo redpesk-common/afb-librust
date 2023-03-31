@@ -130,6 +130,7 @@ typedef unsigned int __id_t;
 typedef long int __time_t;
 typedef unsigned int __useconds_t;
 typedef long int __suseconds_t;
+typedef long int __suseconds64_t;
 typedef int __daddr_t;
 typedef int __key_t;
 typedef int __clockid_t;
@@ -264,9 +265,10 @@ extern int dysize (int __year) __attribute__ ((__nothrow__ , __leaf__)) __attrib
 extern int nanosleep (const struct timespec *__requested_time,
         struct timespec *__remaining);
 extern int clock_getres (clockid_t __clock_id, struct timespec *__res) __attribute__ ((__nothrow__ , __leaf__));
-extern int clock_gettime (clockid_t __clock_id, struct timespec *__tp) __attribute__ ((__nothrow__ , __leaf__));
+extern int clock_gettime (clockid_t __clock_id, struct timespec *__tp)
+     __attribute__ ((__nothrow__ , __leaf__)) __attribute__ ((__nonnull__ (2)));
 extern int clock_settime (clockid_t __clock_id, const struct timespec *__tp)
-     __attribute__ ((__nothrow__ , __leaf__));
+     __attribute__ ((__nothrow__ , __leaf__)) __attribute__ ((__nonnull__ (2)));
 extern int clock_nanosleep (clockid_t __clock_id, int __flags,
        const struct timespec *__req,
        struct timespec *__rem);
@@ -1676,6 +1678,256 @@ extern const struct afb_binding_v4 afbBindingV4;
 {
  return afb_api_logmask(afbBindingV4root);
 }
+typedef __u_char u_char;
+typedef __u_short u_short;
+typedef __u_int u_int;
+typedef __u_long u_long;
+typedef __quad_t quad_t;
+typedef __u_quad_t u_quad_t;
+typedef __fsid_t fsid_t;
+typedef __loff_t loff_t;
+typedef __ino_t ino_t;
+typedef __dev_t dev_t;
+typedef __gid_t gid_t;
+typedef __mode_t mode_t;
+typedef __nlink_t nlink_t;
+typedef __uid_t uid_t;
+typedef __off_t off_t;
+typedef __id_t id_t;
+typedef __ssize_t ssize_t;
+typedef __daddr_t daddr_t;
+typedef __caddr_t caddr_t;
+typedef __key_t key_t;
+typedef unsigned long int ulong;
+typedef unsigned short int ushort;
+typedef unsigned int uint;
+typedef __uint8_t u_int8_t;
+typedef __uint16_t u_int16_t;
+typedef __uint32_t u_int32_t;
+typedef __uint64_t u_int64_t;
+typedef int register_t __attribute__ ((__mode__ (__word__)));
+static __inline __uint16_t
+__bswap_16 (__uint16_t __bsx)
+{
+  return __builtin_bswap16 (__bsx);
+}
+static __inline __uint32_t
+__bswap_32 (__uint32_t __bsx)
+{
+  return __builtin_bswap32 (__bsx);
+}
+__extension__ static __inline __uint64_t
+__bswap_64 (__uint64_t __bsx)
+{
+  return __builtin_bswap64 (__bsx);
+}
+static __inline __uint16_t
+__uint16_identity (__uint16_t __x)
+{
+  return __x;
+}
+static __inline __uint32_t
+__uint32_identity (__uint32_t __x)
+{
+  return __x;
+}
+static __inline __uint64_t
+__uint64_identity (__uint64_t __x)
+{
+  return __x;
+}
+typedef struct
+{
+  unsigned long int __val[(1024 / (8 * sizeof (unsigned long int)))];
+} __sigset_t;
+typedef __sigset_t sigset_t;
+struct timeval
+{
+  __time_t tv_sec;
+  __suseconds_t tv_usec;
+};
+typedef __suseconds_t suseconds_t;
+typedef long int __fd_mask;
+typedef struct
+  {
+    __fd_mask __fds_bits[1024 / (8 * (int) sizeof (__fd_mask))];
+  } fd_set;
+typedef __fd_mask fd_mask;
+extern int select (int __nfds, fd_set *__restrict __readfds,
+     fd_set *__restrict __writefds,
+     fd_set *__restrict __exceptfds,
+     struct timeval *__restrict __timeout);
+extern int pselect (int __nfds, fd_set *__restrict __readfds,
+      fd_set *__restrict __writefds,
+      fd_set *__restrict __exceptfds,
+      const struct timespec *__restrict __timeout,
+      const __sigset_t *__restrict __sigmask);
+typedef __blksize_t blksize_t;
+typedef __blkcnt_t blkcnt_t;
+typedef __fsblkcnt_t fsblkcnt_t;
+typedef __fsfilcnt_t fsfilcnt_t;
+typedef union
+{
+  __extension__ unsigned long long int __value64;
+  struct
+  {
+    unsigned int __low;
+    unsigned int __high;
+  } __value32;
+} __atomic_wide_counter;
+typedef struct __pthread_internal_list
+{
+  struct __pthread_internal_list *__prev;
+  struct __pthread_internal_list *__next;
+} __pthread_list_t;
+typedef struct __pthread_internal_slist
+{
+  struct __pthread_internal_slist *__next;
+} __pthread_slist_t;
+struct __pthread_mutex_s
+{
+  int __lock;
+  unsigned int __count;
+  int __owner;
+  unsigned int __nusers;
+  int __kind;
+  short __spins;
+  short __elision;
+  __pthread_list_t __list;
+};
+struct __pthread_rwlock_arch_t
+{
+  unsigned int __readers;
+  unsigned int __writers;
+  unsigned int __wrphase_futex;
+  unsigned int __writers_futex;
+  unsigned int __pad3;
+  unsigned int __pad4;
+  int __cur_writer;
+  int __shared;
+  signed char __rwelision;
+  unsigned char __pad1[7];
+  unsigned long int __pad2;
+  unsigned int __flags;
+};
+struct __pthread_cond_s
+{
+  __atomic_wide_counter __wseq;
+  __atomic_wide_counter __g1_start;
+  unsigned int __g_refs[2] ;
+  unsigned int __g_size[2];
+  unsigned int __g1_orig_size;
+  unsigned int __wrefs;
+  unsigned int __g_signals[2];
+};
+typedef unsigned int __tss_t;
+typedef unsigned long int __thrd_t;
+typedef struct
+{
+  int __data ;
+} __once_flag;
+typedef unsigned long int pthread_t;
+typedef union
+{
+  char __size[4];
+  int __align;
+} pthread_mutexattr_t;
+typedef union
+{
+  char __size[4];
+  int __align;
+} pthread_condattr_t;
+typedef unsigned int pthread_key_t;
+typedef int pthread_once_t;
+union pthread_attr_t
+{
+  char __size[56];
+  long int __align;
+};
+typedef union pthread_attr_t pthread_attr_t;
+typedef union
+{
+  struct __pthread_mutex_s __data;
+  char __size[40];
+  long int __align;
+} pthread_mutex_t;
+typedef union
+{
+  struct __pthread_cond_s __data;
+  char __size[48];
+  __extension__ long long int __align;
+} pthread_cond_t;
+typedef union
+{
+  struct __pthread_rwlock_arch_t __data;
+  char __size[56];
+  long int __align;
+} pthread_rwlock_t;
+typedef union
+{
+  char __size[8];
+  long int __align;
+} pthread_rwlockattr_t;
+typedef volatile int pthread_spinlock_t;
+typedef union
+{
+  char __size[32];
+  long int __align;
+} pthread_barrier_t;
+typedef union
+{
+  char __size[4];
+  int __align;
+} pthread_barrierattr_t;
+enum
+  {
+    EPOLL_CLOEXEC = 02000000
+  };
+enum EPOLL_EVENTS
+  {
+    EPOLLIN = 0x001,
+    EPOLLPRI = 0x002,
+    EPOLLOUT = 0x004,
+    EPOLLRDNORM = 0x040,
+    EPOLLRDBAND = 0x080,
+    EPOLLWRNORM = 0x100,
+    EPOLLWRBAND = 0x200,
+    EPOLLMSG = 0x400,
+    EPOLLERR = 0x008,
+    EPOLLHUP = 0x010,
+    EPOLLRDHUP = 0x2000,
+    EPOLLEXCLUSIVE = 1u << 28,
+    EPOLLWAKEUP = 1u << 29,
+    EPOLLONESHOT = 1u << 30,
+    EPOLLET = 1u << 31
+  };
+typedef union epoll_data
+{
+  void *ptr;
+  int fd;
+  uint32_t u32;
+  uint64_t u64;
+} epoll_data_t;
+struct epoll_event
+{
+  uint32_t events;
+  epoll_data_t data;
+} __attribute__ ((__packed__));
+extern int epoll_create (int __size) __attribute__ ((__nothrow__ , __leaf__));
+extern int epoll_create1 (int __flags) __attribute__ ((__nothrow__ , __leaf__));
+extern int epoll_ctl (int __epfd, int __op, int __fd,
+        struct epoll_event *__event) __attribute__ ((__nothrow__ , __leaf__));
+extern int epoll_wait (int __epfd, struct epoll_event *__events,
+         int __maxevents, int __timeout)
+ __attribute__ ((__access__ (__write_only__, 2, 3)));
+extern int epoll_pwait (int __epfd, struct epoll_event *__events,
+   int __maxevents, int __timeout,
+   const __sigset_t *__ss)
+ __attribute__ ((__access__ (__write_only__, 2, 3)));
+extern int epoll_pwait2 (int __epfd, struct epoll_event *__events,
+    int __maxevents, const struct timespec *__timeout,
+    const __sigset_t *__ss)
+ __attribute__ ((__access__ (__write_only__, 2, 3)));
 void afb_verbose(
 int level,
 const char *file,
@@ -1698,9 +1950,19 @@ args
            ;
 }
 typedef enum afb_epoll {
-  EPOLLIN,
-  EPOLLOUT,
-  EPOLLRDHUP,
-  EPOLLHUP,
-  EPOLLERR,
+  epoll_IN = 
+             EPOLLIN
+                    ,
+  epoll_OUT = 
+             EPOLLOUT
+                     ,
+  epoll_HUP = 
+             EPOLLHUP
+                     ,
+  epoll_RDH = 
+             EPOLLRDHUP
+                       ,
+  epoll_ERR = 
+             EPOLLERR
+                     ,
 } afb_epoll_t;

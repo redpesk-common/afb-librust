@@ -4,7 +4,7 @@
         {
             "name": "Native 'afb-demo'",
             "type": "lldb",
-            "preLaunchTask": "native-compile-demo",
+            "preLaunchTask": "native-compile-test",
             "request": "launch",
             "program": "afb-binder",
             "env": {
@@ -87,7 +87,7 @@
         {
             "name": "Native 'afb-helloworld'",
             "type": "lldb",
-            "preLaunchTask": "native-compile-libafb",
+            "preLaunchTask": "native-compile-binding",
             "request": "launch",
             "program": "afb-binder",
             "env": {

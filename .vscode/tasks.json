@@ -2,11 +2,10 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "native-compile-libafb",
+            "label": "native-compile-binding",
             "type": "cargo",
             "command": "build",
             "args": [
-                "--target-dir=target/${env:HOSTNAME}",
             ],
             "problemMatcher": [
                 "$rustc"
@@ -17,12 +16,11 @@
             }
         },
         {
-            "label": "native-compile-demo",
+            "label": "native-compile-test",
             "type": "cargo",
             "command": "build",
-            "dependsOn": "native-compile-libafb",
+            "dependsOn": "native-compile-binding",
             "args": [
-                "--target-dir=target/${env:HOSTNAME}",
                 "--example",
                 "afb_demo"
             ],
@@ -38,9 +36,8 @@
             "label": "native-compile-test",
             "type": "cargo",
             "command": "build",
-            "dependsOn": "native-compile-demo",
+            "dependsOn": "native-compile-test",
             "args": [
-                "--target-dir=target/${env:HOSTNAME}",
                 "--example",
                 "afb_test"
             ],
@@ -58,7 +55,6 @@
             "command": "build",
             "dependsOn": "native-compile-test",
             "args": [
-                "--target-dir=target/${env:HOSTNAME}",
                 "--example",
                 "afb_bench"
             ],
