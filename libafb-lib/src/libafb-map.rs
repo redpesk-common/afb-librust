@@ -1572,6 +1572,13 @@ extern "C" {
         ...
     );
 }
+pub const afb_epoll_EPOLLIN: afb_epoll = 0;
+pub const afb_epoll_EPOLLOUT: afb_epoll = 1;
+pub const afb_epoll_EPOLLRDHUP: afb_epoll = 2;
+pub const afb_epoll_EPOLLHUP: afb_epoll = 3;
+pub const afb_epoll_EPOLLERR: afb_epoll = 4;
+pub type afb_epoll = ::std::os::raw::c_uint;
+pub use self::afb_epoll as afb_epoll_t;
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct json_object {

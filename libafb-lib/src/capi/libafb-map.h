@@ -41,4 +41,10 @@ afb_api_vverbose(afbBindingV4root, level, file, line, func, fmt, args);
 va_end(args);
 }
 
-
+typedef enum afb_epoll {
+  EPOLLIN,
+  EPOLLOUT,
+  EPOLLRDHUP,
+  EPOLLHUP,
+  EPOLLERR,
+} afb_epoll_t;

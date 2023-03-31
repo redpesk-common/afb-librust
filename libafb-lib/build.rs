@@ -49,6 +49,7 @@ fn main() {
         .layout_tests(false)
         .allowlist_function("afb_.*")
         .allowlist_type("afb_syslog_.*")
+        .allowlist_type("afb_epoll_.*")
         .allowlist_type("afb_req_subcall_flags")
         .allowlist_var("afbBinding.*")
         .blocklist_item("__BindgenBitfieldUnit")

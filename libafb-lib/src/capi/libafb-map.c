@@ -1697,3 +1697,10 @@ args
 )
            ;
 }
+typedef enum afb_epoll {
+  EPOLLIN,
+  EPOLLOUT,
+  EPOLLRDHUP,
+  EPOLLHUP,
+  EPOLLERR,
+} afb_epoll_t;

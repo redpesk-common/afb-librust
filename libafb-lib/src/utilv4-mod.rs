@@ -1632,3 +1632,144 @@ impl AfbRqtControl for TapGroupData {
         }
     }
 }
+
+
+pub trait AfbEvtFdControl {
+    fn evtfd_callback(&mut self, evfd: &mut AfbEvtFd, revents: u32);
+}
+
+// Afb AfbTimerHandle implementation
+// ------------------------
+#[no_mangle]
+pub extern "C" fn api_evtfd_cb(
+    _efd: cglue::afb_evfd_t,
+    fd: ::std::os::raw::c_int,
+    revents: u32,
+    userdata: *mut ::std::os::raw::c_void
+) {
+    // extract timer+api object from libafb internals
+    let timer_ref = unsafe { &mut *(userdata as *mut AfbTimer) };
+
+    // call timer calback
+    match timer_ref.callback {
+        Some(timer_control) => unsafe { (*timer_control).timer_callback(timer_ref, decount) },
+        _ => panic!("timer={} no callback defined", timer_ref._uid),
+    }
+
+// pub const afb_epoll_EPOLLIN: afb_epoll = 0;
+// pub const afb_epoll_EPOLLOUT: afb_epoll = 1;
+// pub const afb_epoll_EPOLLRDHUP: afb_epoll = 2;
+// pub const afb_epoll_EPOLLHUP: afb_epoll = 3;
+// pub const afb_epoll_EPOLLERR: afb_epoll = 4;
+
+
+    // clean callback control box
+    if revent == cglue::afb_epoll_EPOLLIN  {
+        let _ctrlbox = unsafe { Box::from_raw(timer_ref) };
+    }
+}
+
+enum AfbEvtFdPoll{
+    EPOLLIN,
+    EPOLLOUT,
+    EPOLLRDHUP,
+    EPOLLHUP,
+    EPOLLERR,
+}
+
+// Event FD add a filedescriptor to mainloop and connect a callback
+pub struct AfbEvtFd {
+    uid: &'static str,
+    info: &'static str,
+    efdv4: cglue::afb_evfd_t,
+    fd: ::std::os::raw::c_int,
+    events: u32,
+    callback: Option<*mut dyn AfbEvtFdControl>,
+    autounref: i32,
+    autoclose: i32,
+}
+
+
+https://github.com/nathansizemore/epoll/blob/master/src/lib.rs
+impl AfbEvtFd {
+    pub fn new(uid: &'static str, fd: std::os::raw::c_int) -> &'static mut Self {
+        let timer_box = Box::new(AfbEvtFd {
+            uid: uid,
+            fd: fd,
+            info: "",
+            callback: None,
+            autounref: 0,
+            autoclose: 0,
+            efdv4: 0 as cglue::afb_evfd_t,
+            events: AfbEvtFd::EPOLLIN,
+        });
+        Box::leak(timer_box)
+    }
+
+    pub fn set_info(&mut self, value: &'static str) -> &mut Self {
+        self.info = value;
+        self
+    }
+
+    pub fn set_autounref(&mut self, autounref: bool) -> &mut Self {
+        if autounref {self.autounref = 1};
+        self
+    }
+
+    pub fn set_autoclose(&mut self, autoclose: bool) -> &mut Self {
+        if autoclose {self.autoclose = 1};
+        self
+    }
+
+    pub fn set_events(&mut self, events: AfbEvtFd) -> &mut Self {
+        self.events= events;
+        self
+    }
+
+    pub fn set_callback(&mut self, ctrlbox: Box<dyn AfbEvtFdControl>) -> &mut Self {
+        self.callback = Some(Box::leak(ctrlbox));
+        self
+    }
+
+    pub fn start(&mut self) -> Result<&Self, AfbError> {
+        if self.fd == 0 || self.callback == None {
+            return Err(AfbError::new(
+                self.uid,
+                "EventFd callback must be set and fd should >0",
+            ));
+        }
+
+        let status = unsafe {
+            cglue::afb_evfd_create(
+                &self.efd,
+                self.fd,
+                self.events,
+                Some(api_evtfd_cb),
+                self as *const _ as *mut std::ffi::c_void,
+                self.autounref,
+                self.autoclose,
+            );
+        };
+        if status != 0 {
+            return Err(AfbError::new(self.uid, "Afb_EvtFd creation fail"));
+        }
+        Ok(self)
+    }
+
+    pub fn get_uid(&self) -> &'static str {
+        self._uid
+    }
+
+    pub fn unref(&self) {
+        unsafe { cglue::afb_timer_unref(self._timerv4) };
+    }
+
+    pub fn addref(&self) {
+        unsafe { cglue::afb_timer_addref(self._timerv4) };
+    }
+
+    pub fn get_info(&self) -> &'static str {
+        self.info
+    }
+
+}
