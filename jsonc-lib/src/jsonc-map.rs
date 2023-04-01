@@ -59,11 +59,6 @@ extern "C" {
 extern "C" {
     pub fn json_object_new_object() -> *mut json_object;
 }
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub struct lh_table {
-    _unused: [u8; 0],
-}
 extern "C" {
     pub fn json_object_get_object(obj: *const json_object) -> *mut lh_table;
 }
@@ -308,6 +303,37 @@ extern "C" {
         str_: *const ::std::os::raw::c_char,
         len: ::std::os::raw::c_int,
     ) -> *mut json_object;
+}
+pub type lh_entry_free_fn = ::std::option::Option<unsafe extern "C" fn(e: *mut lh_entry)>;
+pub type lh_hash_fn = ::std::option::Option<
+    unsafe extern "C" fn(k: *const ::std::os::raw::c_void) -> ::std::os::raw::c_ulong,
+>;
+pub type lh_equal_fn = ::std::option::Option<
+    unsafe extern "C" fn(
+        k1: *const ::std::os::raw::c_void,
+        k2: *const ::std::os::raw::c_void,
+    ) -> ::std::os::raw::c_int,
+>;
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct lh_entry {
+    pub k: *const ::std::os::raw::c_void,
+    pub k_is_constant: ::std::os::raw::c_int,
+    pub v: *const ::std::os::raw::c_void,
+    pub next: *mut lh_entry,
+    pub prev: *mut lh_entry,
+}
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct lh_table {
+    pub size: ::std::os::raw::c_int,
+    pub count: ::std::os::raw::c_int,
+    pub head: *mut lh_entry,
+    pub tail: *mut lh_entry,
+    pub table: *mut lh_entry,
+    pub free_fn: lh_entry_free_fn,
+    pub hash_fn: lh_hash_fn,
+    pub equal_fn: lh_equal_fn,
 }
 #[repr(C)]
 #[derive(Copy, Clone)]

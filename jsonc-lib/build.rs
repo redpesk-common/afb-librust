@@ -38,7 +38,7 @@ fn main() {
 
     let jsonc = bindgen::Builder::default()
         // main entry point for wrapper
-        .header("src/capi/jsonc_map.h")
+        .header("src/capi/jsonc-map.h")
         .raw_line(header)
         // default wrapper config
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
@@ -62,6 +62,6 @@ fn main() {
         .expect("Unable to generate jsonc");
 
     jsonc
-        .write_to_file("src/jsonc_map.rs")
+        .write_to_file("src/jsonc-map.rs")
         .expect("Couldn't write jsonc!");
 }

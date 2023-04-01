@@ -22,10 +22,10 @@
  */
 #![doc(html_logo_url = "https://iot.bzh/images/defaults/company/512-479-max-transp.png", html_favicon_url = "https://iot.bzh/images/defaults/favicon.ico")]
 
-include!("./jsonc_glue.rs");
+include!("./jsonc-glue.rs");
 
 #[cfg(test)]
-#[path = "./jsonc_test.rs"]
+#[path = "./jsonc-test.rs"]
 mod jsonc_test;
 
 pub mod jsonc_mod {

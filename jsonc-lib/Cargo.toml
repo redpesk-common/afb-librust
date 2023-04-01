@@ -18,5 +18,5 @@ cc = "1"
 [lib]
 name = "jsonc"
 crate-type = ["lib"]
-path = "src/jsonc_mod.rs"
+path = "src/jsonc-mod.rs"
 

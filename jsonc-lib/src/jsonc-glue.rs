@@ -26,7 +26,7 @@ mod cglue {
     #![allow(dead_code)]
     #![allow(non_upper_case_globals)]
     #![allow(non_camel_case_types)]
-    #![allow(non_snake_case)] 
+    #![allow(non_snake_case)]
 
     pub const JSON_C_TO_STRING_PLAIN: u32 = 0;
     pub const JSON_C_TO_STRING_SPACED: u32 = 1;
@@ -39,5 +39,5 @@ mod cglue {
     pub type printbuf = ::std::os::raw::c_int;
     pub type json_tokener = ::std::os::raw::c_int;
 
-    include!("./jsonc_map.rs");
+    include!("./jsonc-map.rs");
 }
