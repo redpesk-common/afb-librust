@@ -52,6 +52,7 @@ pub fn register(apiv4: AfbApiV4) -> &'static AfbGroup {
     let set = AfbVerb::new("set")
         .set_callback(Box::new(SetLoaCtrl {}))
         .set_info("Set Loa to 1")
+        .set_permission(AfbPermission::new("acl:valeo"))
         .set_usage("no input")
         .finalize();
 
@@ -65,7 +66,7 @@ pub fn register(apiv4: AfbApiV4) -> &'static AfbGroup {
     AfbGroup::new(mod_name)
         .set_info("LOA demo group")
         .set_prefix(mod_name)
-        //.set_permission(AfbPermission::new("acl:loa"))
+        .set_permission(AfbPermission::new("acl:loa"))
         .add_verb(set)
         .add_verb(reset)
         .add_verb(check)

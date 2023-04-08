@@ -8,7 +8,7 @@
   "binding": [
     {
         "uid": "rust-api",
-        "path": "./target/$HOSTNAME/debug/examples/libafb_demo.so",
+        "path": "$CARGO_TARGET_DIR/debug/examples/libafb_demo.so",
         "info": "RUST sample API binding (Rust)"
     },
     {

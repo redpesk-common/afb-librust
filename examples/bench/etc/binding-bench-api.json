@@ -12,12 +12,12 @@
   "binding": [
     {
         "uid": "rust-demo-binding",
-        "path": "-./target/$HOSTNAME/debug/examples/libafb_demo.so",
+        "path": "-${CARGO_TARGET_DIR}/debug/examples/libafb_demo.so",
         "info": "RUST sample API binding (Rust)"
     },
     {
         "uid": "tap-test-binding",
-        "path": "./target/$HOSTNAME/debug/examples/libafb_bench.so",
+        "path": "${CARGO_TARGET_DIR}/debug/examples/libafb_bench.so",
         "info": "Rust converter benchmark binding API",
     }
   ],

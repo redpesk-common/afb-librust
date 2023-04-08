@@ -4,16 +4,20 @@
   "alias": ["/devtools:/usr/share/afb-ui-devtools/binder"],
   "threads-max": 10,
   "monitoring": true,
+    //   import remote binding api
+    //  "ws-client": [
+    //     "tcp:$TARGET-IP:PORT/rust-api"
+    //   ],
 
   "binding": [
     {
         "uid": "rust-demo-binding",
-        "path": "-./target/$HOSTNAME/debug/examples/libafb_demo.so",
+        "path": "-${CARGO_TARGET_DIR}/debug/examples/libafb_demo.so",
         "info": "RUST sample API binding (Rust)"
     },
     {
         "uid": "tap-test-binding",
-        "path": "./target/$HOSTNAME/debug/examples/libafb_test.so",
+        "path": "${CARGO_TARGET_DIR}/debug/examples/libafb_test.so",
         "info": "Rust testing sample binding API",
     }
   ],
