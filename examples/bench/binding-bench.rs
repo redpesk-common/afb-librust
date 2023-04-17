@@ -15,7 +15,7 @@ extern crate libafb;
 use std::time::Instant;
 
 // import libafb dependencies
-libafb::AfbModImport!();
+use libafb::prelude::*;
 
 // import demo SimpleData converter.
 extern crate demo_converter;

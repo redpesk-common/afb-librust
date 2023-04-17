@@ -7,7 +7,7 @@
  */
 
 // import libafb dependencies
-libafb::AfbModImport!();
+use libafb::prelude::*;
 
 // loa test group expose 3 verbs
 // -- loa/set: move session LOA to 1

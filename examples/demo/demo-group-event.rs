@@ -7,7 +7,7 @@
  */
 
 // import libafb dependencies
-libafb::AfbModImport!();
+use libafb::prelude::*;
 use std::sync::Arc;
 use std::cell::Cell;
 

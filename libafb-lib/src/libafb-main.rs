@@ -25,6 +25,7 @@
 extern crate jsonc;
 extern crate bitflags;
 
+
 // cglue is exported as pricate
 #[path = "./cglue-mod.rs"]
 mod cgluev4;
@@ -37,3 +38,11 @@ pub mod datav4;
 
 #[path = "./utilv4-mod.rs"]
 pub mod utilv4;
+
+pub mod prelude {
+    pub use jsonc::jsonc_mod::*;
+    pub use apiv4::*;
+    pub use datav4::*;
+    pub use utilv4::*;
+    pub use std::any::Any;
+}

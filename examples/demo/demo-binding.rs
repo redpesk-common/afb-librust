@@ -16,7 +16,7 @@ extern crate libafb;
 extern crate serde;
 
 // import libafb dependencies
-libafb::AfbModImport!();
+use libafb::prelude::*;
 
 // include verb callbacks code & definitions
 // -----------------------------------------

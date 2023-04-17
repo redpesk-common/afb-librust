@@ -13,7 +13,9 @@
 extern crate jsonc;
 extern crate libafb;
 extern crate serde;
-libafb::AfbModImport!();
+
+// import libafb dependencies
+use libafb::prelude::*;
 
 // automatically generate json encoder/decoder for MySimpleData
 AfbDataConverter!(simple_data, MySimpleData);

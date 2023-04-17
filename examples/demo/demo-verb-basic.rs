@@ -7,7 +7,7 @@
 */
 
 // import libafb dependencies
-libafb::AfbModImport!();
+use libafb::prelude::*;
 
 // AfbApi AfbVerb without vcbdata
 AfbVerbRegister!(VerbCtrl, callback);

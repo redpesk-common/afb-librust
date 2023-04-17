@@ -18,7 +18,7 @@ extern crate demo_converter;
 use self::demo_converter::MySimpleData;
 
 // import libafb dependencies
-libafb::AfbModImport!();
+use libafb::prelude::*;
 
 // This rootv4 demonstrate how to test an external rootv4 that you load within the same afb-binder process and security context
 // It leverages test (Test Anything Protocol) that is compatible with redpesk testing report.

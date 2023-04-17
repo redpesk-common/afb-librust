@@ -10,7 +10,7 @@
 // client may subscribe/unsubscribe to sensor event, read/reset the counter.
 // counter is protected with a Cell in order to make it accessible from both the verb callback and the timer.
 
-libafb::AfbModImport!();
+use libafb::prelude::*;
 use std::sync::Arc;
 use std::cell::Cell;
 enum Action {

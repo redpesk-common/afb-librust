@@ -7,7 +7,7 @@
  */
 
 // import libafb dependencies
-libafb::AfbModImport!();
+use libafb::prelude::*;
 
 // mySimpleData type is within an external crate to allow sharing with other crate/binding/binder
 extern crate demo_converter;
