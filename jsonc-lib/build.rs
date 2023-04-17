@@ -62,6 +62,6 @@ fn main() {
         .expect("Unable to generate jsonc");
 
     jsonc
-        .write_to_file("src/jsonc-map.rs")
+        .write_to_file("src/capi/jsonc-map.rs")
         .expect("Couldn't write jsonc!");
 }

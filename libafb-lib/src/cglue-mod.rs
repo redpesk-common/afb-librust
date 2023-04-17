@@ -41,7 +41,7 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 #![allow(dead_code)]
-include!("./libafb-map.rs");
+include!("./capi/libafb-map.rs");
 
 // hack to force RUST to export afbBinding mandatory entry points
 #[export_name = "afbBindingV4r1_itfptr"]

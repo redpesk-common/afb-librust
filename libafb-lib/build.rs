@@ -59,7 +59,7 @@ fn main() {
         .expect("Unable to generate libafb");
 
     libafb
-        .write_to_file("src/libafb-map.rs")
+        .write_to_file("src/capi/libafb-map.rs")
         .expect("Couldn't write libafb!");
 
 

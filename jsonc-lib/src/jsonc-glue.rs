@@ -39,5 +39,5 @@ mod cglue {
     pub type printbuf = ::std::os::raw::c_int;
     pub type json_tokener = ::std::os::raw::c_int;
 
-    include!("./jsonc-map.rs");
+    include!("./capi/jsonc-map.rs");
 }
