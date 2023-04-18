@@ -85,9 +85,9 @@ impl AfbApiControls for TapUserData {
 
         let loa_group = AfbTapGroup::new("check-loa")
             .set_info("check session LOA")
-            .add_test(loa1)?
-            .add_test(loa2)?
-            .add_test(loa3)?
+            .add_test(loa1)
+            .add_test(loa2)
+            .add_test(loa3)
             .finalize()?;
 
         // ------ Timer Group -----------
@@ -108,9 +108,9 @@ impl AfbApiControls for TapUserData {
 
         let timer_group = AfbTapGroup::new("check-timer")
             .set_info("Check delay and timer")
-            .add_test(timer1)?
-            .add_test(timerx)?
-            .add_test(timer2)?
+            .add_test(timer1)
+            .add_test(timerx)
+            .add_test(timer2)
             .finalize()?;
 
         // ------ Event Group -----------
@@ -133,23 +133,23 @@ impl AfbApiControls for TapUserData {
 
         let event_group = AfbTapGroup::new("check-event")
             .set_info("check session EVENT")
-            .add_test(event1)?
-            .add_test(event2)?
-            .add_test(event3)?
-            .add_test(event4)?
+            .add_test(event1)
+            .add_test(event2)
+            .add_test(event3)
+            .add_test(event4)
             .finalize()?;
 
         AfbTapSuite::new(api, "Tap Demo Test")
             .set_info("Check Example demo API works")
             .set_timeout(0)
-            .add_test(test1)?
-            .add_test(test2)?
-            .add_test(test3)?
-            .add_test(test4)?
-            .add_test(test5)?
-            .add_group(event_group)?
-            .add_group(loa_group)?
-            .add_group(timer_group)?
+            .add_test(test1)
+            .add_test(test2)
+            .add_test(test3)
+            .add_test(test4)
+            .add_test(test5)
+            .add_group(event_group)
+            .add_group(loa_group)
+            .add_group(timer_group)
             .set_autorun(self.autostart)
             .set_autoexit(self.autoexit)
             .set_output(self.output)

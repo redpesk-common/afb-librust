@@ -49,9 +49,9 @@ impl AfbApiControls for TapUserData {
         AfbTapSuite::new(api, "Tap Demo Test")
             .set_info("Benchmark afb-rust type converters")
             .set_timeout(0)
-            .add_test(ping_test)?
-            .add_test(json_test)?
-            .add_test(lazy_test)?
+            .add_test(ping_test)
+            .add_test(json_test)
+            .add_test(lazy_test)
             .set_autorun(self.autostart)
             .set_autoexit(self.autoexit)
             .set_output(self.output)
@@ -414,10 +414,10 @@ pub fn binding_test_init(rootv4: AfbApiV4, jconf: JsoncObj) -> Result<&'static A
     // create a loop api to initiate subcalls
     AfbApi::new("loop-bench")
         .set_info("Loopback api used to initiate subcalls")
-        .add_verb(ping_verb)?
-        .add_verb(json_verb)?
-        .add_verb(lazy_verb)?
-        .add_verb(timer_nodata)?
+        .add_verb(ping_verb)
+        .add_verb(json_verb)
+        .add_verb(lazy_verb)
+        .add_verb(timer_nodata)
         .finalize()?;
 
     // create test api for automatic benchmarking

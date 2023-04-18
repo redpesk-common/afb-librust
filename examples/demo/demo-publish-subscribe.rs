@@ -160,8 +160,8 @@ pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
         .set_info("Publish/Subscribe demo group")
         .set_prefix(mod_name)
         .set_permission(AfbPermission::new("acl:pub-sub"))
-        .add_verb(verb)?
-        .add_event(event)?
+        .add_verb(verb)
+        .add_event(event)
         .finalize()?;
 
     Ok(group)

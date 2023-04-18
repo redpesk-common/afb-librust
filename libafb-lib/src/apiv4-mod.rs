@@ -933,9 +933,9 @@ impl AfbApi {
     ///    .add_verb(verb)
     ///    ;// ... .finalize();
     /// ```
-    pub fn add_verb(&mut self, verb: &AfbVerb) -> Result<&mut Self, AfbError> {
+    pub fn add_verb(&mut self, verb: &AfbVerb) -> &mut Self {
         self.verbs.push(verb);
-        Ok(self)
+        self
     }
 
     /// Add a event to API
@@ -994,9 +994,9 @@ impl AfbApi {
     ///    .add_group(group)
     ///    ; // ... .finalize();
     /// ```
-    pub fn add_group(&mut self, group: &AfbGroup) -> Result<&mut Self,AfbError> {
+    pub fn add_group(&mut self, group: &AfbGroup) -> &mut Self {
         self.groups.push(group);
-        Ok(self)
+        self
     }
 
     /// Add a callback to event reception
@@ -2153,14 +2153,14 @@ impl AfbGroup {
         self
     }
 
-    pub fn add_verb(&'static mut self, verb: &AfbVerb) -> Result<&'static mut Self,AfbError> {
+    pub fn add_verb(&'static mut self, verb: &AfbVerb) -> &'static mut Self {
         self.verbs.push(verb);
-        Ok(self)
+        self
     }
 
-    pub fn add_event(&'static mut self, event: &'static AfbEvent) -> Result<&'static mut Self, AfbError> {
+    pub fn add_event(&'static mut self, event: &'static AfbEvent) -> &'static mut Self {
         self.events.push(event);
-        Ok(self)
+        self
     }
 
     pub fn add_evt_handler(&'static mut self, handler: &AfbEvtHandler) -> &'static mut Self {

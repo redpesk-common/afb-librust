@@ -110,8 +110,8 @@ pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
         .set_prefix(mod_name)
         //.set_permission(AfbPermission::new("acl:evt"))
         .set_verbosity(3)
-        .add_verb(job_post)?
-        .add_verb(start_timer)?
+        .add_verb(job_post)
+        .add_verb(start_timer)
         .finalize()?;
 
     Ok(group)

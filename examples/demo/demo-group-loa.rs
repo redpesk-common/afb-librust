@@ -67,9 +67,9 @@ pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
         .set_info("LOA demo group")
         .set_prefix(mod_name)
         .set_permission(AfbPermission::new("acl:loa"))
-        .add_verb(set)?
-        .add_verb(reset)?
-        .add_verb(check)?
+        .add_verb(set)
+        .add_verb(reset)
+        .add_verb(check)
         .finalize()?;
     Ok(group)
 }

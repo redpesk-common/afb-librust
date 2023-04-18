@@ -92,15 +92,15 @@ pub fn binding_init(rootv4: AfbApiV4, jconf: AfbJsonObj) -> Result <&'static Afb
         .set_info("My first Rust API")
         .set_permission(AfbPermission::new("acl:rust"))
         .set_callback(Box::new(ApiUserData {_any_data: "skipail"}))
-        .add_verb(verb_probe::register(rootv4)?)?
-        .add_verb(verb_basic::register(rootv4)?)?
-        .add_verb(verb_typed::register(rootv4)?)?
-        .add_group(event_group::register(rootv4)?)?
-        .add_group(timer_group::register(rootv4)?)?
-        .add_group(subcall_group::register(rootv4)?)?
-        .add_group(pub_sub_group::register(rootv4)?)?
-        .add_group(loa_group::register(rootv4)?)?
-        .add_group(helloworld_group::register(rootv4)?)?
+        .add_verb(verb_probe::register(rootv4)?)
+        .add_verb(verb_basic::register(rootv4)?)
+        .add_verb(verb_typed::register(rootv4)?)
+        .add_group(event_group::register(rootv4)?)
+        .add_group(timer_group::register(rootv4)?)
+        .add_group(subcall_group::register(rootv4)?)
+        .add_group(pub_sub_group::register(rootv4)?)
+        .add_group(loa_group::register(rootv4)?)
+        .add_group(helloworld_group::register(rootv4)?)
         .seal(false)
         .finalize()?;
 
