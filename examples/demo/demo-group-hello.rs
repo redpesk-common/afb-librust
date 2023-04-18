@@ -56,7 +56,7 @@ fn hello_start_cb(request: &AfbRequest, _args: &AfbData) {
 }
 
 // prefix group of event verbs and attach a default privilege
-pub fn register(apiv4: AfbApiV4) -> &'static AfbGroup {
+pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
     // build verb name from Rust module name
     let mod_name = module_path!().split(':').last().unwrap();
     afb_log_msg!(Notice, apiv4, "Registering group={}", mod_name);
@@ -65,20 +65,22 @@ pub fn register(apiv4: AfbApiV4) -> &'static AfbGroup {
         .set_callback(Box::new(HelloStartCtrl {}))
         .set_info("connect to helloworld &api start-timer and subscribe to event")
         .set_usage("no input")
-        .finalize();
+        .finalize()?;
 
     let stop_hello = AfbVerb::new("hello-stop")
         .set_callback(Box::new(HelloStopCtrl {}))
         .set_info("asynchronous call to api-test/ping")
         .set_usage("no input")
-        .finalize();
+        .finalize()?;
 
-    AfbGroup::new(mod_name)
+    let group=AfbGroup::new(mod_name)
         .set_info("timer demo api group")
         .set_prefix(mod_name)
         .set_permission(AfbPermission::new("acl:evt"))
         .set_verbosity(3)
-        .add_verb(start_hello)
-        .add_verb(stop_hello)
-        .finalize()
+        .add_verb(start_hello)?
+        .add_verb(stop_hello)?
+        .finalize()?;
+
+    Ok(group)
 }

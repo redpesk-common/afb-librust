@@ -131,12 +131,12 @@ fn jobpost_verb(request: &AfbRequest, args: &AfbData, userdata: &mut UserPostVer
 }
 
 // prefix group of event verbs and attach a default privilege
-pub fn register(apiv4: AfbApiV4) -> &'static AfbGroup {
+pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
     // build verb name from Rust module name
     let mod_name = module_path!().split(':').last().unwrap();
     afb_log_msg!(Notice, apiv4, "Registering group={}", mod_name);
 
-    let event = AfbEvent::new("timer-event").finalize();
+    let event = AfbEvent::new("timer-event").finalize()?;
     let ctxdata= Arc::new(UserCtxData {
         counter: Cell::new(0),
         event: event,
@@ -148,7 +148,7 @@ pub fn register(apiv4: AfbApiV4) -> &'static AfbGroup {
         }))
         .set_info("tics 1s timer for 10 tic")
         .set_usage("no input")
-        .finalize();
+        .finalize()?;
 
     let job_post = AfbVerb::new("job-post")
         .set_callback(Box::new(UserPostVerb {
@@ -156,15 +156,17 @@ pub fn register(apiv4: AfbApiV4) -> &'static AfbGroup {
         }))
         .set_info("return response in 3s")
         .set_usage("no input")
-        .finalize();
+        .finalize()?;
 
-    AfbGroup::new(mod_name)
+    let group=AfbGroup::new(mod_name)
         .set_info("timer demo api group")
         .set_prefix(mod_name)
         .set_permission(AfbPermission::new("acl:evt"))
         .set_verbosity(3)
-        .add_verb(start_timer)
-        .add_verb(job_post)
-        .add_event(event)
-        .finalize()
+        .add_verb(start_timer)?
+        .add_verb(job_post)?
+        .add_event(event)?
+        .finalize()?;
+
+    Ok(group)
 }

@@ -78,7 +78,7 @@ fn sync_call_cb(request: &AfbRequest, _args: &AfbData) {
     };
 }
 
-pub fn register(apiv4: AfbApiV4) -> &'static AfbGroup {
+pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
     // build verb name from Rust module name
     let mod_name = module_path!().split(':').last().unwrap();
     afb_log_msg!(Notice, apiv4, "Registering group={}", mod_name);
@@ -97,20 +97,22 @@ pub fn register(apiv4: AfbApiV4) -> &'static AfbGroup {
         .set_callback(Box::new(SyncCallCtrl {}))
         .set_info("synchronous call to internal loop-test/ping")
         .set_usage("no input")
-        .finalize();
+        .finalize()?;
 
     let start_timer = AfbVerb::new("async-call")
         .set_callback(Box::new(AsyncCallCtrl {}))
         .set_info("asynchronous call to loop-test/ping")
         .set_usage("no input")
-        .finalize();
+        .finalize()?;
 
-    AfbGroup::new(mod_name)
+    let group= AfbGroup::new(mod_name)
         .set_info("timer demo api group")
         .set_prefix(mod_name)
         //.set_permission(AfbPermission::new("acl:evt"))
         .set_verbosity(3)
-        .add_verb(job_post)
-        .add_verb(start_timer)
-        .finalize()
+        .add_verb(job_post)?
+        .add_verb(start_timer)?
+        .finalize()?;
+
+    Ok(group)
 }

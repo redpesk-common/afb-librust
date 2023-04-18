@@ -31,45 +31,36 @@ struct TapUserData {
 
 // AfbApi userdata implements AfbApiControls trait
 impl AfbApiControls for TapUserData {
-    fn start(&mut self, api: &AfbApi) -> i32 {
+    fn start(&mut self, api: &AfbApi) -> Result<(), AfbError> {
         afb_log_msg!(Notice, api, "starting afb-rust type benchmark");
 
         let ping_test = AfbTapTest::new("no-data", "loop-bench", "nodata-convert")
             .set_info("Start 1000 loop without any data parameter")
-            .add_arg(&JsonStr("{'loop':10000}")).expect("valid json")
-            ;
+            .add_arg(&JsonStr("{'loop':10000}"))?;
 
         let json_test = AfbTapTest::new("json-args", "loop-bench", "json-convert")
             .set_info("Start 1000 loop with binary parameter")
-            .add_arg(&JsonStr("{'loop':10000}")).expect("valid json")
-            ;
+            .add_arg(&JsonStr("{'loop':10000}"))?;
 
         let lazy_test = AfbTapTest::new("binary-args", "loop-bench", "lazy-convert")
             .set_info("Start 1000 loop with binary parameter")
-            .add_arg(&JsonStr("{'loop':10000}")).expect("valid json")
-            ;
+            .add_arg(&JsonStr("{'loop':10000}"))?;
 
-        let test_suite = AfbTapSuite::new(api, "Tap Demo Test")
+        AfbTapSuite::new(api, "Tap Demo Test")
             .set_info("Benchmark afb-rust type converters")
             .set_timeout(0)
-            .add_test(ping_test)
-            .add_test(json_test)
-            .add_test(lazy_test)
+            .add_test(ping_test)?
+            .add_test(json_test)?
+            .add_test(lazy_test)?
             .set_autorun(self.autostart)
             .set_autoexit(self.autoexit)
             .set_output(self.output)
-            .finalize();
+            .finalize()?;
 
-        match test_suite {
-            Err(error) => {
-                afb_log_msg!(Critical, api, "Bench fail to start error={}", error);
-                AFB_FATAL
-            }
-            Ok(_json) => AFB_OK,
-        }
+        Ok(())
     }
 
-    fn config(&mut self, api: &AfbApi, jconf: AfbJsonObj) -> i32 {
+    fn config(&mut self, api: &AfbApi, jconf: AfbJsonObj) -> Result<(), AfbError> {
         afb_log_msg!(Debug, api, "api={} config={}", api.get_uid(), jconf);
         match jconf.get::<bool>("autostart") {
             Ok(value) => self.autostart = value,
@@ -96,7 +87,7 @@ impl AfbApiControls for TapUserData {
                 }
             },
         };
-        AFB_OK
+        Ok(())
     }
 
     // mandatory for downcasting back to custom apidata object
@@ -113,25 +104,28 @@ struct UserTimerData {
 
 AfbTimerRegister!(TimerHandlerCtrl, timer_callback, UserTimerData);
 fn timer_callback(timer: &AfbTimer, decount: u32, userdata: &mut UserTimerData) {
-
     match AfbSubCall::call_sync(userdata.apiv4, "rust-api", "verb_probe", AFB_NO_DATA) {
-            Err(mut error) => {
-                afb_log_msg!(Error, userdata.apiv4, afb_add_trace!(error));
-                timer.unref();
-                return;
-            },
-            Ok(result) => {
-                if result.get_status() != AFB_OK {
+        Err(mut error) => {
+            afb_log_msg!(Error, userdata.apiv4, afb_add_trace!(error));
+            timer.unref();
+            return;
+        }
+        Ok(result) => {
+            if result.get_status() != AFB_OK {
                 afb_log_msg!(Error, userdata.apiv4, "status != AFB_OK");
                 timer.unref();
                 return;
-                }
             }
+        }
     };
 
     if decount == 1 {
         // last run print result
-        let msg= format!("no-data loop:{} duration:{:?}", userdata.count, userdata.start.elapsed());
+        let msg = format!(
+            "no-data loop:{} duration:{:?}",
+            userdata.count,
+            userdata.start.elapsed()
+        );
         afb_log_msg!(Notice, userdata.apiv4, msg.as_str());
     }
 }
@@ -148,15 +142,14 @@ fn timer_verb_cb(request: &AfbRequest, args: &AfbData) {
             return;
         }
         Ok(jarg) => {
-
-            count= match jarg.get::<u32>("loop") {
+            count = match jarg.get::<u32>("loop") {
                 Err(error) => {
                     request.reply(error, -99);
                     return;
                 }
                 Ok(value) => value,
             };
-            tic= match jarg.get::<u32>("tic") {
+            tic = match jarg.get::<u32>("tic") {
                 Err(error) => {
                     request.reply(error, -99);
                     return;
@@ -166,14 +159,13 @@ fn timer_verb_cb(request: &AfbRequest, args: &AfbData) {
         }
     };
 
-
-    let userdata= UserTimerData {
+    let userdata = UserTimerData {
         start: Instant::now(),
         count: count,
         apiv4: request.get_api().get_apiv4(),
     };
 
-    let timer= match AfbTimer::new("demo_timer")
+    let timer = match AfbTimer::new("demo_timer")
         .set_period(tic)
         .set_decount(count)
         .set_callback(Box::new(userdata))
@@ -187,7 +179,12 @@ fn timer_verb_cb(request: &AfbRequest, args: &AfbData) {
         Ok(value) => value,
     };
 
-    let msg= format! ("api:{} loop:{} timer:{}ms started", request.get_verb().get_uid(), count, tic);
+    let msg = format!(
+        "api:{} loop:{} timer:{}ms started",
+        request.get_verb().get_uid(),
+        count,
+        tic
+    );
     afb_log_msg!(Notice, request, msg.as_str());
     request.reply(msg.as_str(), 0);
     timer.addref(); // make sure timer remain acting after verb callback
@@ -196,7 +193,6 @@ fn timer_verb_cb(request: &AfbRequest, args: &AfbData) {
 // call API without any argument
 AfbVerbRegister!(PingCtrl, ping_subcall_cb);
 fn ping_subcall_cb(request: &AfbRequest, args: &AfbData) {
-
     let count = match args.get::<AfbJsonObj>(0) {
         Err(mut error) => {
             request.reply(afb_add_trace!(error), -99);
@@ -213,18 +209,17 @@ fn ping_subcall_cb(request: &AfbRequest, args: &AfbData) {
 
     let start = Instant::now();
     for _idx in 0..count {
-
         match AfbSubCall::call_sync(request, "rust-api", "verb_probe", AFB_NO_DATA) {
             Err(mut error) => {
                 afb_log_msg!(Error, request, &error);
                 request.reply(afb_add_trace!(error), -1);
                 return;
             }
-            Ok(_value) => {},
+            Ok(_value) => {}
         };
     }
     let duration = start.elapsed();
-    let msg= format!("no-data loop:{} duration:{:?}", count, duration);
+    let msg = format!("no-data loop:{} duration:{:?}", count, duration);
     afb_log_msg!(Notice, request, msg.as_str());
     request.reply(msg.as_str(), 0);
 }
@@ -232,7 +227,6 @@ fn ping_subcall_cb(request: &AfbRequest, args: &AfbData) {
 // call API with passing a retrieve a jsonc object, this will force conversion
 AfbVerbRegister!(JsonCtrl, json_subcall_cb);
 fn json_subcall_cb(request: &AfbRequest, args: &AfbData) {
-
     let count = match args.get::<AfbJsonObj>(0) {
         Err(mut error) => {
             request.reply(afb_add_trace!(error), -99);
@@ -249,11 +243,10 @@ fn json_subcall_cb(request: &AfbRequest, args: &AfbData) {
 
     let start = Instant::now();
     for idx in 0..count {
-
         // just to prove we do not cache response
         let userdata = MySimpleData {
             x: idx as i32,
-            y: idx as i32 *-1,
+            y: idx as i32 * -1,
             name: "Skipail IoT.bzh".to_owned(),
         };
 
@@ -296,7 +289,7 @@ fn json_subcall_cb(request: &AfbRequest, args: &AfbData) {
         }
     }
     let duration = start.elapsed();
-    let msg= format!("json converter loop:{} duration:{:?}", count, duration);
+    let msg = format!("json converter loop:{} duration:{:?}", count, duration);
     afb_log_msg!(Notice, request, msg.as_str());
     request.reply(msg.as_str(), 0);
 }
@@ -304,7 +297,6 @@ fn json_subcall_cb(request: &AfbRequest, args: &AfbData) {
 // call API with passing a binary object using lazy converting mode
 AfbVerbRegister!(LazyCtrl, lazy_subcall_cb);
 fn lazy_subcall_cb(request: &AfbRequest, args: &AfbData) {
-
     let count = match args.get::<AfbJsonObj>(0) {
         Err(mut error) => {
             request.reply(afb_add_trace!(error), -99);
@@ -321,10 +313,9 @@ fn lazy_subcall_cb(request: &AfbRequest, args: &AfbData) {
 
     let start = Instant::now();
     for idx in 0..count {
-
         let userdata = MySimpleData {
             x: idx as i32,
-            y: idx as i32 *-1,
+            y: idx as i32 * -1,
             name: "Skipail IoT.bzh".to_owned(),
         };
 
@@ -354,21 +345,21 @@ fn lazy_subcall_cb(request: &AfbRequest, args: &AfbData) {
             }
             Ok(simple_data) => {
                 // use a data to assert data structure is valid
-                let _x= simple_data.x;
-                let _y= simple_data.y;
-                let _name= simple_data.name.as_str();
+                let _x = simple_data.x;
+                let _y = simple_data.y;
+                let _name = simple_data.name.as_str();
             }
         }
     }
     let duration = start.elapsed();
-    let msg= format!("direct converter loop:{} duration:{:?}", count, duration);
+    let msg = format!("direct converter loop:{} duration:{:?}", count, duration);
     afb_log_msg!(Notice, request, msg.as_str());
     request.reply(msg.as_str(), 0);
 }
 
 // rootv4 init callback started at rootv4 load time before any API exist
 // -----------------------------------------
-pub fn binding_test_init(rootv4: AfbApiV4, jconf: JsoncObj) -> i32 {
+pub fn binding_test_init(rootv4: AfbApiV4, jconf: JsoncObj) -> Result<&'static AfbApi, AfbError> {
     let uid = match jconf.get::<String>("uid") {
         Ok(value) => value,
         Err(_error) => "afbrust-bench-rootv4".to_owned(),
@@ -388,8 +379,7 @@ pub fn binding_test_init(rootv4: AfbApiV4, jconf: JsoncObj) -> i32 {
         .set_usage("{'loop': ?,'tic':?ms}")
         .set_sample("{'loop':1000,'tic':10}")
         .expect("invalid json")
-        .finalize();
-
+        .finalize()?;
 
     let ping_verb = AfbVerb::new("nodata-convert")
         .set_callback(Box::new(PingCtrl {}))
@@ -399,7 +389,7 @@ pub fn binding_test_init(rootv4: AfbApiV4, jconf: JsoncObj) -> i32 {
         .expect("invalid json")
         .set_sample("{'loop': 1000}")
         .expect("invalid json")
-        .finalize();
+        .finalize()?;
 
     let lazy_verb = AfbVerb::new("lazy-convert")
         .set_callback(Box::new(LazyCtrl {}))
@@ -409,7 +399,7 @@ pub fn binding_test_init(rootv4: AfbApiV4, jconf: JsoncObj) -> i32 {
         .expect("invalid json")
         .set_sample("{'loop': 1000}")
         .expect("invalid json")
-        .finalize();
+        .finalize()?;
 
     let json_verb = AfbVerb::new("json-convert")
         .set_callback(Box::new(JsonCtrl {}))
@@ -419,49 +409,26 @@ pub fn binding_test_init(rootv4: AfbApiV4, jconf: JsoncObj) -> i32 {
         .expect("invalid json")
         .set_sample("{'loop': 1000}")
         .expect("invalid json")
-        .finalize();
+        .finalize()?;
 
     // create a loop api to initiate subcalls
-    match AfbApi::new("loop-bench")
+    AfbApi::new("loop-bench")
         .set_info("Loopback api used to initiate subcalls")
-        .add_verb(ping_verb)
-        .add_verb(json_verb)
-        .add_verb(lazy_verb)
-        .add_verb(timer_nodata)
-        .finalize()
-    {
-        Ok(api_test) => {
-            afb_log_msg!(
-                Notice,
-                rootv4,
-                "Loopback api uid={} started",
-                api_test.get_uid()
-            );
-        }
-        Err(error) => {
-            afb_log_msg!(Critical, rootv4, "Fail to register api error={}", error);
-            panic!("(hoops) fail to create loop-bench")
-        }
-    };
+        .add_verb(ping_verb)?
+        .add_verb(json_verb)?
+        .add_verb(lazy_verb)?
+        .add_verb(timer_nodata)?
+        .finalize()?;
 
     // create test api for automatic benchmarking
     afb_log_msg!(Notice, rootv4, "-- rootv4 {} loaded", uid);
-    match AfbApi::new("tap-test")
+    let api = AfbApi::new("tap-test")
         .set_info("Testing Tap reporting")
         .require_api("rust-api")
         .set_callback(Box::new(tap_config))
         .seal(false)
-        .finalize()
-    {
-        Ok(api) => {
-            afb_log_msg!(Notice, rootv4, "Benchmark starting uid={}", api.get_uid());
-            AFB_OK
-        }
-        Err(error) => {
-            afb_log_msg!(Critical, rootv4, "Fail to register api error={}", error);
-            AFB_FATAL
-        }
-    }
+        .finalize()?;
+    Ok(api)
 }
 
 // register rootv4 within libafb

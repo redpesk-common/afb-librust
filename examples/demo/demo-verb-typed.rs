@@ -47,7 +47,7 @@ fn callback(request: &AfbRequest, args: &AfbData) {
     }
 }
 
-pub fn register(rootv4: AfbApiV4) -> &'static AfbVerb {
+pub fn register(rootv4: AfbApiV4) -> Result<&'static AfbVerb, AfbError> {
 
     // custom type should register once per binder
     demo_converter::register(rootv4).expect("must register custom type");
@@ -56,11 +56,13 @@ pub fn register(rootv4: AfbApiV4) -> &'static AfbVerb {
     let mod_name = module_path!().split(':').last().unwrap();
     afb_log_msg!(Notice, rootv4, "Registering verb={}", mod_name);
 
-    AfbVerb::new(mod_name)
+    let group= AfbVerb::new(mod_name)
         .set_callback(Box::new(VerbCtrl {}))
         .set_info("My 2nd demo verb")
         .set_usage("any json string")
-        .set_sample("{'x': 1, 'y':99, 'name':'IoT.bzh'}")
-        .expect("invalid json sample")
-        .finalize()
+        .set_sample("{'x': 1, 'y':99, 'name':'IoT.bzh'}")?
+        .finalize()?;
+
+    Ok(group)
 }
+

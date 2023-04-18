@@ -1003,6 +1003,10 @@ impl AfbTapTest {
         self
     }
 
+    pub fn finalize(&mut self) -> Result<&mut Self, AfbError> {
+        Ok(self)
+    }
+
     pub fn set_response(&mut self, status: i32, diagnostic: &str) -> &mut Self {
         self.response = Some(AfbTapResponse {
             status: status,
@@ -1283,6 +1287,10 @@ impl AfbTapGroup {
         Box::leak(boxe)
     }
 
+    pub fn finalize(&mut self) -> Result<&mut Self, AfbError> {
+        Ok(self)
+    }
+
     pub fn set_info(&'static mut self, value: &'static str) -> &'static mut Self {
         self.info = value;
         self
@@ -1293,7 +1301,7 @@ impl AfbTapGroup {
         self
     }
 
-    pub fn add_test(&'static mut self, test: &'static mut AfbTapTest) -> &'static mut Self {
+    pub fn add_test(&'static mut self, test: &'static mut AfbTapTest) -> Result <&'static mut Self, AfbError> {
         self.index += 1;
         test.index = self.index;
         test.group = self;
@@ -1303,11 +1311,11 @@ impl AfbTapGroup {
             .set_info(test.info)
             .set_callback(Box::new(TapTestData { test: test }))
             .set_usage("no input")
-            .finalize();
+            .finalize()?;
 
         let api_group= unsafe {&mut *(self.api_group as *mut AfbGroup)};
-        api_group.add_verb(verb);
-        self
+        api_group.add_verb(verb)?;
+        Ok(self)
     }
 
     // return suite test until group end
@@ -1414,16 +1422,16 @@ impl AfbTapSuite {
         self
     }
 
-    pub fn add_test(&'static mut self, test: &'static mut AfbTapTest) -> &'static mut Self {
+    pub fn add_test(&'static mut self, test: &'static mut AfbTapTest) -> Result <&'static mut Self, AfbError> {
         let autostart = unsafe { &mut *(self.autostart) };
         if test.timeout == 0 {
             test.timeout = self.timeout;
         }
-        autostart.add_test(test);
-        self
+        autostart.add_test(test)?;
+        Ok(self)
     }
 
-    pub fn add_group(&'static mut self, group: &mut AfbTapGroup) -> &'static mut Self {
+    pub fn add_group(&'static mut self, group: &mut AfbTapGroup) -> Result <&'static mut Self, AfbError> {
         if group.timeout == 0 {
             group.timeout = self.timeout;
         }
@@ -1438,12 +1446,12 @@ impl AfbTapSuite {
             .set_info(group.info)
             .set_usage("no_input")
             .register(api.get_apiv4(), AFB_NO_AUTH);
-        api.add_verb(verb.finalize());
+        api.add_verb(verb.finalize()?)?;
 
         let api_group= unsafe {&mut *(group.api_group as *mut AfbGroup)};
         api_group.register(api.get_apiv4(), AFB_NO_AUTH);
-        api.add_group(api_group);
-        self
+        api.add_group(api_group)?;
+        Ok(self)
     }
 
     pub fn set_autorun(&'static mut self, value: bool) -> &'static mut Self {
@@ -1514,7 +1522,7 @@ impl AfbTapSuite {
             .set_info("default tap autostart group")
             .set_usage("no_input")
             .register(api.get_apiv4(), AFB_NO_AUTH);
-        api.add_verb(verb.finalize());
+        api.add_verb(verb.finalize()?)?;
 
         // seal tap test api
         unsafe { cglue::afb_api_seal(api.get_apiv4()) };

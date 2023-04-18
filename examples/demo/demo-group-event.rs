@@ -114,13 +114,13 @@ fn event_get_callback(event: &AfbEventMsg, args: &AfbData, userdata: &mut EvtUse
 
 
 // prefix group of event verbs and attach a default privilege
-pub fn register(apiv4: AfbApiV4) -> &'static AfbGroup {
+pub fn register(apiv4: AfbApiV4) -> Result <&'static AfbGroup, AfbError> {
     // build verb name from Rust module name
     let mod_name = module_path!().split(':').last().unwrap();
     afb_log_msg!(Notice, apiv4, "Registering group={}", mod_name);
 
     // create event and build share Arc context data
-    let event= AfbEvent::new("demo-event").finalize();
+    let event= AfbEvent::new("demo-event").finalize()?;
     let ctxdata= Arc::new(UserCtxData {
         counter: Cell::new(0),
         event: event,
@@ -130,39 +130,39 @@ pub fn register(apiv4: AfbApiV4) -> &'static AfbGroup {
         .set_info("My first event handler")
         .set_pattern("helloworld-event/timerCount")
         .set_callback(Box::new(EventGetCtrl { ctx: Arc::clone(&ctxdata) }))
-        .finalize();
+        .finalize()?;
 
 
     let unsubscribe = AfbVerb::new("unsubscribe")
         .set_callback(Box::new(UnsubscribeCtrl {ctx: Arc::clone(&ctxdata)}))
         .set_info("unsubscribe to event")
         .set_usage("no input")
-        .finalize();
+        .finalize()?;
 
     let subscribe = AfbVerb::new("subscribe")
         .set_callback(Box::new(SubscribeCtrl {ctx: Arc::clone(&ctxdata)}))
         .set_info("unsubscribe to event")
         .set_usage("no input")
-        .finalize();
+        .finalize()?;
 
     let push = AfbVerb::new("push")
         .set_callback(Box::new(PushCtrl {ctx: Arc::clone(&ctxdata)}))
         .set_info("push query as event output")
         .set_usage("any json data")
-        .set_sample("{'skipail':'IoT.bzh'}")
-        .expect("invalid json sample")
+        .set_sample("{'skipail':'IoT.bzh'}")?
         .set_permission(AfbPermission::new("acl:evt:push"))
-        .finalize();
+        .finalize()?;
 
-    AfbGroup::new(mod_name)
+    let group= AfbGroup::new(mod_name)
         .set_info("event demo group")
         .set_prefix(mod_name)
         .set_permission(AfbPermission::new("acl:evt"))
         .set_verbosity(3)
-        .add_verb(subscribe)
-        .add_verb(unsubscribe)
-        .add_verb(push)
+        .add_verb(subscribe)?
+        .add_verb(unsubscribe)?
+        .add_verb(push)?
         .add_evt_handler(simple_event_handler)
-        .add_event(event)
-        .finalize()
+        .add_event(event)?
+        .finalize()?;
+    Ok(group)
 }

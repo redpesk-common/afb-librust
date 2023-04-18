@@ -38,7 +38,7 @@ fn check_loa_cb(request: &AfbRequest, _args: &AfbData) {
 }
 
 // prefix group of event verbs and attach a default privilege
-pub fn register(apiv4: AfbApiV4) -> &'static AfbGroup {
+pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
     // build verb name from Rust module name
     let mod_name = module_path!().split(':').last().unwrap();
     afb_log_msg!(Notice, apiv4, "Registering group={}", mod_name);
@@ -47,28 +47,29 @@ pub fn register(apiv4: AfbApiV4) -> &'static AfbGroup {
         .set_callback(Box::new(ResetLoaCtrl {}))
         .set_info("Reset Loa to zero")
         .set_usage("no input")
-        .finalize();
+        .finalize()?;
 
     let set = AfbVerb::new("set")
         .set_callback(Box::new(SetLoaCtrl {}))
         .set_info("Set Loa to 1")
         .set_permission(AfbPermission::new("acl:valeo"))
         .set_usage("no input")
-        .finalize();
+        .finalize()?;
 
     let check = AfbVerb::new("check")
         .set_callback(Box::new(CheckLoaCtrl {}))
         .set_info("Request LOA>=1 to accept incoming request")
         .set_usage("no input")
         .set_permission(AfbPermission::new(1))
-        .finalize();
+        .finalize()?;
 
-    AfbGroup::new(mod_name)
+    let group=AfbGroup::new(mod_name)
         .set_info("LOA demo group")
         .set_prefix(mod_name)
         .set_permission(AfbPermission::new("acl:loa"))
-        .add_verb(set)
-        .add_verb(reset)
-        .add_verb(check)
-        .finalize()
+        .add_verb(set)?
+        .add_verb(reset)?
+        .add_verb(check)?
+        .finalize()?;
+    Ok(group)
 }

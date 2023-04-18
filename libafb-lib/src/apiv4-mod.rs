@@ -26,9 +26,9 @@ use std::boxed::Box;
 use std::ffi::{CStr, CString};
 use std::fmt;
 // libafb dependencies
-use jsonc::jsonc_mod::Jtype;
 use cgluev4 as cglue;
 use datav4::*;
+use jsonc::jsonc_mod::Jtype;
 use utilv4::*;
 
 // alias few external types
@@ -74,8 +74,16 @@ macro_rules! AfbBindingRegister {
             api_data: *mut std::ffi::c_void,
         ) -> i32 {
             let jconf = libafb::apiv4::afb_binding_get_config(apiv4, ctlid, ctlarg, api_data);
-            let status = $callback(apiv4, jconf);
-            return status;
+            match $callback(apiv4, jconf) {
+                Ok(api) => {
+                    afb_log_msg!(Notice, apiv4, "RUST api uid={} started", api.get_uid());
+                    AFB_OK
+                }
+                Err(error) => {
+                    afb_log_msg!(Critical, apiv4, error.to_string());
+                    AFB_FAIL
+                }
+            }
         }
     };
 }
@@ -213,7 +221,7 @@ fn add_verbs_to_group(
 
         let jactions = verb_ref.get_action();
         if let Ok(count) = jactions.count() {
-            let jusages= AfbJsonObj::new();
+            let jusages = AfbJsonObj::new();
             if count > 0 {
                 jusages.add("action", jactions).unwrap();
             };
@@ -355,15 +363,15 @@ pub trait AfbApiControls {
     /// # use libafb::prelude::*;;
     /// struct ApiUserData{}
     /// impl AfbApiControls for ApiUserData {
-    ///   fn config(&mut self, api: &mut AfbApi, config: AfbJsonObj) -> i32 {
+    ///   fn config(&mut self, api: &mut AfbApi, config: AfbJsonObj) -> Result<(),AfbError> {
     ///     let _api_data = self; // self matches api_data
     ///     afb_log_msg!(Notice,api,"--api-config api={} config={}",api.get_uid(),config);
-    ///     AFB_OK // returning -1 will abort binder process
+    ///     Ok(()) // returning -1 will abort binder process
     ///   }
     ///   fn as_any(&mut self) -> &mut dyn Any {self}
     /// }
     /// ```
-    fn config(&mut self, api: &AfbApi, config: AfbJsonObj) -> i32 {
+    fn config(&mut self, api: &AfbApi, config: AfbJsonObj) -> Result<(), AfbError> {
         afb_log_msg!(
             Notice,
             api,
@@ -372,7 +380,7 @@ pub trait AfbApiControls {
             api.name,
             config
         );
-        return 0;
+        Ok(())
     }
 
     /// Called at when API is ready.
@@ -395,41 +403,34 @@ pub trait AfbApiControls {
     ///   my_event: &'static AfbEvent,
     /// }
     /// impl AfbApiControls for ApiUserData {
-    ///   fn start(&mut self, api: &mut AfbApi) -> i32 {
+    ///   fn start(&mut self, api: &mut AfbApi) ->  Result<(),AfbError> {
     ///     let api_data = self; // self matches api_data
     ///     let event_handler = AfbEvtHandler::new("handler-1")
     ///       .set_pattern("helloworld-event/timerCount")
     ///       .set_callback(Box::new(EventCtrl{counter: 0}))
     ///       .finalize();
     ///     // store event_handler into api_data
-    ///     AFB_OK
+    ///     Ok(())
     ///   }
     ///   fn as_any(&mut self) -> &mut dyn Any {self}
     /// }
     /// ```
-    fn start(&mut self, api: &AfbApi) -> i32 {
+    fn start(&mut self, api: &AfbApi) -> Result<(), AfbError> {
         afb_log_msg!(Debug, api, "api init uid:{}", api._uid);
-        return 0;
+        Ok(())
     }
 
     #[doc(hidden)]
-    fn ready(&mut self, api: &AfbApi) -> i32 {
+    fn ready(&mut self, api: &AfbApi) -> Result<(), AfbError> {
         afb_log_msg!(Debug, api, "api ready uid:{}", api._uid);
-        return 0;
+        Ok(())
     }
 
     /// Called at unattended event is received.
     ///
     /// Usually uses default trait implementation. Default prints a log message when ever an attended event it received.
-    fn orphan(&mut self, api: &AfbApi, signal: &str) -> i32 {
-        afb_log_msg!(
-            Info,
-            api,
-            "orphan event api:{} event: {}",
-            api._uid,
-            signal
-        );
-        return 0;
+    fn orphan(&mut self, api: &AfbApi, signal: &str) {
+        afb_log_msg!(Info, api, "orphan event api:{} event: {}", api._uid, signal);
     }
 
     /// Called at binding exit.
@@ -523,9 +524,16 @@ pub extern "C" fn api_controls_cb(
             // reference native afb apiv4 within rust api object
             api_ref.set_apiv4(apiv4);
             let mut status = match api_ref.ctrlbox {
-                Some(ctrlbox) => unsafe {
-                    (*ctrlbox).config(api_ref, binding_parse_config(apiv4, ctlarg))
-                },
+                Some(ctrlbox) => {
+                    match unsafe { (*ctrlbox).config(api_ref, binding_parse_config(apiv4, ctlarg)) }
+                    {
+                        Err(error) => {
+                            afb_log_msg!(Critical, apiv4, error.to_string());
+                            AFB_FAIL
+                        }
+                        Ok(()) => AFB_OK,
+                    }
+                }
                 None => 0,
             };
 
@@ -655,33 +663,48 @@ pub extern "C" fn api_controls_cb(
                 }
             };
             if status >= 0 && api_ref.do_seal {
-                unsafe { cglue::afb_api_seal(apiv4) };
+                unsafe { cglue::afb_api_seal(apiv4) }
             }
             status
         }
 
         cglue::afb_ctlid_afb_ctlid_Init => match api_ref.ctrlbox {
-            Some(ctrlbox) => unsafe { (*ctrlbox).start(api_ref) },
-            None => 0,
+            Some(ctrlbox) => match unsafe { (*ctrlbox).start(api_ref) } {
+                Ok(()) => AFB_OK,
+                Err(error) => {
+                    afb_log_msg!(Critical, apiv4, error.to_string());
+                    AFB_FAIL
+                }
+            },
+            None => AFB_OK,
         },
 
         cglue::afb_ctlid_afb_ctlid_Class_Ready => match api_ref.ctrlbox {
-            Some(ctrlbox) => unsafe { (*ctrlbox).ready(api_ref) },
-            None => 0,
+            Some(ctrlbox) => match unsafe { (*ctrlbox).ready(api_ref) } {
+                Ok(()) => AFB_OK,
+                Err(error) => {
+                    afb_log_msg!(Critical, apiv4, error.to_string());
+                    AFB_FAIL
+                }
+            },
+            None => AFB_OK,
         },
 
         cglue::afb_ctlid_afb_ctlid_Orphan_Event => match api_ref.ctrlbox {
             Some(ctrlbox) => {
                 let cbuffer = unsafe { (*ctlarg).orphan_event.name };
                 let cname = unsafe { CStr::from_ptr(cbuffer) };
-                unsafe { (*ctrlbox).orphan(api_ref, cname.to_str().unwrap()) }
+                unsafe {
+                    (*ctrlbox).orphan(api_ref, cname.to_str().unwrap());
+                };
+                AFB_OK
             }
-            None => 0,
+            None => AFB_OK,
         },
 
         cglue::afb_ctlid_afb_ctlid_Exiting => match api_ref.ctrlbox {
             Some(ctrlbox) => unsafe { (*ctrlbox).exit(api_ref, (*ctlarg).exiting.code) },
-            None => 0,
+            None => AFB_OK,
         },
 
         _ => {
@@ -910,9 +933,9 @@ impl AfbApi {
     ///    .add_verb(verb)
     ///    ;// ... .finalize();
     /// ```
-    pub fn add_verb(&mut self, verb: &AfbVerb) -> &mut Self {
+    pub fn add_verb(&mut self, verb: &AfbVerb) -> Result<&mut Self, AfbError> {
         self.verbs.push(verb);
-        self
+        Ok(self)
     }
 
     /// Add a event to API
@@ -971,9 +994,9 @@ impl AfbApi {
     ///    .add_group(group)
     ///    ; // ... .finalize();
     /// ```
-    pub fn add_group(&mut self, group: &AfbGroup) -> &mut Self {
+    pub fn add_group(&mut self, group: &AfbGroup) -> Result<&mut Self,AfbError> {
         self.groups.push(group);
-        self
+        Ok(self)
     }
 
     /// Add a callback to event reception
@@ -1117,10 +1140,15 @@ impl AfbApi {
         };
 
         if status < 0 {
-            let error = AfbError::new (self._uid, format!(
-                "Fail to register api uid={} status={} info={} ",
-                self._uid, status, afb_error_info(status)
-            ));
+            let error = AfbError::new(
+                self._uid,
+                format!(
+                    "Fail to register api uid={} status={} info={} ",
+                    self._uid,
+                    status,
+                    afb_error_info(status)
+                ),
+            );
             Err(error)
         } else {
             Ok(self)
@@ -1128,7 +1156,7 @@ impl AfbApi {
     }
 
     pub fn as_mut(&self) -> &mut Self {
-        unsafe {&mut *(self as *const _ as *mut AfbApi)}
+        unsafe { &mut *(self as *const _ as *mut AfbApi) }
     }
 
     pub fn get_uid(&self) -> &'static str {
@@ -1210,7 +1238,9 @@ pub extern "C" fn api_verbs_cb(rqtv4: cglue::afb_req_t, argc: u32, args: *const 
 
     // call verb calback
     match verb_ref.ctrlbox {
-        Some(verb_control) => unsafe { (*verb_control).verb_callback(&mut request, &mut arguments) },
+        Some(verb_control) => unsafe {
+            (*verb_control).verb_callback(&mut request, &mut arguments)
+        },
         _ => panic!("verb={} no callback defined", verb_ref._uid),
     }
 }
@@ -1326,10 +1356,10 @@ impl AfbVerb {
     ///    .set_sample("{'skipail': 'IoT.bzh', 'info':'missing location+zip'}").expect("invalid json sample")
     ///    .finalize()
     /// ```
-    pub fn set_sample(&mut self, value: &'static str) -> Result<&mut Self, &'static str> {
+    pub fn set_sample(&mut self, value: &'static str) -> Result<&mut Self, AfbError> {
         let jparse = AfbJsonObj::parse(value);
         match jparse {
-            Err(error) => Err(error),
+            Err(error) => Err(AfbError::new("jsonc-parsing", error)),
             Ok(jvalue) => {
                 self.samples.insert(jvalue).unwrap();
                 Ok(self)
@@ -1354,7 +1384,7 @@ impl AfbVerb {
             Err(error) => Err(error),
             Ok(jvalue) => {
                 if jvalue.is_type(Jtype::Array) {
-                    self.actions= jvalue;
+                    self.actions = jvalue;
                     Ok(self)
                 } else {
                     Err("not a valid json array")
@@ -1435,8 +1465,8 @@ impl AfbVerb {
     /// After using this method VERB object is not modifiable anymore and can only
     /// be requested through AfbVerbRef getter. Verb definition should be freeze before
     /// being added to an API or a group.
-    pub fn finalize(&mut self) -> &Self {
-        self
+    pub fn finalize(&mut self) -> Result<&Self,AfbError> {
+        Ok(self)
     }
 
     pub fn get_uid(&self) -> &'static str {
@@ -1719,7 +1749,6 @@ pub struct AfbEventMsg<'a> {
 }
 
 impl<'a> AfbEventMsg<'a> {
-
     /// create a new event handler
     ///
     ///
@@ -1820,7 +1849,9 @@ pub extern "C" fn api_events_cb(
 
     // call event calback
     match handler_ref.ctrlbox {
-        Some(event_control) => unsafe { (*event_control).event_callback(&mut event, &mut arguments) },
+        Some(event_control) => unsafe {
+            (*event_control).event_callback(&mut event, &mut arguments)
+        },
         _ => panic!("event={} no callback defined", handler_ref._uid),
     }
 }
@@ -1878,8 +1909,8 @@ impl AfbEvtHandler {
     }
 
     // return object getter trait to prevent any malicious modification
-    pub fn finalize(&mut self) -> &AfbEvtHandler {
-        self
+    pub fn finalize(&mut self) -> Result <&AfbEvtHandler, AfbError> {
+        Ok(self)
     }
     pub fn get_uid(&self) -> &'static str {
         self._uid
@@ -1918,8 +1949,8 @@ impl GetApiV4<AfbApiV4> for AfbEvent {
     }
 }
 
-impl GetApiV4<&&mut AfbApi> for  AfbEvent{
-    fn set_apiv4(api:&&mut  AfbApi) -> AfbApiV4 {
+impl GetApiV4<&&mut AfbApi> for AfbEvent {
+    fn set_apiv4(api: &&mut AfbApi) -> AfbApiV4 {
         (*api).get_apiv4()
     }
 }
@@ -1931,24 +1962,25 @@ pub struct AfbEvent {
 }
 
 impl AfbEvent {
-    pub fn new(uid: &'static str) -> &'static mut Self  {
+    pub fn new(uid: &'static str) -> &'static mut Self {
         let evt_box = Box::new(AfbEvent {
-                _uid: uid,
-                _evtv4: 0 as AfbEvtV4,
-                _apiv4: 0 as AfbApiV4,
-            });
+            _uid: uid,
+            _evtv4: 0 as AfbEvtV4,
+            _apiv4: 0 as AfbApiV4,
+        });
         Box::leak(evt_box)
     }
 
     pub fn register<T>(&mut self, api: T) -> i32
-    where AfbEvent: GetApiV4<T>
+    where
+        AfbEvent: GetApiV4<T>,
     {
-        let apiv4= Self::set_apiv4(api);
+        let apiv4 = Self::set_apiv4(api);
         let mut evt_id = 0 as AfbEvtV4;
         let evt_uid = CString::new(self._uid).unwrap();
 
         let status = unsafe { cglue::afb_api_new_event(apiv4, evt_uid.as_ptr(), &mut evt_id) };
-        self._evtv4= evt_id;
+        self._evtv4 = evt_id;
 
         status
     }
@@ -1993,8 +2025,8 @@ impl AfbEvent {
         self._uid
     }
 
-    pub fn finalize(&self) -> &Self {
-        self
+    pub fn finalize(&self) -> Result<&Self, AfbError> {
+        Ok(self)
     }
 
     pub fn get_apiv4(&self) -> AfbApiV4 {
@@ -2006,7 +2038,14 @@ impl AfbEvent {
         AfbParams: ConvertResponse<T>,
     {
         if self._evtv4 == 0 as AfbEvtV4 {
-            afb_log_msg!(Critical, self.get_apiv4(), format!("Not register event:{} should register before use", self._uid));
+            afb_log_msg!(
+                Critical,
+                self.get_apiv4(),
+                format!(
+                    "Not register event:{} should register before use",
+                    self._uid
+                )
+            );
             return -1;
         }
 
@@ -2032,7 +2071,14 @@ impl AfbEvent {
         AfbParams: ConvertResponse<T>,
     {
         if self._evtv4 == 0 as AfbEvtV4 {
-            afb_log_msg!(Critical, self.get_apiv4(), format!("Not register event:{} should register before use", self._uid));
+            afb_log_msg!(
+                Critical,
+                self.get_apiv4(),
+                format!(
+                    "Not register event:{} should register before use",
+                    self._uid
+                )
+            );
             return -1;
         }
 
@@ -2077,7 +2123,7 @@ impl AfbGroup {
             separator: "/",
             verbs: Vec::new(),
             evthandlers: Vec::new(),
-            events:Vec::new(),
+            events: Vec::new(),
         });
         Box::leak(group_box)
     }
@@ -2107,14 +2153,14 @@ impl AfbGroup {
         self
     }
 
-    pub fn add_verb(&'static mut self, verb: &AfbVerb) -> &'static mut Self {
+    pub fn add_verb(&'static mut self, verb: &AfbVerb) -> Result<&'static mut Self,AfbError> {
         self.verbs.push(verb);
-        self
+        Ok(self)
     }
 
-    pub fn add_event(&'static mut self, event: &'static AfbEvent) -> &'static mut Self {
+    pub fn add_event(&'static mut self, event: &'static AfbEvent) -> Result<&'static mut Self, AfbError> {
         self.events.push(event);
-        self
+        Ok(self)
     }
 
     pub fn add_evt_handler(&'static mut self, handler: &AfbEvtHandler) -> &'static mut Self {
@@ -2190,12 +2236,12 @@ impl AfbGroup {
     }
 
     // return object getter trait to prevent any malicious modification
-    pub fn finalize(&'static mut self) -> &'static AfbGroup {
-        self
+    pub fn finalize(&'static mut self) -> Result <&'static AfbGroup, AfbError> {
+        Ok(self)
     }
 
     pub fn as_mut(&self) -> &mut Self {
-        unsafe {&mut *(self as *const _ as *mut AfbGroup)}
+        unsafe { &mut *(self as *const _ as *mut AfbGroup) }
     }
 
     pub fn as_any(&self) -> &dyn Any {
@@ -2649,7 +2695,11 @@ impl AfbSubCall {
 
         // store cbhandle trait as a leaked box
         Ok(AfbSubCall::subcall_async(
-            handle, apiname, verbname, &mut params, cbhandle,
+            handle,
+            apiname,
+            verbname,
+            &mut params,
+            cbhandle,
         ))
     }
 }

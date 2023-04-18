@@ -15,14 +15,16 @@ fn callback(request: &AfbRequest, _args: &AfbData) {
     request.reply(AFB_NO_DATA, 0);
 }
 
-pub fn register(apiv4: AfbApiV4) -> &'static AfbVerb {
+pub fn register(apiv4: AfbApiV4) ->  Result<&'static AfbVerb, AfbError> {
     // build verb name from Rust module name
     let mod_name= module_path!().split(':').last().unwrap();
     afb_log_msg!(Notice, apiv4, "Registering verb={}", mod_name);
 
-    AfbVerb::new(mod_name)
+    let group=AfbVerb::new(mod_name)
         .set_callback(Box::new(VerbCtrl {}))
         .set_info("Probe no input/output data")
         .set_usage("no-data")
-        .finalize()
+        .finalize()?;
+
+    Ok(group)
 }

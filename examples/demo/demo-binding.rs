@@ -56,7 +56,7 @@ pub struct ApiUserData {
 // trait provides default callback for: config,ready,orphan,class,exit
 impl AfbApiControls for ApiUserData {
     // api is loaded but not ready to be used, when defined binder send binding specific configuration
-    fn config(&mut self, api: &AfbApi, config: AfbJsonObj) -> i32 {
+    fn config(&mut self, api: &AfbApi, config: AfbJsonObj) -> Result<(),AfbError> {
         let _api_data = self; // self matches api_data
         afb_log_msg!(
             Notice,
@@ -66,13 +66,13 @@ impl AfbApiControls for ApiUserData {
             config
         );
 
-        AFB_OK // returning -1 will abort binder process
+        Ok(())
     }
 
     // the API is created and ready. At this level user may subcall api(s) declare as dependencies
-    fn start(&mut self, _api: &AfbApi) -> i32 {
+    fn start(&mut self, _api: &AfbApi) ->  Result<(),AfbError> {
         let _api_data = self; // self matches api_data
-        AFB_OK
+        Ok(())
     }
 
     // mandatory for downcasting back to custom apidata object
@@ -83,37 +83,28 @@ impl AfbApiControls for ApiUserData {
 
 // Binding init callback started at binding load time before any API exist
 // -----------------------------------------
-pub fn binding_init(rootv4: AfbApiV4, jconf: AfbJsonObj) -> i32 {
+pub fn binding_init(rootv4: AfbApiV4, jconf: AfbJsonObj) -> Result <&'static AfbApi, AfbError> {
     afb_log_msg!(Notice, rootv4, "-- binding-init binding config={}", jconf);
 
     // create a new api
-    let status= AfbApi::new("rust-api")
+    let api= AfbApi::new("rust-api")
         .set_name("rust-api")
         .set_info("My first Rust API")
         .set_permission(AfbPermission::new("acl:rust"))
         .set_callback(Box::new(ApiUserData {_any_data: "skipail"}))
-        .add_verb(verb_probe::register(rootv4))
-        .add_verb(verb_basic::register(rootv4))
-        .add_verb(verb_typed::register(rootv4))
-        .add_group(event_group::register(rootv4))
-        .add_group(timer_group::register(rootv4))
-        .add_group(subcall_group::register(rootv4))
-        .add_group(pub_sub_group::register(rootv4))
-        .add_group(loa_group::register(rootv4))
-        .add_group(helloworld_group::register(rootv4))
+        .add_verb(verb_probe::register(rootv4)?)?
+        .add_verb(verb_basic::register(rootv4)?)?
+        .add_verb(verb_typed::register(rootv4)?)?
+        .add_group(event_group::register(rootv4)?)?
+        .add_group(timer_group::register(rootv4)?)?
+        .add_group(subcall_group::register(rootv4)?)?
+        .add_group(pub_sub_group::register(rootv4)?)?
+        .add_group(loa_group::register(rootv4)?)?
+        .add_group(helloworld_group::register(rootv4)?)?
         .seal(false)
-        .finalize();
+        .finalize()?;
 
-    match status {
-        Ok(api) => {
-            afb_log_msg!(Notice, rootv4, "RUST api uid={} started", api.get_uid());
-            AFB_OK
-        }
-        Err(error) => {
-            afb_log_msg!(Critical, rootv4, "Fail to register api error={}", error);
-            AFB_FATAL
-        }
-    }
+    Ok(api)
 }
 
 // register binding within libafb

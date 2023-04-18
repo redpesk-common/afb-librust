@@ -45,16 +45,16 @@ fn callback(request: &AfbRequest, args: &AfbData) {
     }
 }
 
-pub fn register(apiv4: AfbApiV4) -> &'static AfbVerb {
+pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbVerb, AfbError> {
     // build verb name from Rust module name
     let mod_name= module_path!().split(':').last().unwrap();
     afb_log_msg!(Notice, apiv4, "Registering verb={}", mod_name);
 
-    AfbVerb::new(mod_name)
+    let verb=AfbVerb::new(mod_name)
         .set_callback(Box::new(VerbCtrl {}))
         .set_info("My 1st demo verb")
         .set_usage("any json string")
-        .set_sample("{'skipail': 'IoT.bzh', 'location':'Lorient'}")
-        .expect("invalid json sample")
-        .finalize()
+        .set_sample("{'skipail': 'IoT.bzh', 'location':'Lorient'}")?
+        .finalize()?;
+    Ok(verb)
 }

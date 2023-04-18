@@ -114,7 +114,7 @@ fn timer_callback(_timer: &AfbTimer, _decount: u32, userdata: &mut UserTimerData
     let _listener = ctx.event.push(count);
 }
 
-pub fn register(apiv4: AfbApiV4) -> &'static AfbGroup {
+pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
     // build verb name from Rust module name
     let mod_name = module_path!().split(':').last().unwrap();
     afb_log_msg!(Notice, apiv4, "Registering verb={}", mod_name);
@@ -154,14 +154,15 @@ pub fn register(apiv4: AfbApiV4) -> &'static AfbGroup {
         .set_action("['reset','read','subscribe','unsubscribe']").expect("valid json array")
         .set_info("simulate publish/subscribe sensor model")
         .set_usage("no input")
-        .finalize()
-        ;
+        .finalize()?;
 
-    AfbGroup::new(mod_name)
+    let group=AfbGroup::new(mod_name)
         .set_info("Publish/Subscribe demo group")
         .set_prefix(mod_name)
         .set_permission(AfbPermission::new("acl:pub-sub"))
-        .add_verb(verb)
-        .add_event(event)
-        .finalize()
+        .add_verb(verb)?
+        .add_event(event)?
+        .finalize()?;
+
+    Ok(group)
 }
