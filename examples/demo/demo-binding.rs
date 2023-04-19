@@ -47,6 +47,9 @@ pub mod loa_group;
 #[path = "./demo-group-hello.rs"]
 pub mod helloworld_group;
 
+#[path = "./demo-group-session.rs"]
+pub mod session_group;
+
 // use API userdata to store event & timer static handle
 pub struct ApiUserData {
     _any_data: &'static str,
@@ -100,6 +103,7 @@ pub fn binding_init(rootv4: AfbApiV4, jconf: AfbJsonObj) -> Result <&'static Afb
         .add_group(subcall_group::register(rootv4)?)
         .add_group(pub_sub_group::register(rootv4)?)
         .add_group(loa_group::register(rootv4)?)
+        .add_group(session_group::register(rootv4)?)
         .add_group(helloworld_group::register(rootv4)?)
         .seal(false)
         .finalize()?;

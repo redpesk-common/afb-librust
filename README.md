@@ -8,3 +8,6 @@ For more information about installation, run and test, click on the following li
 * [Installation Guide](.docs/2-installation_guide.html)
 * [Rust Binding API](./docs/3-configuration.html)
 * [Running and Testing](.docs/4-running_and_testing.html)
+
+request.get_session() // return une session init a zero
+request.drop_session() // delete l'object session

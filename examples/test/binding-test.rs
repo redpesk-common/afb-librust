@@ -66,7 +66,48 @@ impl AfbApiControls for TapUserData {
                 y: 1024,
                 name: "Skipail IoT.bzh".to_owned(),
             })?
+            .set_onsuccess("check-session")
+            .finalize()?;
+
+        // ------ SESSION Group -----------
+        let rqt1 = AfbTapTest::new("session-check1", "rust-api", "session_group/reset")
+            .set_info("Create a new session")
+            .add_expect(1)
+            .finalize()?;
+
+        let rqt2 = AfbTapTest::new("session-check2", "rust-api", "session_group/read")
+            .set_info("Read session")
+            .add_expect(2)
+            .finalize()?;
+
+        let rqt3 = AfbTapTest::new("session-check3", "rust-api", "session_group/read")
+            .set_info("Read session")
+            .add_expect(3)
+            .finalize()?;
+
+        let rqt4 = AfbTapTest::new("session-check4", "rust-api", "session_group/reset")
+            .set_info("Reset session")
+            .add_expect(1)
+            .finalize()?;
+
+        let rqt5 = AfbTapTest::new("session-check3", "rust-api", "session_group/read")
+            .set_info("Read new session")
+            .add_expect(2)
+            .finalize()?;
+
+        let rqt6 = AfbTapTest::new("session-check3", "rust-api", "session_group/drop")
+            .set_info("Drop current session")
             .set_onsuccess("check-loa")
+            .finalize()?;
+
+        let session_group = AfbTapGroup::new("check-session")
+            .set_info("check session RQT")
+            .add_test(rqt1)
+            .add_test(rqt2)
+            .add_test(rqt3)
+            .add_test(rqt4)
+            .add_test(rqt5)
+            .add_test(rqt6)
             .finalize()?;
 
         // ------ LOA Group -----------
@@ -147,6 +188,7 @@ impl AfbApiControls for TapUserData {
             .add_test(test3)
             .add_test(test4)
             .add_test(test5)
+            .add_group(session_group)
             .add_group(event_group)
             .add_group(loa_group)
             .add_group(timer_group)

@@ -88,6 +88,53 @@ macro_rules! AfbBindingRegister {
     };
 }
 
+pub use AfbSessionRegister;
+#[macro_export]
+macro_rules! AfbSessionRegister {
+    ($userdata: ident) => {
+        #[allow(non_camel_case_types)]
+        impl libafb::apiv4::AfbRqtSession for $userdata {
+            fn as_any(&mut self) -> &mut dyn Any {
+                self
+            }
+        }
+
+        impl $userdata {
+            fn get<'a>(request: &'a AfbRequest) -> Result<&'a mut Self, AfbError> {
+                match request.get_session() {
+                    Err(error) => Err(error),
+                    Ok(any) => match any.as_any().downcast_mut::<$userdata>() {
+                        None => Err(AfbError::make(
+                            "session-any-cast",
+                            "fail to restore <$userdata>",
+                        )),
+                        Some(value) => Ok(value),
+                    },
+                }
+            }
+
+            fn set<'a>(
+                request: &'a AfbRequest,
+                userdata: $userdata,
+            ) -> Result<&'a mut Self, AfbError> {
+                match request.set_session(Box::new(userdata)) {
+                    Err(error) => Err(error),
+                    Ok(any) => match any.as_any().downcast_mut::<$userdata>() {
+                        None => Err(AfbError::make(
+                            "session-any-cast",
+                            "fail to restore <$userdata>",
+                        )),
+                        Some(value) => Ok(value),
+                    },
+                }
+            }
+
+            fn drop(request: &AfbRequest) -> Result<(), AfbError> {
+                request.drop_session()
+            }
+        }
+    };
+}
 pub use AfbVerbRegister;
 /// Register verb control handle.
 ///   - $verb_name: created verb object class
@@ -1465,7 +1512,7 @@ impl AfbVerb {
     /// After using this method VERB object is not modifiable anymore and can only
     /// be requested through AfbVerbRef getter. Verb definition should be freeze before
     /// being added to an API or a group.
-    pub fn finalize(&mut self) -> Result<&Self,AfbError> {
+    pub fn finalize(&mut self) -> Result<&Self, AfbError> {
         Ok(self)
     }
 
@@ -1513,6 +1560,17 @@ pub struct AfbRequest<'a> {
     verb: &'a AfbVerb,
 }
 
+// Rust dynamic object are fat pointer and should be encapculated before passing to C
+struct AfbRqtSessionWrap {
+    inner: Box<dyn AfbRqtSession>,
+}
+pub trait AfbRqtSession {
+    //fn new(request: AfbRequest, session: Self) -> Result<&mut Self, AfbError> ;
+    //fn get(request: AfbRequest) -> Result<&mut Self, AfbError>;
+    // fn get(&self) ->  Result<&mut dyn Any, AfbError>;
+    fn as_any(&mut self) -> &mut dyn Any;
+}
+
 impl<'a> AfbRequest<'a> {
     /// new request is only created internal by the framework. User should never call this function.
     pub fn new(rqtv4: cglue::afb_req_t, api: &'a AfbApi, verb: &'a AfbVerb) -> Self {
@@ -1520,6 +1578,60 @@ impl<'a> AfbRequest<'a> {
             _rqtv4: unsafe { cglue::afb_req_addref(rqtv4) },
             verb: verb,
             api: api,
+        }
+    }
+
+    pub fn set_session(
+        &self,
+        value: Box<dyn AfbRqtSession>,
+    ) -> Result<&mut dyn AfbRqtSession, AfbError> {
+        let wrapper = Box::new(AfbRqtSessionWrap { inner: value });
+        let session = Box::leak(wrapper);
+        let status = unsafe {
+            cglue::afb_req_context_set(
+                self.get_rqtv4(),
+                session as *const _ as *mut ::std::os::raw::c_void,
+                Some(free_box_cb),
+                session as *const _ as *mut ::std::os::raw::c_void,
+            )
+        };
+        if status < 0 {
+            Err(AfbError::make(
+                "rqt-session-exist",
+                "request fail to create session",
+            ))
+        } else {
+            Ok(session.inner.as_mut())
+        }
+    }
+
+    pub fn drop_session(&self) -> Result<(), AfbError> {
+        let status = unsafe { cglue::afb_req_context_drop(self.get_rqtv4()) };
+        if status < 0 {
+            Err(AfbError::make(
+                "rqt-session-missing",
+                "request session not defined",
+            ))
+        } else {
+            Ok(())
+        }
+    }
+    pub fn get_session(&self) -> Result<&mut dyn AfbRqtSession, AfbError> {
+        let session = 0 as *mut ::std::os::raw::c_void;
+        let status = unsafe {
+            cglue::afb_req_context_get(
+                self.get_rqtv4(),
+                &session as *const _ as *mut *mut ::std::os::raw::c_void,
+            )
+        };
+        if status < 0 {
+            Err(AfbError::make(
+                "rqt-session-exist",
+                "request session already defined",
+            ))
+        } else {
+            let session = unsafe { &mut *(session as *mut AfbRqtSessionWrap) };
+            Ok(session.inner.as_mut())
         }
     }
 
@@ -1909,7 +2021,7 @@ impl AfbEvtHandler {
     }
 
     // return object getter trait to prevent any malicious modification
-    pub fn finalize(&mut self) -> Result <&AfbEvtHandler, AfbError> {
+    pub fn finalize(&mut self) -> Result<&AfbEvtHandler, AfbError> {
         Ok(self)
     }
     pub fn get_uid(&self) -> &'static str {
@@ -2236,7 +2348,7 @@ impl AfbGroup {
     }
 
     // return object getter trait to prevent any malicious modification
-    pub fn finalize(&'static mut self) -> Result <&'static AfbGroup, AfbError> {
+    pub fn finalize(&'static mut self) -> Result<&'static AfbGroup, AfbError> {
         Ok(self)
     }
 
