@@ -89,12 +89,10 @@ struct SubscribeData {
 }
 AfbVerbRegister!(SubscribeCtrl, subscribe_callback, SubscribeData);
 fn subscribe_callback(request: &AfbRequest, _args: &AfbData, userdata: &mut SubscribeData) {
-    let mut session= match SessionUserData::set(request, SessionUserData{count:0}) {
+    match SessionUserData::set(request, SessionUserData{count:0}) {
         Err(mut error) => return request.reply(afb_add_trace!(error), 405),
         Ok(value) => value
     };
-
-    session.count = 1;
 
     match userdata.ctx.event.subscribe(request) {
         Err(mut error) => request.reply(afb_add_trace!(error), 405),

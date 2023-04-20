@@ -130,7 +130,7 @@ macro_rules! AfbDataConverter {
                 match self.get_ro(typev4, index) {
                     None => Err(libafb::utilv4::AfbError::new(
                         concat!("import-", stringify!($datat)),
-                        format!("no converter for args[{}]", index),
+                        format!("invalid converter format args[{}]", index),
                     )),
                     Some(cbuffer) => Ok(unsafe { &mut *(cbuffer as *mut $datat) }),
                 }
@@ -473,7 +473,7 @@ macro_rules! _register_query_converter {
                 match self.get_ro(converter, index) {
                     None => Err(AfbError::new(
                         concat!("export-", stringify!($afb_builtin_type)),
-                        format!("no converter for args[{}]", index),
+                        format!("invalid converter format args[{}]", index),
                     )),
                     Some(cbuffer) => Ok(unsafe { *(cbuffer as *mut $rust_type) }),
                 }
@@ -495,7 +495,7 @@ impl ConvertQuery<String> for AfbData {
         match self.get_ro(converter, index) {
             None => Err(AfbError::new(
                 uid,
-                format!("no converter for args[{}]", index),
+                format!("invalid converter format args[{}]", index),
             )),
             Some(cbuffer) => {
                 let cstring = unsafe { CStr::from_ptr(&mut *(cbuffer as *mut i8)) };
@@ -516,7 +516,7 @@ impl ConvertQuery<AfbJsonObj> for AfbData {
         match self.get_ro(converter, index) {
             None => Err(AfbError::new(
                 uid,
-                format!("no converter for args[{}]", index),
+                format!("invalid converter format args[{}]", index),
             )),
             Some(cbuffer) => Ok(AfbJsonObj::from(cbuffer)),
         }

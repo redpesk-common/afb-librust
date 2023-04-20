@@ -17,12 +17,10 @@ struct SessionUserData {
 
 AfbVerbRegister!(CreateCtrl, create_callback);
 fn create_callback(request: &AfbRequest, _args: &AfbData) {
-    let mut session= match SessionUserData::set(request, SessionUserData{count:0}) {
+    let session= match SessionUserData::set(request, SessionUserData{count:0}) {
         Err(mut error) => return request.reply(afb_add_trace!(error), 405),
         Ok(value) => value
     };
-
-    session.count = 1;
     request.reply(session.count, 0)
 }
 

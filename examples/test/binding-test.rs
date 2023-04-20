@@ -72,27 +72,27 @@ impl AfbApiControls for TapUserData {
         // ------ SESSION Group -----------
         let rqt1 = AfbTapTest::new("session-check1", "rust-api", "session_group/reset")
             .set_info("Create a new session")
-            .add_expect(1)
+            .add_expect(0)
             .finalize()?;
 
         let rqt2 = AfbTapTest::new("session-check2", "rust-api", "session_group/read")
             .set_info("Read session")
-            .add_expect(2)
+            .add_expect(1)
             .finalize()?;
 
         let rqt3 = AfbTapTest::new("session-check3", "rust-api", "session_group/read")
             .set_info("Read session")
-            .add_expect(3)
+            .add_expect(2)
             .finalize()?;
 
         let rqt4 = AfbTapTest::new("session-check4", "rust-api", "session_group/reset")
             .set_info("Reset session")
-            .add_expect(1)
+            .add_expect(0)
             .finalize()?;
 
         let rqt5 = AfbTapTest::new("session-check3", "rust-api", "session_group/read")
             .set_info("Read new session")
-            .add_expect(2)
+            .add_expect(1)
             .finalize()?;
 
         let rqt6 = AfbTapTest::new("session-check3", "rust-api", "session_group/drop")

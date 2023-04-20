@@ -80,7 +80,7 @@ macro_rules! AfbBindingRegister {
                     AFB_OK
                 }
                 Err(error) => {
-                    afb_log_msg!(Critical, apiv4, error.to_string());
+                    afb_log_msg!(Critical, apiv4, "Binding init fail error={}",error.to_string());
                     AFB_FAIL
                 }
             }
@@ -92,8 +92,9 @@ pub use AfbSessionRegister;
 #[macro_export]
 macro_rules! AfbSessionRegister {
     ($userdata: ident) => {
+        use crate::libafb::utilv4::MakeError;
         #[allow(non_camel_case_types)]
-        impl libafb::apiv4::AfbRqtSession for $userdata {
+        impl AfbRqtSession for $userdata {
             fn as_any(&mut self) -> &mut dyn Any {
                 self
             }
@@ -129,7 +130,7 @@ macro_rules! AfbSessionRegister {
                 }
             }
 
-            fn drop(request: &AfbRequest) -> Result<(), AfbError> {
+            fn drop(request: &AfbRequest) -> Result<(), libafb::utilv4::AfbError> {
                 request.drop_session()
             }
         }
@@ -1406,7 +1407,7 @@ impl AfbVerb {
     pub fn set_sample(&mut self, value: &'static str) -> Result<&mut Self, AfbError> {
         let jparse = AfbJsonObj::parse(value);
         match jparse {
-            Err(error) => Err(AfbError::new("jsonc-parsing", error)),
+            Err(_error) => Err(AfbError::new("jsonc-parsing-error", value.to_string())),
             Ok(jvalue) => {
                 self.samples.insert(jvalue).unwrap();
                 Ok(self)
