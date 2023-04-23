@@ -21,8 +21,8 @@
  * $RP_END_LICENSE$
  */
 
-use cgluev4::{self as cglue};
-use jsonc::jsonc_mod::*;
+use cglue::{self as cglue};
+use jsonc::*;
 use std::any::Any;
 use std::boxed::Box;
 use std::ffi::{c_void, CStr, CString};

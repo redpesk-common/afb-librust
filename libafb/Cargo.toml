@@ -7,16 +7,18 @@
 # ---------------------------------------------------------------------------------------
 
 [package]
-name = "lib_jsonc"
+name = "lib_libafb"
 version = "0.1.0"
 authors = ["fulup@iot.bzh"]
 
+[dependencies]
+bitflags = "2"
+
 [build-dependencies]
-bindgen    = ">=0.6"
-cc = "1"
+bindgen = ">=0.6"
+cc = ">=1.0"
 
 [lib]
-name = "jsonc"
+name = "libafb"
 crate-type = ["lib"]
-path = "src/jsonc-mod.rs"
-
+path = "src/libafb-mod.rs"

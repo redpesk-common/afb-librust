@@ -1,8 +1,6 @@
 [workspace]
 
 members = [
-    # "libafb-derive",
-    "libafb-lib",
-    "jsonc-lib",
+    "libafb",
     "examples",
 ]

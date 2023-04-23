@@ -26,9 +26,9 @@ use std::boxed::Box;
 use std::ffi::{CStr, CString};
 use std::fmt;
 // libafb dependencies
-use cgluev4 as cglue;
+use cglue as cglue;
 use datav4::*;
-use jsonc::jsonc_mod::Jtype;
+use jsonc::Jtype;
 use utilv4::*;
 
 // alias few external types

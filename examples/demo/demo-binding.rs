@@ -11,7 +11,6 @@
     html_favicon_url = "https://iot.bzh/images/defaults/favicon.ico"
 )]
 
-extern crate jsonc;
 extern crate libafb;
 extern crate serde;
 

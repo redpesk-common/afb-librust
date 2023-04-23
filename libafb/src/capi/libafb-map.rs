@@ -1579,11 +1579,6 @@ pub const afb_epoll_epoll_RDH: afb_epoll = 8192;
 pub const afb_epoll_epoll_ERR: afb_epoll = 8;
 pub type afb_epoll = ::std::os::raw::c_uint;
 pub use self::afb_epoll as afb_epoll_t;
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub struct json_object {
-    pub _address: u8,
-}
 pub type __builtin_va_list = [__va_list_tag; 1usize];
 #[repr(C)]
 #[derive(Copy, Clone)]

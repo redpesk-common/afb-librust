@@ -22,13 +22,11 @@
  */
 
 #![doc(html_logo_url = "https://iot.bzh/images/defaults/company/512-479-max-transp.png", html_favicon_url = "https://iot.bzh/images/defaults/favicon.ico")]
-extern crate jsonc;
 extern crate bitflags;
 
-
-// cglue is exported as pricate
+// cglue is exported as private
 #[path = "./cglue-mod.rs"]
-mod cgluev4;
+mod cglue;
 
 #[path = "./apiv4-mod.rs"]
 pub mod apiv4;
@@ -36,11 +34,14 @@ pub mod apiv4;
 #[path = "./datav4-mod.rs"]
 pub mod datav4;
 
+#[path = "./jsonc-mod.rs"]
+pub mod jsonc;
+
 #[path = "./utilv4-mod.rs"]
 pub mod utilv4;
 
 pub mod prelude {
-    pub use jsonc::jsonc_mod::*;
+    pub use jsonc::*;
     pub use apiv4::*;
     pub use datav4::*;
     pub use utilv4::*;

@@ -23,8 +23,8 @@
 use apiv4::*;
 use datav4::*;
 
-use cgluev4::{self as cglue};
-use jsonc::jsonc_mod::{JsoncObj, Jtype};
+use cglue::{self as cglue};
+use jsonc::{JsoncObj, Jtype};
 use std::collections::HashMap;
 use std::ffi::CString;
 use std::fmt;

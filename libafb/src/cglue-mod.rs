@@ -21,23 +21,34 @@
  * $RP_END_LICENSE$
  */
 
-mod cglue {
+#![allow(non_upper_case_globals)]
+#![allow(non_camel_case_types)]
+#![allow(non_snake_case)]
+#![allow(dead_code)]
+include!("./capi/libafb-map.rs");
 
-    #![allow(dead_code)]
-    #![allow(non_upper_case_globals)]
-    #![allow(non_camel_case_types)]
-    #![allow(non_snake_case)]
+// hack to force RUST to export afbBinding mandatory entry points
+#[export_name = "afbBindingV4r1_itfptr"]
+#[no_mangle]
+pub static mut rustBindingV4r1_itfptr: usize = 0;
 
-    pub const JSON_C_TO_STRING_PLAIN: u32 = 0;
-    pub const JSON_C_TO_STRING_SPACED: u32 = 1;
-    pub const JSON_C_TO_STRING_PRETTY: u32 = 2;
-    pub const JSON_C_TO_STRING_PRETTY_TAB: u32 = 8;
-    pub const JSON_C_TO_STRING_NOZERO: u32 = 4;
-    pub const JSON_C_TO_STRING_NOSLASHESCAPE: u32 = 16;
+#[export_name = "afbBindingV4root"]
+#[no_mangle]
+pub static mut rustBindingV4root: usize = 0;
 
-    pub type json_tokener_srec = ::std::os::raw::c_int;
-    pub type printbuf = ::std::os::raw::c_int;
-    pub type json_tokener = ::std::os::raw::c_int;
+#[export_name = "afbBindingV4_itf_revision"]
+#[no_mangle]
+pub static mut rustBindingV4_itf_revision: u16 = 3; // => AFB_BINDING_X4R1_ITF_REVISION
 
-    include!("./capi/jsonc-map.rs");
-}
+pub const JSON_C_TO_STRING_PLAIN: u32 = 0;
+pub const JSON_C_TO_STRING_SPACED: u32 = 1;
+pub const JSON_C_TO_STRING_PRETTY: u32 = 2;
+pub const JSON_C_TO_STRING_PRETTY_TAB: u32 = 8;
+pub const JSON_C_TO_STRING_NOZERO: u32 = 4;
+pub const JSON_C_TO_STRING_NOSLASHESCAPE: u32 = 16;
+
+pub type json_tokener_srec = ::std::os::raw::c_int;
+pub type printbuf = ::std::os::raw::c_int;
+pub type json_tokener = ::std::os::raw::c_int;
+
+include!("./capi/jsonc-map.rs");
