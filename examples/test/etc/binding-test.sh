@@ -5,8 +5,8 @@ export LD_LIBRARY_PATH="/usr/local/lib64:$LD_LIBRARY_PATH"
 export PATH="/usr/local/lib64:$PATH"
 clear
 
-if ! test -f target/$HOSTNAME/debug/examples/libafb_demo.so; then
-    cargo build --target-dir=target/$HOSTNAME --example afb_demo
+if ! test -f $CARGO_TARGET_DIR/debug/examples/libafb_demo.so; then
+    cargo build --example afb_demo
     if test $? != 0; then
         echo "FATAL: fail to compile libafb sample"
         exit 1
@@ -14,7 +14,7 @@ if ! test -f target/$HOSTNAME/debug/examples/libafb_demo.so; then
 fi
 
 # rebuilt test binding
-cargo build --target-dir=target/$HOSTNAME --example afb_test
+cargo build  --example afb_test
 if test $? != 0; then
     echo "FATAL: fail to compile test suite"
     exit 1
