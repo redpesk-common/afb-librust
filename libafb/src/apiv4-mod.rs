@@ -28,7 +28,7 @@ use std::fmt;
 // libafb dependencies
 use cglue as cglue;
 use datav4::*;
-use jsonc::Jtype;
+use jsonc::*;
 use utilv4::*;
 
 // alias few external types
@@ -55,7 +55,7 @@ pub use AfbBindingRegister;
 /// # extern crate jsonc;
 /// # use libafb::prelude::*;;
 /// AfbBindingRegister!(binding_init);
-/// pub fn binding_init(binding: AfbApiV4, jconf: AfbJsonObj) -> i32 {
+/// pub fn binding_init(binding: AfbApiV4, jconf: JsoncObj) -> i32 {
 ///    afb_log_msg!(Notice, binding, "-- binding-init binding config={}", jconf);
 ///    // register verb,event,apis, ...
 ///    AFB_OK // or AFB_FAIL to abort binding load
@@ -251,25 +251,25 @@ fn add_verbs_to_group(
     uid: &'static str,
     info: &'static str,
     verbs: &mut Vec<*const AfbVerb>,
-) -> AfbJsonObj {
-    let jgroup = AfbJsonObj::new();
+) -> JsoncObj {
+    let jgroup = JsoncObj::new();
     if uid.len() > 0 {
         jgroup.add("uid", uid).unwrap();
     }
     if info.len() > 0 {
         jgroup.add("info", info).unwrap();
     }
-    let jverbs = AfbJsonObj::array();
+    let jverbs = JsoncObj::array();
     for apiverb in verbs {
         let verb_ref = unsafe { &mut *(*apiverb as *mut AfbVerb) };
-        let jverb = AfbJsonObj::new();
+        let jverb = JsoncObj::new();
         jverb.add("uid", verb_ref.get_uid()).unwrap();
         jverb.add("verb", verb_ref.get_name()).unwrap();
         jverb.add("info", verb_ref.get_info()).unwrap();
 
         let jactions = verb_ref.get_action();
         if let Ok(count) = jactions.count() {
-            let jusages = AfbJsonObj::new();
+            let jusages = JsoncObj::new();
             if count > 0 {
                 jusages.add("action", jactions).unwrap();
             };
@@ -324,17 +324,17 @@ pub extern "C" fn api_info_cb(
     };
 
     // build final jinfo object with metadata and groups
-    let jinfo = AfbJsonObj::new();
+    let jinfo = JsoncObj::new();
 
     // create api introspection metadata
-    let jmeta = AfbJsonObj::new();
+    let jmeta = JsoncObj::new();
     jmeta.add("uid", api_ref.get_uid()).unwrap();
     jmeta.add("info", api_ref.get_info()).unwrap();
     jmeta.add("version", api_ref.get_version()).unwrap();
     jinfo.add("metadata", jmeta).unwrap();
 
     // create groups array to host verbs
-    let jgroups = AfbJsonObj::array();
+    let jgroups = JsoncObj::array();
     jgroups
         .insert(add_verbs_to_group("", "", &mut api_ref.verbs))
         .unwrap();
@@ -387,7 +387,7 @@ pub extern "C" fn api_ping_cb(
     unsafe { COUNTER += 1 };
 
     // build final jinfo object with metadata and groups
-    let jpong = AfbJsonObj::new();
+    let jpong = JsoncObj::new();
     jpong.add("pong", unsafe { COUNTER }).unwrap();
 
     // create a dummy Rust request and send jinfo response (Fulup: Rust is unfriendly with void*=NULL)
@@ -411,7 +411,7 @@ pub trait AfbApiControls {
     /// # use libafb::prelude::*;;
     /// struct ApiUserData{}
     /// impl AfbApiControls for ApiUserData {
-    ///   fn config(&mut self, api: &mut AfbApi, config: AfbJsonObj) -> Result<(),AfbError> {
+    ///   fn config(&mut self, api: &mut AfbApi, config: JsoncObj) -> Result<(),AfbError> {
     ///     let _api_data = self; // self matches api_data
     ///     afb_log_msg!(Notice,api,"--api-config api={} config={}",api.get_uid(),config);
     ///     Ok(()) // returning -1 will abort binder process
@@ -419,7 +419,7 @@ pub trait AfbApiControls {
     ///   fn as_any(&mut self) -> &mut dyn Any {self}
     /// }
     /// ```
-    fn config(&mut self, api: &AfbApi, config: AfbJsonObj) -> Result<(), AfbError> {
+    fn config(&mut self, api: &AfbApi, config: JsoncObj) -> Result<(), AfbError> {
         afb_log_msg!(
             Notice,
             api,
@@ -522,18 +522,18 @@ pub trait AfbApiControls {
 }
 
 #[doc(hidden)]
-fn binding_parse_config(apiv4: cglue::afb_api_t, ctlarg: cglue::afb_ctlarg_t) -> AfbJsonObj {
+fn binding_parse_config(apiv4: cglue::afb_api_t, ctlarg: cglue::afb_ctlarg_t) -> JsoncObj {
     assert!(ctlarg.is_null() != true);
     let jso: *mut std::ffi::c_void =
         unsafe { (*ctlarg).root_entry.config } as *mut _ as *mut std::ffi::c_void;
 
     // extract config rust object from C void* ctrlbox
     if jso != 0 as *mut std::ffi::c_void {
-        AfbJsonObj::from(jso)
+        JsoncObj::from(jso)
     } else {
         // libafb may not pass api config as expected
         let jso = unsafe { cglue::afb_api_settings(apiv4) };
-        AfbJsonObj::from(jso as *mut std::ffi::c_void)
+        JsoncObj::from(jso as *mut std::ffi::c_void)
     }
 }
 
@@ -543,7 +543,7 @@ pub fn afb_binding_get_config(
     _ctlid_v4: *mut std::ffi::c_void,
     ctlarg_v4: *mut std::ffi::c_void,
     _apidata: *mut std::ffi::c_void,
-) -> AfbJsonObj {
+) -> JsoncObj {
     // return Rust binding config
     let ctlarg = ctlarg_v4 as cglue::afb_ctlarg_t;
     let apiv4 = apiv4 as cglue::afb_api_t;
@@ -1090,7 +1090,7 @@ impl AfbApi {
     ///     /* my api data event_handle, timer_handle, ... */
     ///  }
     ///  impl AfbApiControls for ApiUserData {
-    ///    fn config(&mut self, api: &mut AfbApi, config: AfbJsonObj) -> i32 {
+    ///    fn config(&mut self, api: &mut AfbApi, config: JsoncObj) -> i32 {
     ///        let _api_data = self; // self matches api_data
     ///        afb_log_msg!(Notice, api,"--api-config api={} config={}", api.get_uid(), config);
     ///        AFB_OK // returning -1 will abort binder process
@@ -1315,8 +1315,8 @@ pub struct AfbVerb {
     permission: &'static AfbPermission,
     verbosity: i32,
     usage: Option<&'static str>,
-    samples: AfbJsonObj,
-    actions: AfbJsonObj,
+    samples: JsoncObj,
+    actions: JsoncObj,
 }
 
 impl AfbVerb {
@@ -1339,8 +1339,8 @@ impl AfbVerb {
             verbosity: 0,
             permission: AfbPermission::new(0),
             usage: None,
-            samples: AfbJsonObj::array(),
-            actions: AfbJsonObj::array(),
+            samples: JsoncObj::array(),
+            actions: JsoncObj::array(),
         });
         Box::leak(verb_box)
     }
@@ -1405,7 +1405,7 @@ impl AfbVerb {
     ///    .finalize()
     /// ```
     pub fn set_sample(&mut self, value: &'static str) -> Result<&mut Self, AfbError> {
-        let jparse = AfbJsonObj::parse(value);
+        let jparse = JsoncObj::parse(value);
         match jparse {
             Err(_error) => Err(AfbError::new("jsonc-parsing-error", value.to_string())),
             Ok(jvalue) => {
@@ -1426,8 +1426,8 @@ impl AfbVerb {
     ///    .set_action("['reset': 'subscribe', 'unsubscribe']").expect("a valid json array")
     ///    .finalize()
     /// ```
-    pub fn set_action(&mut self, value: &'static str) -> Result<&mut Self, &'static str> {
-        let jparse = AfbJsonObj::parse(value);
+    pub fn set_action(&mut self, value: &'static str) -> Result<&mut Self, AfbError> {
+        let jparse = JsoncObj::parse(value);
         match jparse {
             Err(error) => Err(error),
             Ok(jvalue) => {
@@ -1435,7 +1435,7 @@ impl AfbVerb {
                     self.actions = jvalue;
                     Ok(self)
                 } else {
-                    Err("not a valid json array")
+                    Err(AfbError::new("verb-set-action","not a valid json array"))
                 }
             }
         }
@@ -1462,14 +1462,14 @@ impl AfbVerb {
     /// ```
     /// AfbVerbRegister!(VerbCtrl, callback);
     /// fn callback(request: &mut AfbRequest, args: &mut AfbData) {
-    /// match args.get::<AfbJsonObj>(0) {
+    /// match args.get::<JsoncObj>(0) {
     ///    Ok(argument) => {
     ///       afb_log_msg!(Info,&request,"Got valid jsonc object argument={}",argument);
     ///       request.reply("done", 0);
     ///    },
     ///    Err(error) => {
     ///       afb_log_msg!(Error, &request, "hoop invalid json argument {}", error);
-    ///       AfbJsonObj::from("invalid json input argument")
+    ///       JsoncObj::from("invalid json input argument")
     ///       request.reply(afb_add_trace!(error), 405);
     ///    };
     /// };
@@ -1529,10 +1529,10 @@ impl AfbVerb {
     pub fn get_usage(&self) -> Option<&'static str> {
         self.usage.clone()
     }
-    pub fn get_samples(&self) -> AfbJsonObj {
+    pub fn get_samples(&self) -> JsoncObj {
         self.samples.clone()
     }
-    pub fn get_action(&self) -> AfbJsonObj {
+    pub fn get_action(&self) -> JsoncObj {
         self.actions.clone()
     }
 }
@@ -1743,9 +1743,9 @@ impl<'a> AfbRequest<'a> {
     /// Return a jsonc object representing session/client metadata
     ///
     /// Rust version of [afb_req_get_client_info](https://docs.redpesk.bzh/docs/en/master/developer-guides/reference-v4/func-afb-req.html#function-afb_req_get_client_info)
-    pub fn get_client_info(&self) -> AfbJsonObj {
+    pub fn get_client_info(&self) -> JsoncObj {
         let jso = unsafe { cglue::afb_req_get_client_info(self._rqtv4) as *mut std::ffi::c_void };
-        AfbJsonObj::from(jso)
+        JsoncObj::from(jso)
     }
 
     /// Increment request reference count
@@ -1789,7 +1789,7 @@ impl<'a> AfbRequest<'a> {
     ///   # use libafb::prelude::*;;
     ///   let reply = || -> Result<(), AfbError> {
     ///        let mut response = AfbParams::new();
-    ///        response.push(AfbJsonObj::parse("{'label':'value'}"))?;
+    ///        response.push(JsoncObj::parse("{'label':'value'}"))?;
     ///        response.push(1234)?;
     ///        response.push(45.76)?;
     ///        response.push("skipail IoT.bzh")?;

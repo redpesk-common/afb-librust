@@ -59,7 +59,7 @@ impl AfbApiControls for TapUserData {
         Ok(())
     }
 
-    fn config(&mut self, api: &AfbApi, jconf: AfbJsonObj) -> Result<(), AfbError> {
+    fn config(&mut self, api: &AfbApi, jconf: JsoncObj) -> Result<(), AfbError> {
         afb_log_msg!(Debug, api, "api={} config={}", api.get_uid(), jconf);
         match jconf.get::<bool>("autostart") {
             Ok(value) => self.autostart = value,
@@ -135,7 +135,7 @@ fn timer_verb_cb(request: &AfbRequest, args: &AfbData) {
     let count;
     let tic;
 
-    match args.get::<AfbJsonObj>(0) {
+    match args.get::<JsoncObj>(0) {
         Err(mut error) => {
             request.reply(afb_add_trace!(error), -99);
             return;
@@ -192,7 +192,7 @@ fn timer_verb_cb(request: &AfbRequest, args: &AfbData) {
 // call API without any argument
 AfbVerbRegister!(PingCtrl, ping_subcall_cb);
 fn ping_subcall_cb(request: &AfbRequest, args: &AfbData) {
-    let count = match args.get::<AfbJsonObj>(0) {
+    let count = match args.get::<JsoncObj>(0) {
         Err(mut error) => {
             request.reply(afb_add_trace!(error), -99);
             return;
@@ -226,7 +226,7 @@ fn ping_subcall_cb(request: &AfbRequest, args: &AfbData) {
 // call API with passing a retrieve a jsonc object, this will force conversion
 AfbVerbRegister!(JsonCtrl, json_subcall_cb);
 fn json_subcall_cb(request: &AfbRequest, args: &AfbData) {
-    let count = match args.get::<AfbJsonObj>(0) {
+    let count = match args.get::<JsoncObj>(0) {
         Err(mut error) => {
             request.reply(afb_add_trace!(error), -99);
             return;
@@ -250,7 +250,7 @@ fn json_subcall_cb(request: &AfbRequest, args: &AfbData) {
         };
 
         // build a json object from binary object
-        let json_data = AfbJsonObj::new();
+        let json_data = JsoncObj::new();
         json_data.add("x", userdata.x).unwrap();
         json_data.add("y", userdata.y).unwrap();
         json_data.add("name", "Skipail IoT.bzh").unwrap();
@@ -273,7 +273,7 @@ fn json_subcall_cb(request: &AfbRequest, args: &AfbData) {
             Ok(value) => value,
         };
 
-        match reply.get::<AfbJsonObj>(0) {
+        match reply.get::<JsoncObj>(0) {
             Err(mut error) => {
                 afb_log_msg!(Error, request, &error);
                 request.reply(afb_add_trace!(error), -1);
@@ -296,7 +296,7 @@ fn json_subcall_cb(request: &AfbRequest, args: &AfbData) {
 // call API with passing a binary object using lazy converting mode
 AfbVerbRegister!(LazyCtrl, lazy_subcall_cb);
 fn lazy_subcall_cb(request: &AfbRequest, args: &AfbData) {
-    let count = match args.get::<AfbJsonObj>(0) {
+    let count = match args.get::<JsoncObj>(0) {
         Err(mut error) => {
             request.reply(afb_add_trace!(error), -99);
             return;

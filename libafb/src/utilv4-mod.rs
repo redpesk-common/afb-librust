@@ -245,15 +245,15 @@ impl AfbError {
         self
     }
 
-    pub fn to_jsonc(&self) -> AfbJsonObj {
-        let do_jerror = || -> Result<AfbJsonObj, &'static str> {
-            let jobject = AfbJsonObj::new();
+    pub fn to_jsonc(&self) -> JsoncObj {
+        let do_jerror = || -> Result<JsoncObj, AfbError> {
+            let jobject = JsoncObj::new();
             jobject.add("uid", &self.uid)?.add("info", &self.info)?;
             Ok(jobject)
         };
 
-        let do_jdebug = |info: &DbgInfo| -> Result<AfbJsonObj, &'static str> {
-            let jobject = AfbJsonObj::new();
+        let do_jdebug = |info: &DbgInfo| -> Result<JsoncObj, AfbError> {
+            let jobject = JsoncObj::new();
             jobject
                 .add("name", info.name)?
                 .add("file", info.file)?
@@ -262,7 +262,7 @@ impl AfbError {
         };
 
         let jerror = match do_jerror() {
-            Err(error) => AfbJsonObj::from(error),
+            Err(error) => error.to_jsonc(),
             Ok(jobject) => {
                 match &self.dbg_info {
                     None => (),
@@ -270,7 +270,7 @@ impl AfbError {
                         match do_jdebug(info) {
                             Err(error) => {
                                 jobject
-                                    .add("dbg", AfbJsonObj::from(error))
+                                    .add("dbg", error.to_jsonc())
                                     .expect("(hoops: AfbError->jsonc fail");
                             }
                             Ok(jdebug) => {
@@ -932,7 +932,7 @@ impl AfbJobControl for TapCtxData {
         let suite = test.get_suite();
         let event = suite.get_event();
 
-        let jsonc = AfbJsonObj::new();
+        let jsonc = JsoncObj::new();
         jsonc.add("index", test.index).unwrap();
         jsonc.add("test", test.uid).unwrap();
         event.push(jsonc);
@@ -961,7 +961,7 @@ pub struct AfbTapTest {
     pub verb: &'static str,
     pub status: i32,
     pub params: AfbParams,
-    pub expect: Vec<AfbJsonObj>,
+    pub expect: Vec<JsoncObj>,
     pub onerror: Option<&'static str>,
     pub onsucess: Option<&'static str>,
     pub response: Option<AfbTapResponse>,
@@ -1052,7 +1052,7 @@ impl AfbTapTest {
 
     pub fn add_expect<T>(&mut self, data: T) -> &mut Self
     where
-        T: Into<AfbJsonObj>,
+        T: Into<JsoncObj>,
     {
         let jsonc = data.into();
         self.expect.push(jsonc);
@@ -1085,7 +1085,7 @@ impl AfbTapTest {
 
         for idx in 0..self.expect.len() {
             let jexpect = self.expect[idx].clone();
-            match reply.get::<AfbJsonObj>(idx) {
+            match reply.get::<JsoncObj>(idx) {
                 // expect argument as no jsonc representation.
                 Err(error) => {
                     let msg = error.to_jsonc().to_string();
@@ -1113,7 +1113,7 @@ impl AfbTapTest {
                             );
                             return AfbTapResponse {
                                 status: AFB_FAIL,
-                                diagnostic: error.to_owned(),
+                                diagnostic: error.to_string(),
                             };
                         }
                         Ok(()) => {}
@@ -1243,7 +1243,7 @@ impl AfbTapTest {
         cvar.notify_one();
     }
 
-    pub fn get_report(&self) -> AfbJsonObj {
+    pub fn get_report(&self) -> JsoncObj {
         let msg = match &self.response {
             None => {
                 format!("ok {} - {} # SKIP", self.index, self.uid)
@@ -1259,7 +1259,7 @@ impl AfbTapTest {
                 }
             }
         };
-        AfbJsonObj::from(msg.as_str())
+        JsoncObj::from(msg.as_str())
     }
 }
 
@@ -1354,8 +1354,8 @@ impl AfbTapGroup {
     }
 
     /// wait for group test to be done then print report
-    pub fn get_report(&self) -> AfbJsonObj {
-        let jsonc = AfbJsonObj::array();
+    pub fn get_report(&self) -> JsoncObj {
+        let jsonc = JsoncObj::array();
         let count = self.tests.len();
         let msg = format!("1..{} # {}", count, self.uid);
         jsonc.insert(msg.as_str()).unwrap();
@@ -1548,9 +1548,9 @@ impl AfbTapSuite {
         self.autorun
     }
 
-    pub fn get_report(&'static mut self) -> AfbJsonObj {
+    pub fn get_report(&'static mut self) -> JsoncObj {
         let autostart = unsafe { &mut *(self.autostart) };
-        let jreport = AfbJsonObj::new();
+        let jreport = JsoncObj::new();
         jreport.add(AUTOSTART, autostart.get_report()).unwrap();
 
         for (uid, group) in self.hashmap.drain() {
@@ -1571,7 +1571,7 @@ impl AfbTapSuite {
                     println!();
                     match jreport.get::<JsoncObj>(entry.key.as_str()) {
                         Err(error) => {
-                            afb_log_msg!(Critical, self.get_api().get_apiv4(), error);
+                            afb_log_msg!(Critical, self.get_api().get_apiv4(), error.to_string());
                         }
                         Ok(jtest) => {
                             for idx in 0..jtest.count().unwrap() {

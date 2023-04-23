@@ -58,7 +58,7 @@ pub struct ApiUserData {
 // trait provides default callback for: config,ready,orphan,class,exit
 impl AfbApiControls for ApiUserData {
     // api is loaded but not ready to be used, when defined binder send binding specific configuration
-    fn config(&mut self, api: &AfbApi, config: AfbJsonObj) -> Result<(),AfbError> {
+    fn config(&mut self, api: &AfbApi, config: JsoncObj) -> Result<(),AfbError> {
         let _api_data = self; // self matches api_data
         afb_log_msg!(
             Notice,
@@ -85,7 +85,7 @@ impl AfbApiControls for ApiUserData {
 
 // Binding init callback started at binding load time before any API exist
 // -----------------------------------------
-pub fn binding_init(rootv4: AfbApiV4, jconf: AfbJsonObj) -> Result <&'static AfbApi, AfbError> {
+pub fn binding_init(rootv4: AfbApiV4, jconf: JsoncObj) -> Result <&'static AfbApi, AfbError> {
     afb_log_msg!(Notice, rootv4, "-- binding-init binding config={}", jconf);
 
     // create a new api

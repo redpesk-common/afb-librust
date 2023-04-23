@@ -160,7 +160,7 @@ Explicit response to a request is done with ``` request.reply(data, status)```. 
 // async response callback uses standard (AfbVerbRegister!) callback
 AfbVerbRegister!(AsyncResponseCtrl, async_response_cb);
 fn async_response_cb(request: &AfbRequest, params: &mut AfbData) {
-    let jquery = match params.get::<AfbJsonObj>(0) {
+    let jquery = match params.get::<JsoncObj>(0) {
         Ok(argument) => {afb_log_msg!(Info,request,"async_response received params={}",argument);}
         Err(mut error) => {
             afb_log_msg!(Error, request, "async_response error={}", error);
@@ -221,14 +221,14 @@ AfbEventRegister!(EventGetCtrl, event_get_callback, EvtUserData);
 fn event_get_callback(event: &AfbEventMsg, args: &mut AfbData, userdata: &mut EvtUserData) {
     userdata.counter += 1;
     afb_log_msg!(Notice,&event,"evt={} name={} counter={}",event.get_uid(),event.get_name(), userdata.counter);
-    match args.get::<AfbJsonObj>(0) {
+    match args.get::<JsoncObj>(0) {
         Ok(argument) => {
             afb_log_msg!(Info, event, "Got valid jsonc object argument={}", argument);
             argument
         }
         Err(error) => {
             afb_log_msg!(Error, event, "hoop invalid json argument {}", error);
-            AfbJsonObj::from("invalid json input argument")
+            JsoncObj::from("invalid json input argument")
         }
     };
 }
@@ -294,11 +294,11 @@ fn push_callback(request: &AfbRequest, args: &mut AfbData) {
         .downcast_ref::<ApiUserData>()
         .expect("invalid api-data");
 
-    let jquery = match args.get::<AfbJsonObj>(0) {
+    let jquery = match args.get::<JsoncObj>(0) {
         Ok(argument) => argument,
         Err(error) => {
             afb_log_msg!(Error, request, "hoop invalid json argument {}", error);
-            AfbJsonObj::from("no-data")
+            JsoncObj::from("no-data")
         }
     };
 

@@ -128,11 +128,11 @@ fn push_callback(request: &AfbRequest, args: &AfbData, userdata: &mut PushData) 
 
     session.count += 1;
 
-    let jquery = match args.get::<AfbJsonObj>(0) {
+    let jquery = match args.get::<JsoncObj>(0) {
         Ok(argument) => argument,
         Err(error) => {
             afb_log_msg!(Error, request, "hoop invalid json argument {}", error);
-            AfbJsonObj::from("no-data")
+            JsoncObj::from("no-data")
         }
     };
 
@@ -164,14 +164,14 @@ fn event_get_callback(event: &AfbEventMsg, args: &AfbData, userdata: &mut EvtUse
         api_uid
     );
 
-    match args.get::<AfbJsonObj>(0) {
+    match args.get::<JsoncObj>(0) {
         Ok(argument) => {
             afb_log_msg!(Info, event, "Got valid jsonc object argument={}", argument);
             argument
         }
         Err(error) => {
             afb_log_msg!(Error, event, "hoop invalid json argument {}", error);
-            AfbJsonObj::from("invalid json input argument")
+            JsoncObj::from("invalid json input argument")
         }
     };
 }

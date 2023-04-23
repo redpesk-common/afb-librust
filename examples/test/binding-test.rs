@@ -199,7 +199,7 @@ impl AfbApiControls for TapUserData {
         Ok(())
     }
 
-    fn config(&mut self, api: &AfbApi, jconf: AfbJsonObj) -> Result<(), AfbError> {
+    fn config(&mut self, api: &AfbApi, jconf: JsoncObj) -> Result<(), AfbError> {
         afb_log_msg!(Debug, api, "api={} config={}", api.get_uid(), jconf);
         match jconf.get::<bool>("autostart") {
             Ok(value) => self.autostart = value,

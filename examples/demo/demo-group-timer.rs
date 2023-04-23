@@ -87,7 +87,7 @@ fn start_timer_callback(request: &AfbRequest, _args: &AfbData, userdata: &mut Us
 
 struct UserPostData {
     rqt: AfbRqtV4,
-    jsonc: AfbJsonObj,
+    jsonc: JsoncObj,
 }
 // this callback starts from AfbSchedJob::new. If signal!=0 then callback overpass its watchdog timeout
 AfbJobRegister!(DelayCtrl, jobpost_callback, UserPostData);
@@ -105,7 +105,7 @@ AfbVerbRegister!(JobPostVerb, jobpost_verb, UserPostVerb);
 fn jobpost_verb(request: &AfbRequest, args: &AfbData, userdata: &mut UserPostVerb) {
 
     // extract jquery from 1st argument
-    let jquery = match args.get::<AfbJsonObj>(0) {
+    let jquery = match args.get::<JsoncObj>(0) {
         Ok(argument) => argument,
         Err(error) => error.to_jsonc(),
     };

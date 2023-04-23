@@ -31,7 +31,6 @@ use utilv4::*;
 // alias few external types
 pub type AfbTypeV4 = cglue::afb_type_t;
 pub type AfbDataV4 = cglue::afb_data_t;
-pub type AfbJsonObj = JsoncObj;
 pub type AfbJsonStr = JsonStr;
 
 // trick to create a null parameter
@@ -506,8 +505,8 @@ impl ConvertQuery<String> for AfbData {
     }
 }
 
-impl ConvertQuery<AfbJsonObj> for AfbData {
-    fn import(&self, index: usize) -> Result<AfbJsonObj, AfbError> {
+impl ConvertQuery<JsoncObj> for AfbData {
+    fn import(&self, index: usize) -> Result<JsoncObj, AfbError> {
         // retrieve builtin converter from libafb
         let uid = "builtin-JsoncObj";
         let converter = unsafe { (*cglue::afbBindingV4r1_itfptr).type_json_c };
@@ -518,7 +517,7 @@ impl ConvertQuery<AfbJsonObj> for AfbData {
                 uid,
                 format!("invalid converter format args[{}]", index),
             )),
-            Some(cbuffer) => Ok(AfbJsonObj::from(cbuffer)),
+            Some(cbuffer) => Ok(JsoncObj::from(cbuffer)),
         }
     }
 }
@@ -592,11 +591,11 @@ impl AfbData {
         result
     }
 
-    pub fn to_jsonc(&self) -> AfbJsonObj {
+    pub fn to_jsonc(&self) -> JsoncObj {
         let jsonc = JsoncObj::new();
         let jdata = JsoncObj::array();
         for idx in 0..self.count {
-            let data = self.get::<AfbJsonObj>(idx as usize);
+            let data = self.get::<JsoncObj>(idx as usize);
             let jsonc = match data {
                 Err(error) => error.to_jsonc(),
                 Ok(data) => data,
@@ -654,8 +653,8 @@ _register_response_converter!(u32, type_u32);
 _register_response_converter!(bool, type_bool);
 _register_response_converter!(f64, type_double);
 
-impl ConvertResponse<AfbJsonObj> for AfbParams {
-    fn export(data: AfbJsonObj) -> AfbExportResponse {
+impl ConvertResponse<JsoncObj> for AfbParams {
+    fn export(data: JsoncObj) -> AfbExportResponse {
         let export = AfbExportData {
             uid: "export-builtin-JsoncObj",
             typev4: unsafe { (*cglue::afbBindingV4r1_itfptr).type_json_c },
@@ -667,8 +666,8 @@ impl ConvertResponse<AfbJsonObj> for AfbParams {
     }
 }
 
-impl ConvertResponse<&AfbJsonObj> for AfbParams {
-    fn export(data: &AfbJsonObj) -> AfbExportResponse {
+impl ConvertResponse<&JsoncObj> for AfbParams {
+    fn export(data: &JsoncObj) -> AfbExportResponse {
         let export = AfbExportData {
             uid: "export-builtin-JsoncObj",
             typev4: unsafe { (*cglue::afbBindingV4r1_itfptr).type_json_c },
@@ -686,7 +685,7 @@ impl ConvertResponse<&AfbJsonStr> for AfbParams {
         let json_str = data.0;
 
         // try to parse json, if invalid pass it as a string
-        let export = match AfbJsonObj::parse(json_str) {
+        let export = match JsoncObj::parse(json_str) {
             Err(_error) => {
                 let cstring = CString::new(json_str as &str).expect("Invalid data string");
                 let data_ptr = cstring.into_raw() as *const _ as *mut std::ffi::c_void;

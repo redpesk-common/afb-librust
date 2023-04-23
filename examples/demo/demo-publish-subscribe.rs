@@ -52,16 +52,15 @@ AfbVerbRegister!(PubSubCtrl, sensor_cb, UserVcbData);
 fn sensor_cb(request: &AfbRequest, args: &AfbData, userdata: &mut UserVcbData) {
     let ctx= userdata.ctx.clone();
 
-    let action = match args.get::<AfbJsonObj>(0) {
+    let action = match args.get::<JsoncObj>(0) {
         Err(mut error) => {
             request.reply(afb_add_trace!(error), -1);
             return;
         }
         Ok(jquery) => {
             match jquery.get::<String>("action") {
-                Err(error) => {
-                    let mut afb_error= AfbError::new("invalid-jsonc", error);
-                    request.reply(afb_add_trace!(afb_error), -1);
+                Err(mut error) => {
+                    request.reply(afb_add_trace!(error), -1);
                     return;
                 },
                 Ok(action) => match action.to_uppercase().as_str() {

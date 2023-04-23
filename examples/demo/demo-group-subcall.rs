@@ -22,7 +22,7 @@ fn async_response_cb(request: &AfbRequest, params: &AfbData, userdata: &mut ASyn
     userdata.my_counter += 1;
 
     // we expect 1st argument to be json compatible
-    let jquery = match params.get::<AfbJsonObj>(0) {
+    let jquery = match params.get::<JsoncObj>(0) {
         Ok(argument) => {
             afb_log_msg!(
                 Info,
@@ -42,7 +42,7 @@ fn async_response_cb(request: &AfbRequest, params: &AfbData, userdata: &mut ASyn
 
     // rebuilt a new json object with upcase value of initial one
     let query = jquery.to_string().to_uppercase();
-    let jreply = AfbJsonObj::parse(query.as_str()).unwrap();
+    let jreply = JsoncObj::parse(query.as_str()).unwrap();
 
     request.reply(jreply, 0);
 }
