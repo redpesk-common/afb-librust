@@ -2013,7 +2013,7 @@ impl AfbEvtHandler {
         self
     }
 
-    fn register(&mut self, apiv4: cglue::afb_api_t) -> i32 {
+    pub fn register(&mut self, apiv4: cglue::afb_api_t) -> i32 {
         let event_pattern = CString::new(self.pattern).expect("invalid event pattern");
 
         unsafe {
