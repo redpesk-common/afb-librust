@@ -43,8 +43,8 @@ pub mod subcall_group;
 #[path = "./demo-group-loa.rs"]
 pub mod loa_group;
 
-#[path = "./demo-group-hello.rs"]
-pub mod helloworld_group;
+#[path = "./demo-group-subapi.rs"]
+pub mod subapi_group;
 
 #[path = "./demo-group-session.rs"]
 pub mod session_group;
@@ -103,7 +103,7 @@ pub fn binding_init(rootv4: AfbApiV4, jconf: JsoncObj) -> Result <&'static AfbAp
         .add_group(pub_sub_group::register(rootv4)?)
         .add_group(loa_group::register(rootv4)?)
         .add_group(session_group::register(rootv4)?)
-        .add_group(helloworld_group::register(rootv4)?)
+        .add_group(subapi_group::register(rootv4)?)
         .seal(false)
         .finalize()?;
 

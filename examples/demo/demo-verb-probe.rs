@@ -11,8 +11,9 @@ use libafb::prelude::*;
 
 // just return use to test afb-rust framework minimal cost
 AfbVerbRegister!(VerbCtrl, callback);
-fn callback(request: &AfbRequest, _args: &AfbData) {
+fn callback(request: &AfbRequest, _args: &AfbData) ->Result <(), AfbError> {
     request.reply(AFB_NO_DATA, 0);
+    Ok(())
 }
 
 pub fn register(apiv4: AfbApiV4) ->  Result<&'static AfbVerb, AfbError> {

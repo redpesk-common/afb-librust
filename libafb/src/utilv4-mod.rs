@@ -236,13 +236,16 @@ impl AfbError {
         self.info.to_owned()
     }
 
-    pub fn add_trace(&mut self, name: &'static str, file: &'static str, line: u32) -> &Self {
-        self.dbg_info = Some(DbgInfo {
+    pub fn add_trace(&self, name: &'static str, file: &'static str, line: u32) -> Self {
+        AfbError {
+            uid: self.uid.to_owned(),
+            info: self.info.to_owned(),
+            dbg_info: Some(DbgInfo {
             name: name,
             file: file,
             line: line as i32,
-        });
-        self
+            }),
+        }
     }
 
     pub fn to_jsonc(&self) -> JsoncObj {
@@ -1616,7 +1619,7 @@ struct TapTestData {
     test: *mut AfbTapTest,
 }
 impl AfbRqtControl for TapTestData {
-    fn verb_callback(&mut self, rqt: &AfbRequest, _args: &AfbData) {
+    fn verb_callback(&mut self, rqt: &AfbRequest, _args: &AfbData) -> Result <(), AfbError>{
         // bypass Rust limitation that refuses to understand static object pointers
         let test = unsafe { &mut (*self.test) };
         match test.jobpost() {
@@ -1630,6 +1633,7 @@ impl AfbRqtControl for TapTestData {
                 rqt.reply(test.get_report(), 0);
             }
         }
+        Ok(())
     }
 }
 
@@ -1639,19 +1643,13 @@ struct TapGroupData {
 }
 
 impl AfbRqtControl for TapGroupData {
-    fn verb_callback(&mut self, rqt: &AfbRequest, _args: &AfbData) {
+    fn verb_callback(&mut self, rqt: &AfbRequest, _args: &AfbData) -> Result <(), AfbError>{
         // bypass Rust limitation that refuses to understand static object pointers
         let group = unsafe { &mut (*self.group) };
         let suite = unsafe { &mut (*group.suite) };
         let event = unsafe { &mut (*suite.event) };
 
-        match event.subscribe(rqt) {
-            Err(error) => {
-                rqt.reply(error, 405);
-                return;
-            }
-            Ok(_event) => {}
-        }
+        event.subscribe(rqt)?;
 
         match group.launch() {
             Err(error) => {
@@ -1662,6 +1660,7 @@ impl AfbRqtControl for TapGroupData {
                 rqt.reply(group.get_report(), 0);
             }
         }
+        Ok(())
     }
 }
 

@@ -11,48 +11,38 @@ use libafb::prelude::*;
 
 // note: in production a unique API/verb should do both timer creation and event subscription
 AfbVerbRegister!(HelloStopCtrl, hello_stop_cb);
-fn hello_stop_cb(request: &AfbRequest, _args: &AfbData) {
+fn hello_stop_cb(request: &AfbRequest, _args: &AfbData)  -> Result <(), AfbError> {
     match AfbSubCall::call_sync(request, "helloworld-event", "unsubscribe", AFB_NO_DATA) {
-        Err(mut error) => {
+        Err(error) => {
             afb_log_msg!(Error, request, &error);
             request.reply(afb_add_trace!(error), -1);
-            return;
         }
         Ok(_response) => {}
     };
+    Ok(())
 }
 
 // async subcall response behaves as any other API/verb callback
 AfbVerbRegister!(HelloResponseCtrl, hello_response_cb);
-fn hello_response_cb(request: &AfbRequest, _params: &AfbData) {
+fn hello_response_cb(request: &AfbRequest, _params: &AfbData)  -> Result <(), AfbError> {
     request.reply("subscribe helloworld done (check log in afb-binder console)", 0);
+    Ok(())
 }
 
 // Start helloworld timer in synchronous mode and for the fun subscribe to event in asynchronous mode
 // note: in production a unique API/verb should do both timer creation and event subscription
 AfbVerbRegister!(HelloStartCtrl, hello_start_cb);
-fn hello_start_cb(request: &AfbRequest, _args: &AfbData) {
-    match AfbSubCall::call_sync(request, "helloworld-event", "startTimer", AFB_NO_DATA) {
-        Err(mut error) => {
-            afb_log_msg!(Error, request, &error);
-            request.reply(afb_add_trace!(error), -1);
-            return;
-        }
-        Ok(_response) => {}
-    };
+fn hello_start_cb(request: &AfbRequest, _args: &AfbData)  -> Result <(), AfbError> {
+    AfbSubCall::call_sync(request, "helloworld-event", "startTimer", AFB_NO_DATA)?;
 
-    match AfbSubCall::call_async(
+    AfbSubCall::call_async(
         request,
         "helloworld-event",
         "subscribe",
         AFB_NO_DATA,
         Box::new(HelloResponseCtrl {}),
-    ) {
-        Err(error) => {
-            afb_log_msg!(Error, request, &error);
-        }
-        Ok(()) => {}
-    };
+    )?;
+    Ok(())
 }
 
 // prefix group of event verbs and attach a default privilege

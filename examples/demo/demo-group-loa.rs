@@ -15,26 +15,28 @@ use libafb::prelude::*;
 // --loa/check: request a loa>=1 to accept the request
 
 AfbVerbRegister!(SetLoaCtrl, set_loa_cb);
-fn set_loa_cb(request: &AfbRequest, _args: &AfbData) {
+fn set_loa_cb(request: &AfbRequest, _args: &AfbData)  -> Result <(), AfbError> {
     match request.set_loa(1) {
-        Err(mut error) => request.reply (afb_add_trace!(error), -1),
+        Err(error) => request.reply (afb_add_trace!(error), -1),
         Ok(loa) => request.reply(format!("LOA set to {}", loa), 0)
     }
+    Ok(())
 }
 
 AfbVerbRegister!(ResetLoaCtrl, reset_loa_cb);
-fn reset_loa_cb(request: &AfbRequest, _args: &AfbData) {
+fn reset_loa_cb(request: &AfbRequest, _args: &AfbData)  -> Result <(), AfbError> {
     match request.set_loa(0) {
-        Err(mut error) => request.reply (afb_add_trace!(error), -1),
+        Err(error) => request.reply (afb_add_trace!(error), -1),
         Ok(loa) => request.reply(format!("LOA reset to {}", loa), 0)
     }
-
     request.reply("LOA reset to 0", 0);
+    Ok(())
 }
 
 AfbVerbRegister!(CheckLoaCtrl, check_loa_cb);
-fn check_loa_cb(request: &AfbRequest, _args: &AfbData) {
+fn check_loa_cb(request: &AfbRequest, _args: &AfbData)  -> Result <(), AfbError>  {
     request.reply("Protected API with LOA>=1 OK", 0);
+    Ok(())
 }
 
 // prefix group of event verbs and attach a default privilege

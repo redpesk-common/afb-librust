@@ -88,53 +88,35 @@ struct SubscribeData {
     ctx: Arc<UserCtxData>,
 }
 AfbVerbRegister!(SubscribeCtrl, subscribe_callback, SubscribeData);
-fn subscribe_callback(request: &AfbRequest, _args: &AfbData, userdata: &mut SubscribeData) {
-    match SessionUserData::set(request, SessionUserData{count:0}) {
-        Err(mut error) => return request.reply(afb_add_trace!(error), 405),
-        Ok(value) => value
-    };
-
-    match userdata.ctx.event.subscribe(request) {
-        Err(mut error) => request.reply(afb_add_trace!(error), 405),
-        Ok(_event) => request.reply(AFB_NO_DATA, 0),
-    }
+fn subscribe_callback(request: &AfbRequest, _args: &AfbData, userdata: &mut SubscribeData)  -> Result <(), AfbError> {
+    let _session= SessionUserData::set(request, SessionUserData{count:0})?;
+    userdata.ctx.event.subscribe(request) ?;
+    Ok(())
 }
 
 struct UnsubscribeData {
     ctx: Arc<UserCtxData>,
 }
 AfbVerbRegister!(UnsubscribeCtrl, unsubscribe_callback, UnsubscribeData);
-fn unsubscribe_callback(request: &AfbRequest, _args: &AfbData, userdata: &mut UnsubscribeData) {
-    match SessionUserData::drop(request) {
-        Err(mut error) => return request.reply(afb_add_trace!(error), 405),
-        Ok(()) => {}
-    };
+fn unsubscribe_callback(request: &AfbRequest, _args: &AfbData, userdata: &mut UnsubscribeData)  -> Result <(), AfbError> {
+    SessionUserData::drop(request) ?;
 
     match userdata.ctx.event.unsubscribe(request) {
-        Err(mut error) => request.reply(afb_add_trace!(error), 405),
+        Err(error) => request.reply(afb_add_trace!(error), 405),
         Ok(_event) => request.reply(AFB_NO_DATA, 0),
     }
+    Ok(())
 }
 
 struct PushData {
     ctx: Arc<UserCtxData>,
 }
 AfbVerbRegister!(PushCtrl, push_callback, PushData);
-fn push_callback(request: &AfbRequest, args: &AfbData, userdata: &mut PushData) {
-    let session = match SessionUserData::get(request) {
-        Err(mut error) => return request.reply(afb_add_trace!(error), 405),
-        Ok(value) => value,
-    };
-
+fn push_callback(request: &AfbRequest, args: &AfbData, userdata: &mut PushData)  -> Result <(), AfbError> {
+    let session = SessionUserData::get(request)?;
     session.count += 1;
 
-    let jquery = match args.get::<JsoncObj>(0) {
-        Ok(argument) => argument,
-        Err(error) => {
-            afb_log_msg!(Error, request, "hoop invalid json argument {}", error);
-            JsoncObj::from("no-data")
-        }
-    };
+    let jquery= args.get::<JsoncObj>(0) ?;
 
     // increment event counter and push event to listener(s)
     let mut response = AfbParams::new();
@@ -142,6 +124,7 @@ fn push_callback(request: &AfbRequest, args: &AfbData, userdata: &mut PushData) 
     response.push(jquery).unwrap();
     let listeners = userdata.ctx.event.push(response);
     request.reply(listeners, 0);
+    Ok(())
 }
 
 struct EvtUserData {

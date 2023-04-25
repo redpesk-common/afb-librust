@@ -16,33 +16,26 @@ struct SessionUserData {
 }
 
 AfbVerbRegister!(CreateCtrl, create_callback);
-fn create_callback(request: &AfbRequest, _args: &AfbData) {
-    let session= match SessionUserData::set(request, SessionUserData{count:0}) {
-        Err(mut error) => return request.reply(afb_add_trace!(error), 405),
-        Ok(value) => value
-    };
-    request.reply(session.count, 0)
+fn create_callback(request: &AfbRequest, _args: &AfbData)  -> Result <(), AfbError>  {
+    let session= SessionUserData::set(request, SessionUserData{count:0})?;
+    request.reply(session.count, 0);
+    Ok(())
 }
 
 
 AfbVerbRegister!(DropCtrl, drop_callback);
-fn drop_callback(request: &AfbRequest, _args: &AfbData) {
-    match SessionUserData::drop(request) {
-        Err(mut error) => return request.reply(afb_add_trace!(error), 405),
-        Ok(()) => {}
-    };
-    request.reply(AFB_NO_DATA, 0)
+fn drop_callback(request: &AfbRequest, _args: &AfbData)  -> Result <(), AfbError> {
+    SessionUserData::drop(request)?;
+    request.reply(AFB_NO_DATA, 0);
+    Ok(())
 }
 
 AfbVerbRegister!(GetCtrl, get_callback);
-fn get_callback(request: &AfbRequest, _args: &AfbData) {
-    let session = match SessionUserData::get(request) {
-        Err(mut error) => return request.reply(afb_add_trace!(error), 405),
-        Ok(value) => value,
-    };
-
+fn get_callback(request: &AfbRequest, _args: &AfbData)  -> Result <(), AfbError> {
+    let session = SessionUserData::get(request)?;
     session.count += 1;
     request.reply(session.count, 0);
+    Ok(())
 }
 
 // prefix group of event verbs and attach a default privilege

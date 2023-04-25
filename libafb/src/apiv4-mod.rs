@@ -41,7 +41,7 @@ pub const NULLPTR: *mut std::ffi::c_void = 0 as *mut std::ffi::c_void;
 const MAX_CALL_ARGS: u32 = 10;
 
 pub trait AfbRqtControl {
-    fn verb_callback(&mut self, request: &AfbRequest, args: &AfbData);
+    fn verb_callback(&mut self, request: &AfbRequest, args: &AfbData) -> Result<(),AfbError>;
 }
 
 pub trait AfbSubcallControl {
@@ -169,7 +169,7 @@ macro_rules! AfbVerbRegister {
                 &mut self,
                 request: &libafb::apiv4::AfbRequest,
                 args: &libafb::datav4::AfbData,
-            ) {
+            ) -> Result<(), AfbError>{
                 $callback(request, args, self)
             }
         }
@@ -182,7 +182,7 @@ macro_rules! AfbVerbRegister {
                 &mut self,
                 request: &libafb::apiv4::AfbRequest,
                 args: &libafb::datav4::AfbData,
-            ) {
+            ) -> Result<(), AfbError>{
                 $callback(request, args)
             }
         }
@@ -513,7 +513,7 @@ pub trait AfbApiControls {
     ///     .downcast_ref::<ApiUserData>()
     ///     .expect("invalid api-data");
     ///   match apidata.my_event.subscribe(request) {
-    ///     Err(mut error) => request.reply(afb_add_trace!(error), 405),
+    ///     Err(error) => request.reply(afb_add_trace!(error), 405),
     ///     Ok(_event) => request.reply(AFB_NO_DATA, 0),
     ///   }
     /// }
@@ -1285,11 +1285,16 @@ pub extern "C" fn api_verbs_cb(rqtv4: cglue::afb_req_t, argc: u32, args: *const 
     }
 
     // call verb calback
-    match verb_ref.ctrlbox {
+    let result= match verb_ref.ctrlbox {
         Some(verb_control) => unsafe {
             (*verb_control).verb_callback(&mut request, &mut arguments)
         },
         _ => panic!("verb={} no callback defined", verb_ref._uid),
+    };
+
+    match result {
+        Ok(()) => {},
+        Err(error) => request.reply(error, -100),
     }
 }
 
@@ -1718,7 +1723,7 @@ impl<'a> AfbRequest<'a> {
     ///   # use libafb::prelude::*;;
     /// fn set_loa_cb(request: &AfbRequest, _args: &AfbData) {
     /// match request.set_loa(1) {
-    ///    Err(mut error) => request.reply (afb_add_trace!(error), -1),
+    ///    Err(error) => request.reply (afb_add_trace!(error), -1),
     ///    Ok(loa) => request.reply(format!("LOA set to {}", loa), 0)
     ///  }
     ///}
@@ -1764,7 +1769,7 @@ impl<'a> AfbRequest<'a> {
     ///        .post(3000)
     ///    {
     ///        // exec job in ~3s
-    ///        Err(mut error) => {request.reply(afb_add_trace!(error), -1);},
+    ///        Err(error) => {request.reply(afb_add_trace!(error), -1);},
     ///        Ok(job) => {afb_log_msg!(Info, request, "Job posted uid:{} jobid={}", job.get_uid(), job.get_jobid());},
     ///    }
     /// ```
@@ -2405,11 +2410,17 @@ pub extern "C" fn afb_async_rqt_callback(
     // extract verb+api object from libafb internals
     let subcall_ref = unsafe { &mut *(userdata as *mut AfbSubCall) };
     match subcall_ref.verb_cb {
-        Some(callback) => unsafe { (*callback).verb_callback(&mut request, &mut arguments) },
+        Some(callback) => {
+            match unsafe { (*callback).verb_callback(&mut request, &mut arguments) } {
+                Ok(()) => {},
+                Err(error) => request.reply(error,101),
+            }
+        },
         _ => {
             afb_log_msg!(Critical, rqtv4, "(hoops invalid RQT callback context");
         }
     };
+
 }
 
 #[no_mangle]

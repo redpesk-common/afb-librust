@@ -14,14 +14,13 @@ extern crate demo_converter;
 use self::demo_converter::MySimpleData;
 
 AfbVerbRegister!(VerbCtrl, callback);
-fn callback(request: &AfbRequest, args: &AfbData) {
+fn callback(request: &AfbRequest, args: &AfbData) ->Result <(), AfbError>{
     // check arg0 match MySimpleData grammar
     let arg0 = args.get::<&MySimpleData>(0);
     let input = match arg0 {
-        Err(mut error) => {
+        Err(error) => {
             afb_log_msg!(Warning, request, "invalid args[0] error={}", error);
-            request.reply(afb_add_trace!(error), -99);
-            return;
+            return Err(afb_add_trace!(error));
         }
         Ok(data) => data,
     };
@@ -42,9 +41,10 @@ fn callback(request: &AfbRequest, args: &AfbData) {
     };
 
     // if data export fail send an error report
-    if let Err(mut error) = reply() {
+    if let Err(error) = reply() {
         request.reply(afb_add_trace!(error), 405);
     }
+    Ok(())
 }
 
 pub fn register(rootv4: AfbApiV4) -> Result<&'static AfbVerb, AfbError> {

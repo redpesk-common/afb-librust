@@ -18,7 +18,7 @@ struct ASyncApiData {
 
 // async response is s standard (AfbVerbRegister!) API/verb callback
 AfbVerbRegister!(AsyncResponseCtrl, async_response_cb, ASyncApiData);
-fn async_response_cb(request: &AfbRequest, params: &AfbData, userdata: &mut ASyncApiData) {
+fn async_response_cb(request: &AfbRequest, params: &AfbData, userdata: &mut ASyncApiData) -> Result <(), AfbError> {
     userdata.my_counter += 1;
 
     // we expect 1st argument to be json compatible
@@ -33,10 +33,9 @@ fn async_response_cb(request: &AfbRequest, params: &AfbData, userdata: &mut ASyn
             );
             argument
         }
-        Err(mut error) => {
+        Err(error) => {
             afb_log_msg!(Error, request, "async_response error={}", error);
-            request.reply(afb_add_trace!(error), -1);
-            return;
+            return Err(error);
         }
     };
 
@@ -45,10 +44,11 @@ fn async_response_cb(request: &AfbRequest, params: &AfbData, userdata: &mut ASyn
     let jreply = JsoncObj::parse(query.as_str()).unwrap();
 
     request.reply(jreply, 0);
+    Ok(())
 }
 
 AfbVerbRegister!(AsyncCallCtrl, async_call_cb);
-fn async_call_cb(request: &AfbRequest, _args: &AfbData) {
+fn async_call_cb(request: &AfbRequest, _args: &AfbData) ->Result <(), AfbError>{
     match AfbSubCall::call_async(
         request,
         "loop-test",
@@ -61,12 +61,13 @@ fn async_call_cb(request: &AfbRequest, _args: &AfbData) {
         }
         Ok(()) => {}
     };
+    Ok(())
 }
 
 AfbVerbRegister!(SyncCallCtrl, sync_call_cb);
-fn sync_call_cb(request: &AfbRequest, _args: &AfbData) {
+fn sync_call_cb(request: &AfbRequest, _args: &AfbData) -> Result <(), AfbError> {
     match AfbSubCall::call_sync(request, "loop-test", "ping", AFB_NO_DATA) {
-        Err(mut error) => {
+        Err(error) => {
             afb_log_msg!(Error, request, &error);
             request.reply(afb_add_trace!(error), -1)
         }
@@ -76,6 +77,7 @@ fn sync_call_cb(request: &AfbRequest, _args: &AfbData) {
             request.reply(response, status);
         }
     };
+    Ok(())
 }
 
 pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {

@@ -103,7 +103,7 @@ fn callback(request: &AfbRequest, args: &mut AfbData) {
     // check arg0 match MySimpleData grammar
     let arg0 = args.get::<&'static MySimpleData>(0);
     let input = match arg0 {
-        Err(mut error) => {
+        Err(error) => {
             afb_log_msg!(Error, request, "invalid args[0] error={}", error);
             request.reply(afb_add_trace!(error), 405);
             return;
@@ -126,7 +126,7 @@ fn callback(request: &AfbRequest, args: &mut AfbData) {
         Ok(())
     };
     // if data export fail send an error report
-    if let Err(mut error) = reply() {
+    if let Err(error) = reply() {
         request.reply(afb_add_trace!(error), 405);
     }
 }
@@ -162,7 +162,7 @@ AfbVerbRegister!(AsyncResponseCtrl, async_response_cb);
 fn async_response_cb(request: &AfbRequest, params: &mut AfbData) {
     let jquery = match params.get::<JsoncObj>(0) {
         Ok(argument) => {afb_log_msg!(Info,request,"async_response received params={}",argument);}
-        Err(mut error) => {
+        Err(error) => {
             afb_log_msg!(Error, request, "async_response error={}", error);
             request.reply(afb_add_trace!(error), -1);
             return;
@@ -186,7 +186,7 @@ match AfbSubCall::call_async(handle,"api-test","ping",AFB_NO_DATA, Box::new(Asyn
 
 // synchronous subcall
 match AfbSubCall::call_sync(handle, "api-test", "ping", AFB_NO_DATA) {
-    Err(mut error) => {
+    Err(error) => {
         afb_log_msg!(Error, handle, &error);
         handle.reply(afb_add_trace!(error), -1)
     }
@@ -269,7 +269,7 @@ fn subscribe_callback(request: &AfbRequest, _args: &mut AfbData) {
         .expect("invalid api-data");
 
     match apidata.my_event.subscribe(request) {
-        Err(mut error) => request.reply(afb_add_trace!(error), 405),
+        Err(error) => request.reply(afb_add_trace!(error), 405),
         Ok(_event) => request.reply(AFB_NO_DATA, 0),
     }
 }
@@ -282,7 +282,7 @@ fn unsubscribe_callback(request: &AfbRequest, _args: &mut AfbData) {
         .expect("invalid api-data");
 
     match apidata.my_event.unsubscribe(request) {
-        Err(mut error) => request.reply(afb_add_trace!(error), 405),
+        Err(error) => request.reply(afb_add_trace!(error), 405),
         Ok(_event) => request.reply(AFB_NO_DATA, 0),
     }
 }
@@ -364,7 +364,7 @@ let timer= match AfbTimer::new("demo_timer")
     }))
     .start()
     {
-        Err(mut error) => {
+        Err(error) => {
             afb_log_msg!(Critical, request, &error);
             request.reply(afb_add_trace!(error), -1)
         }
@@ -402,7 +402,7 @@ fn jobpost_verb(request: &AfbRequest, args: &mut AfbData) {
         .set_callback(Box::new(DelayCtxData {rqt: request.add_ref()}))
         .post(3000) // respond to request in 3s
     {
-        Err(mut error) => request.reply(afb_add_trace!(error), -1),
+        Err(error) => request.reply(afb_add_trace!(error), -1),
         _ => {}
     }
 }

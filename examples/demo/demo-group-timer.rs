@@ -61,7 +61,7 @@ fn timer_callback(timer: &AfbTimer, decount: u32, userdata: &mut UserVcbData) {
 }
 
 AfbVerbRegister!(StartTimerCtrl, start_timer_callback, UserVcbData);
-fn start_timer_callback(request: &AfbRequest, _args: &AfbData, userdata: &mut UserVcbData) {
+fn start_timer_callback(request: &AfbRequest, _args: &AfbData, userdata: &mut UserVcbData) ->Result <(), AfbError>{
 
     // subscribe client to event
     userdata.ctx.event.subscribe(request).unwrap();
@@ -75,7 +75,7 @@ fn start_timer_callback(request: &AfbRequest, _args: &AfbData, userdata: &mut Us
         }))
         .start()
     {
-        Err(mut error) => {
+        Err(error) => {
             afb_log_msg!(Critical, request, &error);
             request.reply(afb_add_trace!(error), -1);
         }
@@ -83,6 +83,7 @@ fn start_timer_callback(request: &AfbRequest, _args: &AfbData, userdata: &mut Us
             request.reply("demp_timer started", 0);
         }
     }
+    Ok(())
 }
 
 struct UserPostData {
@@ -102,7 +103,7 @@ struct UserPostVerb {
     event: &'static AfbEvent,
 }
 AfbVerbRegister!(JobPostVerb, jobpost_verb, UserPostVerb);
-fn jobpost_verb(request: &AfbRequest, args: &AfbData, userdata: &mut UserPostVerb) {
+fn jobpost_verb(request: &AfbRequest, args: &AfbData, userdata: &mut UserPostVerb) ->Result <(), AfbError>{
 
     // extract jquery from 1st argument
     let jquery = match args.get::<JsoncObj>(0) {
@@ -119,7 +120,7 @@ fn jobpost_verb(request: &AfbRequest, args: &AfbData, userdata: &mut UserPostVer
         .post(3000)
     {
         // exec job in ~3s
-        Err(mut error) => {request.reply(afb_add_trace!(error), -1);},
+        Err(error) => {request.reply(afb_add_trace!(error), -1);},
         Ok(job) => {afb_log_msg!(Info, request, "Job posted uid:{} jobid={}", job.get_uid(), job.get_jobid());},
     }
 
@@ -127,6 +128,7 @@ fn jobpost_verb(request: &AfbRequest, args: &AfbData, userdata: &mut UserPostVer
         Err(_error) => {},
         Ok(event) => {event.push("job-post response should arrive in 3s");},
     }
+    Ok(())
 
 }
 

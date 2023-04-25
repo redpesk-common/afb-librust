@@ -104,7 +104,7 @@ struct UserTimerData {
 AfbTimerRegister!(TimerHandlerCtrl, timer_callback, UserTimerData);
 fn timer_callback(timer: &AfbTimer, decount: u32, userdata: &mut UserTimerData) {
     match AfbSubCall::call_sync(userdata.apiv4, "rust-api", "verb_probe", AFB_NO_DATA) {
-        Err(mut error) => {
+        Err(error) => {
             afb_log_msg!(Error, userdata.apiv4, afb_add_trace!(error));
             timer.unref();
             return;
@@ -136,7 +136,7 @@ fn timer_verb_cb(request: &AfbRequest, args: &AfbData) {
     let tic;
 
     match args.get::<JsoncObj>(0) {
-        Err(mut error) => {
+        Err(error) => {
             request.reply(afb_add_trace!(error), -99);
             return;
         }
@@ -170,7 +170,7 @@ fn timer_verb_cb(request: &AfbRequest, args: &AfbData) {
         .set_callback(Box::new(userdata))
         .start()
     {
-        Err(mut error) => {
+        Err(error) => {
             afb_log_msg!(Critical, request, &error);
             request.reply(afb_add_trace!(error), -1);
             return;
@@ -193,7 +193,7 @@ fn timer_verb_cb(request: &AfbRequest, args: &AfbData) {
 AfbVerbRegister!(PingCtrl, ping_subcall_cb);
 fn ping_subcall_cb(request: &AfbRequest, args: &AfbData) {
     let count = match args.get::<JsoncObj>(0) {
-        Err(mut error) => {
+        Err(error) => {
             request.reply(afb_add_trace!(error), -99);
             return;
         }
@@ -209,7 +209,7 @@ fn ping_subcall_cb(request: &AfbRequest, args: &AfbData) {
     let start = Instant::now();
     for _idx in 0..count {
         match AfbSubCall::call_sync(request, "rust-api", "verb_probe", AFB_NO_DATA) {
-            Err(mut error) => {
+            Err(error) => {
                 afb_log_msg!(Error, request, &error);
                 request.reply(afb_add_trace!(error), -1);
                 return;
@@ -227,7 +227,7 @@ fn ping_subcall_cb(request: &AfbRequest, args: &AfbData) {
 AfbVerbRegister!(JsonCtrl, json_subcall_cb);
 fn json_subcall_cb(request: &AfbRequest, args: &AfbData) {
     let count = match args.get::<JsoncObj>(0) {
-        Err(mut error) => {
+        Err(error) => {
             request.reply(afb_add_trace!(error), -99);
             return;
         }
@@ -256,7 +256,7 @@ fn json_subcall_cb(request: &AfbRequest, args: &AfbData) {
         json_data.add("name", "Skipail IoT.bzh").unwrap();
 
         let param = match AfbParams::from(json_data) {
-            Err(mut error) => {
+            Err(error) => {
                 afb_log_msg!(Error, request, &error);
                 request.reply(afb_add_trace!(error), -1);
                 return;
@@ -265,7 +265,7 @@ fn json_subcall_cb(request: &AfbRequest, args: &AfbData) {
         };
 
         let reply = match AfbSubCall::call_sync(request, "rust-api", "verb_typed", param) {
-            Err(mut error) => {
+            Err(error) => {
                 afb_log_msg!(Error, request, &error);
                 request.reply(afb_add_trace!(error), -1);
                 return;
@@ -274,7 +274,7 @@ fn json_subcall_cb(request: &AfbRequest, args: &AfbData) {
         };
 
         match reply.get::<JsoncObj>(0) {
-            Err(mut error) => {
+            Err(error) => {
                 afb_log_msg!(Error, request, &error);
                 request.reply(afb_add_trace!(error), -1);
                 return;
@@ -297,7 +297,7 @@ fn json_subcall_cb(request: &AfbRequest, args: &AfbData) {
 AfbVerbRegister!(LazyCtrl, lazy_subcall_cb);
 fn lazy_subcall_cb(request: &AfbRequest, args: &AfbData) {
     let count = match args.get::<JsoncObj>(0) {
-        Err(mut error) => {
+        Err(error) => {
             request.reply(afb_add_trace!(error), -99);
             return;
         }
@@ -319,7 +319,7 @@ fn lazy_subcall_cb(request: &AfbRequest, args: &AfbData) {
         };
 
         let param = match AfbParams::from(userdata) {
-            Err(mut error) => {
+            Err(error) => {
                 afb_log_msg!(Error, request, &error);
                 request.reply(afb_add_trace!(error), -1);
                 return;
@@ -328,7 +328,7 @@ fn lazy_subcall_cb(request: &AfbRequest, args: &AfbData) {
         };
 
         let reply = match AfbSubCall::call_sync(request, "rust-api", "verb_typed", param) {
-            Err(mut error) => {
+            Err(error) => {
                 afb_log_msg!(Error, request, &error);
                 request.reply(afb_add_trace!(error), -1);
                 return;
@@ -337,7 +337,7 @@ fn lazy_subcall_cb(request: &AfbRequest, args: &AfbData) {
         };
 
         match reply.get::<&MySimpleData>(0) {
-            Err(mut error) => {
+            Err(error) => {
                 afb_log_msg!(Error, request, &error);
                 request.reply(afb_add_trace!(error), -1);
                 return;

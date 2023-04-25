@@ -11,7 +11,7 @@ use libafb::prelude::*;
 
 // AfbApi AfbVerb without vcbdata
 AfbVerbRegister!(VerbCtrl, callback);
-fn callback(request: &AfbRequest, args: &AfbData) {
+fn callback(request: &AfbRequest, args: &AfbData) -> Result<(), AfbError> {
     let jquery = match args.get::<JsoncObj>(0) {
         Ok(argument) => {
             afb_log_msg!(
@@ -40,17 +40,18 @@ fn callback(request: &AfbRequest, args: &AfbData) {
     };
 
     // if data export fail send an error report
-    if let Err(mut error) = reply() {
-        request.reply(afb_add_trace!(error), 405);
+    if let Err(error) = reply() {
+        return Err(error);
     }
+    Ok(())
 }
 
 pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbVerb, AfbError> {
     // build verb name from Rust module name
-    let mod_name= module_path!().split(':').last().unwrap();
+    let mod_name = module_path!().split(':').last().unwrap();
     afb_log_msg!(Notice, apiv4, "Registering verb={}", mod_name);
 
-    let verb=AfbVerb::new(mod_name)
+    let verb = AfbVerb::new(mod_name)
         .set_callback(Box::new(VerbCtrl {}))
         .set_info("My 1st demo verb")
         .set_usage("any json string")
