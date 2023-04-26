@@ -1461,16 +1461,17 @@ impl AfbVerb {
     /// ```
     /// AfbVerbRegister!(VerbCtrl, callback);
     /// fn callback(request: &mut AfbRequest, args: &mut AfbData) {
-    /// match args.get::<JsoncObj>(0) {
-    ///    Ok(argument) => {
-    ///       afb_log_msg!(Info,&request,"Got valid jsonc object argument={}",argument);
-    ///       request.reply("done", 0);
-    ///    },
-    ///    Err(error) => {
-    ///       afb_log_msg!(Error, &request, "hoop invalid json argument {}", error);
-    ///       JsoncObj::from("invalid json input argument")
-    ///       request.reply(afb_add_trace!(error), 405);
-    ///    };
+    ///     match args.get::<JsoncObj>(0) {
+    ///         Ok(argument) => {
+    ///             afb_log_msg!(Info,&request,"Got valid jsonc object argument={}",argument);
+    ///             request.reply("done", 0);
+    ///         },
+    ///         Err(error) => {
+    ///             afb_log_msg!(Error, &request, "hoop invalid json argument {}", error);
+    ///             JsoncObj::from("invalid json input argument");
+    ///             request.reply(afb_add_trace!(error), 405);
+    ///         };
+    ///     };
     /// };
     ///
     /// AfbVerb::new("my-verb")
@@ -1541,7 +1542,7 @@ impl fmt::Display for AfbVerb {
     /// format {} => print uid,name,info
     /// Examples
     /// ```no_run
-    /// println!("verb={}", verb;
+    /// println!("verb={}", verb);
     /// ```
     fn fmt(&self, format: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
@@ -1899,7 +1900,7 @@ impl fmt::Display for AfbEventMsg<'_> {
     /// format {} => print uid,name,info
     /// Examples
     /// ```
-    /// println!("event={}", event;
+    /// println!("event={}", event);
     /// ```
     fn fmt(&self, format: &mut fmt::Formatter<'_>) -> fmt::Result {
         unsafe {
