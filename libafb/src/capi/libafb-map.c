@@ -130,6 +130,7 @@ typedef unsigned int __id_t;
 typedef long int __time_t;
 typedef unsigned int __useconds_t;
 typedef long int __suseconds_t;
+typedef long int __suseconds64_t;
 typedef int __daddr_t;
 typedef int __key_t;
 typedef int __clockid_t;
@@ -264,9 +265,10 @@ extern int dysize (int __year) __attribute__ ((__nothrow__ , __leaf__)) __attrib
 extern int nanosleep (const struct timespec *__requested_time,
         struct timespec *__remaining);
 extern int clock_getres (clockid_t __clock_id, struct timespec *__res) __attribute__ ((__nothrow__ , __leaf__));
-extern int clock_gettime (clockid_t __clock_id, struct timespec *__tp) __attribute__ ((__nothrow__ , __leaf__));
+extern int clock_gettime (clockid_t __clock_id, struct timespec *__tp)
+     __attribute__ ((__nothrow__ , __leaf__)) __attribute__ ((__nonnull__ (2)));
 extern int clock_settime (clockid_t __clock_id, const struct timespec *__tp)
-     __attribute__ ((__nothrow__ , __leaf__));
+     __attribute__ ((__nothrow__ , __leaf__)) __attribute__ ((__nonnull__ (2)));
 extern int clock_nanosleep (clockid_t __clock_id, int __flags,
        const struct timespec *__req,
        struct timespec *__rem);
@@ -1764,6 +1766,15 @@ typedef __blksize_t blksize_t;
 typedef __blkcnt_t blkcnt_t;
 typedef __fsblkcnt_t fsblkcnt_t;
 typedef __fsfilcnt_t fsfilcnt_t;
+typedef union
+{
+  __extension__ unsigned long long int __value64;
+  struct
+  {
+    unsigned int __low;
+    unsigned int __high;
+  } __value32;
+} __atomic_wide_counter;
 typedef struct __pthread_internal_list
 {
   struct __pthread_internal_list *__prev;
@@ -1801,30 +1812,20 @@ struct __pthread_rwlock_arch_t
 };
 struct __pthread_cond_s
 {
-  __extension__ union
-  {
-    __extension__ unsigned long long int __wseq;
-    struct
-    {
-      unsigned int __low;
-      unsigned int __high;
-    } __wseq32;
-  };
-  __extension__ union
-  {
-    __extension__ unsigned long long int __g1_start;
-    struct
-    {
-      unsigned int __low;
-      unsigned int __high;
-    } __g1_start32;
-  };
+  __atomic_wide_counter __wseq;
+  __atomic_wide_counter __g1_start;
   unsigned int __g_refs[2] ;
   unsigned int __g_size[2];
   unsigned int __g1_orig_size;
   unsigned int __wrefs;
   unsigned int __g_signals[2];
 };
+typedef unsigned int __tss_t;
+typedef unsigned long int __thrd_t;
+typedef struct
+{
+  int __data ;
+} __once_flag;
 typedef unsigned long int pthread_t;
 typedef union
 {
@@ -1917,10 +1918,16 @@ extern int epoll_create1 (int __flags) __attribute__ ((__nothrow__ , __leaf__));
 extern int epoll_ctl (int __epfd, int __op, int __fd,
         struct epoll_event *__event) __attribute__ ((__nothrow__ , __leaf__));
 extern int epoll_wait (int __epfd, struct epoll_event *__events,
-         int __maxevents, int __timeout);
+         int __maxevents, int __timeout)
+ __attribute__ ((__access__ (__write_only__, 2, 3)));
 extern int epoll_pwait (int __epfd, struct epoll_event *__events,
    int __maxevents, int __timeout,
-   const __sigset_t *__ss);
+   const __sigset_t *__ss)
+ __attribute__ ((__access__ (__write_only__, 2, 3)));
+extern int epoll_pwait2 (int __epfd, struct epoll_event *__events,
+    int __maxevents, const struct timespec *__timeout,
+    const __sigset_t *__ss)
+ __attribute__ ((__access__ (__write_only__, 2, 3)));
 void afb_verbose(
 int level,
 const char *file,

@@ -2099,6 +2099,7 @@ impl AfbEvent {
 
         let status = unsafe { cglue::afb_api_new_event(apiv4, evt_uid.as_ptr(), &mut evt_id) };
         self._evtv4 = evt_id;
+        self._apiv4 = apiv4;
 
         status
     }
