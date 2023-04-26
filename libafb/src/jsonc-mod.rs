@@ -622,8 +622,8 @@ impl JsoncObj {
     /// AfbData
     /// * key wanted jsonc slot
     /// # Examples
-    /// ```
-    /// let jobject = JsoncObj::parse ("['slot1', 1234, 4567.987, 'true']);
+    /// ```rust
+    /// let jobject = JsoncObj::parse (["slot1", 1234, 4567.987, "true"]);
     /// let value= jobject.index::<String>(0);
     /// let value= jobject.index::<i64>(1);
     /// let value= jobject.index::<f64>(2);
