@@ -1,9 +1,9 @@
 // for test run 'clear && cargo test jsonc'
 // ----------------------------------------
-// start test => cargo test --package lib_jsonc --lib --  --exact
+// start test => cargo test --lib --  --exact
 
 #[cfg(test)]
-use super::jsonc_mod::{JsoncObj, Jtype, Jobject};
+use crate::prelude::*;
 
 // ------------------------------------------------
 // testing jsonc parsing from string
