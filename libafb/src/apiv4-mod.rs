@@ -1852,7 +1852,7 @@ impl<'a> fmt::Display for AfbRequest<'a> {
 
 /// Event object as receive by its handler when suscribed
 ///
-/// As one handler may recieve multiple event with patern match. The UID and NAME are no equal.
+/// As one handler may receive multiple event with pattern match. The UID and NAME are no equal.
 pub struct AfbEventMsg<'a> {
     _uid: String,
     name: &'a str,
