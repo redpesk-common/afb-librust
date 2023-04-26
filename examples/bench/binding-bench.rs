@@ -105,7 +105,7 @@ AfbTimerRegister!(TimerHandlerCtrl, timer_callback, UserTimerData);
 fn timer_callback(timer: &AfbTimer, decount: u32, userdata: &mut UserTimerData) {
     match AfbSubCall::call_sync(userdata.apiv4, "rust-api", "verb_probe", AFB_NO_DATA) {
         Err(error) => {
-            afb_log_msg!(Error, userdata.apiv4, afb_add_trace!(error));
+            afb_log_msg!(Error, userdata.apiv4, &afb_add_trace!(error));
             timer.unref();
             return;
         }
@@ -131,33 +131,10 @@ fn timer_callback(timer: &AfbTimer, decount: u32, userdata: &mut UserTimerData) 
 
 // call API without any argument
 AfbVerbRegister!(TimerVerbCtrl, timer_verb_cb);
-fn timer_verb_cb(request: &AfbRequest, args: &AfbData) {
-    let count;
-    let tic;
-
-    match args.get::<JsoncObj>(0) {
-        Err(error) => {
-            request.reply(afb_add_trace!(error), -99);
-            return;
-        }
-        Ok(jarg) => {
-            count = match jarg.get::<u32>("loop") {
-                Err(error) => {
-                    request.reply(error, -99);
-                    return;
-                }
-                Ok(value) => value,
-            };
-            tic = match jarg.get::<u32>("tic") {
-                Err(error) => {
-                    request.reply(error, -99);
-                    return;
-                }
-                Ok(value) => value,
-            };
-        }
-        Ok(())
-    };
+fn timer_verb_cb(request: &AfbRequest, args: &AfbData)  -> Result <(), AfbError> {
+    let jquery= args.get::<JsoncObj>(0) ?;
+    let count = jquery.get::<u32>("loop")?;
+    let tic = jquery.get::<u32>("tic")?;
 
     let userdata = UserTimerData {
         start: Instant::now(),
@@ -165,19 +142,11 @@ fn timer_verb_cb(request: &AfbRequest, args: &AfbData) {
         apiv4: request.get_api().get_apiv4(),
     };
 
-    let timer = match AfbTimer::new("demo_timer")
+    let timer = AfbTimer::new("demo_timer")
         .set_period(tic)
         .set_decount(count)
         .set_callback(Box::new(userdata))
-        .start()
-    {
-        Err(error) => {
-            afb_log_msg!(Critical, request, &error);
-            request.reply(afb_add_trace!(error), -1);
-            return;
-        }
-        Ok(value) => value,
-    };
+        .start()?;
 
     let msg = format!(
         "api:{} loop:{} timer:{}ms started",
@@ -188,58 +157,29 @@ fn timer_verb_cb(request: &AfbRequest, args: &AfbData) {
     afb_log_msg!(Notice, request, msg.as_str());
     request.reply(msg.as_str(), 0);
     timer.addref(); // make sure timer remain acting after verb callback
+    Ok(())
 }
 
 // call API without any argument
 AfbVerbRegister!(PingCtrl, ping_subcall_cb);
-fn ping_subcall_cb(request: &AfbRequest, args: &AfbData) {
-    let count = match args.get::<JsoncObj>(0) {
-        Err(error) => {
-            request.reply(afb_add_trace!(error), -99);
-            return;
-        }
-        Ok(jarg) => match jarg.get::<u32>("loop") {
-            Err(error) => {
-                request.reply(error, -99);
-                return;
-            }
-            Ok(value) => value,
-        },
-    };
+fn ping_subcall_cb(request: &AfbRequest, args: &AfbData)   -> Result <(), AfbError> {
+    let count = args.get::<u64>(0)?;
 
     let start = Instant::now();
     for _idx in 0..count {
-        match AfbSubCall::call_sync(request, "rust-api", "verb_probe", AFB_NO_DATA) {
-            Err(error) => {
-                afb_log_msg!(Error, request, &error);
-                request.reply(afb_add_trace!(error), -1);
-                return;
-            }
-            Ok(_value) => {}
-        };
+         AfbSubCall::call_sync(request, "rust-api", "verb_probe", AFB_NO_DATA)?;
     }
     let duration = start.elapsed();
     let msg = format!("no-data loop:{} duration:{:?}", count, duration);
     afb_log_msg!(Notice, request, msg.as_str());
     request.reply(msg.as_str(), 0);
+    Ok(())
 }
 
 // call API with passing a retrieve a jsonc object, this will force conversion
 AfbVerbRegister!(JsonCtrl, json_subcall_cb);
-fn json_subcall_cb(request: &AfbRequest, args: &AfbData) {
-    let count = match args.get::<JsoncObj>(0) {
-        Err(error) => {
-            request.reply(afb_add_trace!(error), -99);
-            return;
-        }
-        Ok(jarg) => match jarg.get::<u32>("loop") {
-            Err(error) => {
-                request.reply(error, -99);
-                return;
-            }
-            Ok(value) => value,
-        },
-    };
+fn json_subcall_cb(request: &AfbRequest, args: &AfbData) -> Result <(), AfbError> {
+    let count =  args.get::<u64>(0)?;
 
     let start = Instant::now();
     for idx in 0..count {
@@ -256,29 +196,15 @@ fn json_subcall_cb(request: &AfbRequest, args: &AfbData) {
         json_data.add("y", userdata.y).unwrap();
         json_data.add("name", "Skipail IoT.bzh").unwrap();
 
-        let param = match AfbParams::from(json_data) {
-            Err(error) => {
-                afb_log_msg!(Error, request, &error);
-                request.reply(afb_add_trace!(error), -1);
-                return;
-            }
-            Ok(value) => value,
-        };
+        let param = AfbParams::from(json_data)?;
 
-        let reply = match AfbSubCall::call_sync(request, "rust-api", "verb_typed", param) {
-            Err(error) => {
-                afb_log_msg!(Error, request, &error);
-                request.reply(afb_add_trace!(error), -1);
-                return;
-            }
-            Ok(value) => value,
-        };
+        let reply = AfbSubCall::call_sync(request, "rust-api", "verb_typed", param)?;
 
         match reply.get::<JsoncObj>(0) {
             Err(error) => {
                 afb_log_msg!(Error, request, &error);
                 request.reply(afb_add_trace!(error), -1);
-                return;
+                return Ok(())
             }
             Ok(json_data) => {
                 // use a data to assert data structure is valid
@@ -292,24 +218,13 @@ fn json_subcall_cb(request: &AfbRequest, args: &AfbData) {
     let msg = format!("json converter loop:{} duration:{:?}", count, duration);
     afb_log_msg!(Notice, request, msg.as_str());
     request.reply(msg.as_str(), 0);
+    Ok(())
 }
 
 // call API with passing a binary object using lazy converting mode
 AfbVerbRegister!(LazyCtrl, lazy_subcall_cb);
-fn lazy_subcall_cb(request: &AfbRequest, args: &AfbData) {
-    let count = match args.get::<JsoncObj>(0) {
-        Err(error) => {
-            request.reply(afb_add_trace!(error), -99);
-            return;
-        }
-        Ok(jarg) => match jarg.get::<u32>("loop") {
-            Err(error) => {
-                request.reply(error, -99);
-                return;
-            }
-            Ok(value) => value,
-        },
-    };
+fn lazy_subcall_cb(request: &AfbRequest, args: &AfbData)  -> Result <(), AfbError> {
+    let count =  args.get::<u64>(0)?;
 
     let start = Instant::now();
     for idx in 0..count {
@@ -319,29 +234,15 @@ fn lazy_subcall_cb(request: &AfbRequest, args: &AfbData) {
             name: "Skipail IoT.bzh".to_owned(),
         };
 
-        let param = match AfbParams::from(userdata) {
-            Err(error) => {
-                afb_log_msg!(Error, request, &error);
-                request.reply(afb_add_trace!(error), -1);
-                return;
-            }
-            Ok(value) => value,
-        };
+        let param = AfbParams::from(userdata)?;
 
-        let reply = match AfbSubCall::call_sync(request, "rust-api", "verb_typed", param) {
-            Err(error) => {
-                afb_log_msg!(Error, request, &error);
-                request.reply(afb_add_trace!(error), -1);
-                return;
-            }
-            Ok(value) => value,
-        };
+        let reply = AfbSubCall::call_sync(request, "rust-api", "verb_typed", param)?;
 
         match reply.get::<&MySimpleData>(0) {
             Err(error) => {
                 afb_log_msg!(Error, request, &error);
                 request.reply(afb_add_trace!(error), -1);
-                return;
+                return Ok(())
             }
             Ok(simple_data) => {
                 // use a data to assert data structure is valid
@@ -355,6 +256,7 @@ fn lazy_subcall_cb(request: &AfbRequest, args: &AfbData) {
     let msg = format!("direct converter loop:{} duration:{:?}", count, duration);
     afb_log_msg!(Notice, request, msg.as_str());
     request.reply(msg.as_str(), 0);
+    Ok(())
 }
 
 // rootv4 init callback started at rootv4 load time before any API exist
