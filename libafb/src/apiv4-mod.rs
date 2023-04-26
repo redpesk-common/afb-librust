@@ -52,7 +52,6 @@ pub use AfbBindingRegister;
 /// Register binding main entry callback to be called from afb_binder
 /// Examples
 /// ```
-/// # extern crate jsonc;
 /// # use libafb::prelude::*;;
 /// AfbBindingRegister!(binding_init);
 /// pub fn binding_init(binding: AfbApiV4, jconf: JsoncObj) -> i32 {
@@ -475,7 +474,6 @@ pub trait AfbApiControls {
     /// as a database this is typically the place to declare them.
     /// Examples:
     /// ```
-    /// # extern crate jsonc;
     /// # use libafb::prelude::*;;
     /// struct ApiUserData{}
     /// impl AfbApiControls for ApiUserData {
@@ -506,7 +504,6 @@ pub trait AfbApiControls {
     /// in loopback mode. For test it is mandatory to register a dedicated testing API within your binding before shaking your primary API.
     /// Example:
     /// ```
-    /// # extern crate jsonc;
     /// # use libafb::prelude::*;;
     /// struct EvtUserData {
     ///   counter: u32,
@@ -562,7 +559,6 @@ pub trait AfbApiControls {
     /// This method is fully generic. Nevertheless Rust does not allow its automatic implementation from trait default values.
     /// Example
     /// ```
-    /// # extern crate jsonc;
     /// # use libafb::prelude::*;;
     /// pub struct ApiUserData {
     ///   my_event: &'static AfbEvent,
@@ -836,7 +832,6 @@ pub extern "C" fn api_controls_cb(
 /// User should use setters before finalizing and then only getters
 /// Examples
 /// ```
-/// # extern crate jsonc;
 /// # use libafb::prelude::*;;
 /// AfbVerbRegister!(VerbCtrl, verb_callback);
 /// fn verb_callback(request: &mut AfbRequest, _args: &mut AfbData) {
@@ -1371,7 +1366,6 @@ pub extern "C" fn api_verbs_cb(rqtv4: cglue::afb_req_t, argc: u32, args: *const 
 /// User should use setters before finalizing and then only getters
 /// Examples
 /// ```no_run
-/// # extern crate jsonc;
 /// # use libafb::prelude::*;;
 /// let verb1= AfbVerb::new("verb1")
 ///    .set_info("my first rust verb")
