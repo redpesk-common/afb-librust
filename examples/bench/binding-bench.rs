@@ -143,7 +143,7 @@ fn timer_verb_cb(request: &AfbRequest, args: &AfbData) -> Result<(),AfbError> {
         apiv4: request.get_api().get_apiv4(),
     };
 
-    let timer = match AfbTimer::new("demo_timer")
+    let timer = AfbTimer::new("demo_timer")
         .set_period(tic)
         .set_decount(count)
         .set_callback(Box::new(userdata))
