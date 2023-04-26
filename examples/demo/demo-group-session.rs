@@ -15,13 +15,18 @@ struct SessionUserData {
     count: u32,
 }
 
+impl Drop for SessionUserData {
+    fn drop(&mut self) {
+        println!("** session closing ***");
+    }
+}
+
 AfbVerbRegister!(CreateCtrl, create_callback);
 fn create_callback(request: &AfbRequest, _args: &AfbData)  -> Result <(), AfbError>  {
     let session= SessionUserData::set(request, SessionUserData{count:0})?;
     request.reply(session.count, 0);
     Ok(())
 }
-
 
 AfbVerbRegister!(DropCtrl, drop_callback);
 fn drop_callback(request: &AfbRequest, _args: &AfbData)  -> Result <(), AfbError> {

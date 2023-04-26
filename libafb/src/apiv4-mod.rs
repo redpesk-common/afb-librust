@@ -295,6 +295,16 @@ fn add_verbs_to_group(
     jgroup
 }
 
+// restore Rust Cstring, in order to make it disposable
+#[no_mangle]
+pub extern "C" fn free_session_cb(context: *mut std::ffi::c_void) {
+    // Fulup why session drop is not called ????
+    // let wrap= unsafe {&mut *(context as *const _ as *mut AfbRqtSessionWrap)};
+    // drop (&wrap.inner);
+    let cbox = unsafe { Box::from_raw(context)};
+    drop(cbox);
+}
+
 /// Api introspection callback for http://localhost:1234/devtools/
 ///
 ///  * internal callback responding to api/info request. RustAfb build info verb automatically
@@ -1575,6 +1585,7 @@ pub trait AfbRqtSession {
     //fn get(request: AfbRequest) -> Result<&mut Self, AfbError>;
     // fn get(&self) ->  Result<&mut dyn Any, AfbError>;
     fn as_any(&mut self) -> &mut dyn Any;
+    fn unref(&mut self) {}
 }
 
 impl<'a> AfbRequest<'a> {
@@ -1597,7 +1608,7 @@ impl<'a> AfbRequest<'a> {
             cglue::afb_req_context_set(
                 self.get_rqtv4(),
                 session as *const _ as *mut ::std::os::raw::c_void,
-                Some(free_box_cb),
+                Some(free_session_cb),
                 session as *const _ as *mut ::std::os::raw::c_void,
             )
         };
@@ -1632,8 +1643,8 @@ impl<'a> AfbRequest<'a> {
         };
         if status < 0 {
             Err(AfbError::make(
-                "rqt-session-exist",
-                "request session already defined",
+                "rqt-session-missing",
+                "request session does not exit",
             ))
         } else {
             let session = unsafe { &mut *(session as *mut AfbRqtSessionWrap) };
