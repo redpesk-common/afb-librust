@@ -2,7 +2,7 @@
 
 Demo provides two samples configuration
 
-* binding-test-api.json: wait for request on http://localhost:1234/devtools
+* binding-test-api.json: wait for request on <http://localhost:1234/devtools>
 * binding-test;auto.json: start/stop automatically and print tap output on stdout
 
 Technically Test-API is just an other binding, in default testing mode both bindings are loaded

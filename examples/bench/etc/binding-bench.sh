@@ -5,7 +5,7 @@ export LD_LIBRARY_PATH="/usr/local/lib64:$LD_LIBRARY_PATH"
 export PATH="/usr/local/lib64:$PATH"
 clear
 
-if ! test -f target/$HOSTNAME/debug/examples/libafb_demo.so; then
+if ! test -f "target/$HOSTNAME/debug/examples/libafb_demo.so"; then
     cargo build --example afb_demo
     if test $? != 0; then
         echo "FATAL: fail to compile libafb sample"
