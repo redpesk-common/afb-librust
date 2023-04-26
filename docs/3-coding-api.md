@@ -1,22 +1,38 @@
 # Coding binding APIs
 
+## Beginning your first rust binding file
+
+At first your file should start with code:
+
+```rust
+// import libafb dependencies
+extern crate jsonc;
+extern crate libafb;
+
+// import libafb dependencies
+use libafb::prelude::*;
+```
+
+This code will allow you to use rust binding code in your program.
+
 ## Exposing api
 
-Rust is not very friendly with static mutable variables also contrarily to C/CC+ versions, afb-librust exposes an 'object' centric API where all static data are hidden from the developer.
+Rust is not very friendly with static mutable variables also contrarily to C/C++ versions, afb-librust exposes an 'object' centric API where all static data are hidden from the developer.
 
 Rust-libafb binding main entry point is implemented trough ```AfbBindingRegister!(my_init_callback)``` that fake C/C++ afb-v4 binding entry points.
 At binding loading time afb-binder will call ```my_init_callback``` passing api config as jsonc object as input parameter.
 
 **Note: that by default any created API received two builtin verbs.**
 
-    * ```api/ping``` typically use to check if binding/api is alive or not.
-    * ```api/info``` api introspection verb used with debug and monitoring.
+* ```api/ping``` typically use to check if binding/api is alive or not.
+* ```api/info``` api introspection verb used with debug and monitoring.
 
 ```rust
-// check examples/demo/demain.rs for full code
-pub fn binding_init(binding: AfbApiV4, jconf: Jsonc) -> i32 {
-    afb_log_msg!(Notice, binding, "-- binding-init binding config={}", jconf);
-    let mut status = 0;
+// check examples/demo/demo-binding.rs for full code
+// Binding init callback started at binding load time before any API exist
+// -----------------------------------------
+pub fn binding_init(rootv4: AfbApiV4, jconf: AfbJsonObj) -> Result <&'static AfbApi, AfbError> {
+    afb_log_msg!(Notice, rootv4, "-- binding-init binding config={}", jconf);
 
     #[allow(deref_nullptr)] // event and timer are updated at api init time
     if status == 0 {
@@ -41,34 +57,45 @@ pub fn binding_init(binding: AfbApiV4, jconf: Jsonc) -> i32 {
     };
     status
 }
+
 // register binding within libafb
 AfbBindingRegister!(binding_init);
 ```
+
 After AfbApi::finalization() registering the newly created API, libafb framework optionally calls user defined
 callbacks implementing AfbApiControls trait.
 
 ```rust
 pub struct ApiUserData {
-    my_event: &'static AfbEvent,
-    my_timer: &'static mut dyn AfbTimerRef,
+    _any_data: &'static str,
 }
+
+// AfbApi userdata should implement AfbApiControls trait
+// trait provides default callback for: config,ready,orphan,class,exit
 impl AfbApiControls for ApiUserData {
     // api is loaded but not ready to be used, when defined binder send binding specific configuration
-    fn config(&mut self, api: &AfbApi, config: Jsonc) -> i32 {
+    fn config(&mut self, api: &AfbApi, config: AfbJsonObj) -> Result<(),AfbError> {
         let _api_data = self; // self matches api_data
-        afb_log_msg!(Notice, api, "--api-config api={} config={}", api.get_uid(), config);
-        AFB_OK // returning -1 will abort binder process
+        afb_log_msg!(
+            Notice,
+            api,
+            "--api-config api={} config={}",
+            api.get_uid(),
+            config
+        );
+
+        Ok(())
     }
 
-    // the API is created and ready. At this level user may create event, timers, declare dependencies,...
-    fn start(&mut self, api: &AfbApi) -> i32 {
-        let api_data = self; // self matches api_data
-        // create event and store its handle at api userdata level
-        match event_group::start(api, api_data) {
-            Err(_error) => {return AFB_FAIL;},
-            Ok(()) => {}
-        };
-        AFB_OK
+    // the API is created and ready. At this level user may subcall api(s) declare as dependencies
+    fn start(&mut self, _api: &AfbApi) ->  Result<(),AfbError> {
+        let _api_data = self; // self matches api_data
+        Ok(())
+    }
+
+    // mandatory for downcasting back to custom apidata object
+    fn as_any(&mut self) -> &mut dyn Any {
+        self
     }
 }
 ```
@@ -77,26 +104,32 @@ impl AfbApiControls for ApiUserData {
 
 Except in special case as test, all API exposed some user-defined verbs. While lib-afb framework only support a flat hierarchy of api/verb, afb-librust permits to group verb when they share a common prefix or access control privilege/loa.
 
-    * Verb optionally carry a static private userdata call vcbdata. When defined verb callback receive an extra userdata parameter.
-    * Verb systematically receive a request, this request is used as a global libafb handle within the callback
-    * Verb optionally receive parameters. Those parameters are typed with builtin libafb/types (i.e. int,jsonc,string,...) or respond
+* Verb optionally carry a static private userdata call vcbdata. When defined verb callback receive an extra userdata parameter.
+* Verb systematically receive a request, this request is used as a global libafb handle within the callback
+* Verb optionally receive parameters. Those parameters are typed with builtin libafb/types (i.e. int,jsonc,string,...) or respond
       to a custom user defined type as ```MySimpleData``` in following sample. Note that custom encoding/decoding function are
       implemented automatically.
 
 To create a verb developer should:
-    * link verb callback and userdata ```AfbVerbRegister!(handle, callback, [vcbdata])```
-    * implement api logic ```callback(request, params, [vcbdata])```
-    * create verb object with ```AfbVerb::new("verb-uid")```
-    * optionally register custom user-defined data type ```AfbDataConverter!() + simple_data::register()```
-    * finally add the verb to the API or to a group with ```api.ad_verb(handle{})```
-*** Warning: when defined user vcbdata struct/type should be unique to module namespace ***
+
+* link verb callback and userdata ```AfbVerbRegister!(handle, callback, [vcbdata])```
+* implement api logic ```callback(request, params, [vcbdata])```
+* create verb object with ```AfbVerb::new("verb-uid")```
+* optionally register custom user-defined data type ```AfbDataConverter!() + simple_data::register()```
+* finally add the verb to the API or to a group with ```api.ad_verb(handle{})```
+
+***Warning: when defined user vcbdata struct/type should be unique to module namespace***
 
 ```rust
 // extract from examples/demo/demo-verb*.rs
 AfbDataConverter!(simple_data, MySimpleData);
 use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug, Default)]
-struct MySimpleData {name: String,x: i32,y: i32,}
+pub struct MySimpleData {
+    pub name: String,
+    pub x: i32,
+    pub y: i32,
+}
 
 AfbVerbRegister!(VerbCtrl, callback);
 fn callback(request: &AfbRequest, args: &mut AfbData) {
@@ -154,7 +187,7 @@ AfbVerb::new("my-verb")
 
 Both synchronous and asynchronous call are supported. The fact the subcall is done from a request or an api context is abstracted to the user; both model share the same method signature. When doing it from RQT context client security context is not propagated and remove event are claimed by the rust api.
 
-Explicit response to a request is done with ``` request.reply(data, status)```. When returning more than one arguments, those one should be packed with ```AfbParams::new().push()...```
+Explicit response to a request is done with ```request.reply(data, status)```. When returning more than one arguments, those one should be packed with ```AfbParams::new().push()...```
 
 ```rust
 // async response callback uses standard (AfbVerbRegister!) callback
@@ -201,19 +234,19 @@ match AfbSubCall::call_sync(handle, "api-test", "ping", AFB_NO_DATA) {
 
 Events can be split in two classes:
 
-  * events you receive
-  * events you sent
+* events you receive
+* events you sent
 
 Receiving events is very similar to a standard api/verb request callback. Received event is a special form of unattended request where:
 
-  * no response to the sender is possible.
-  * no permission or authentication is possible
-  * no session is defined
-  * request handle is replace with an event handle
-  * event callback uses ```AfbEventRegister!```
-  * you subscribe to an event pattern in place of an api/verb
-  * input arguments and userdata are the same as for api/verb
-  * event should be register in the API either directly or thought a group
+* no response to the sender is possible.
+* no permission or authentication is possible
+* no session is defined
+* request handle is replace with an event handle
+* event callback uses ```AfbEventRegister!```
+* you subscribe to an event pattern in place of an api/verb
+* input arguments and userdata are the same as for api/verb
+* event should be register in the API either directly or thought a group
 
 ```rust
 // event callback is similar to verb callback expect for AfbEventRegister!
@@ -249,8 +282,8 @@ let group=  AfbGroup::new("event")
 
 When sending event you have to:
 
-  * create the event
-  * subscribe/unsubscribe client to event from the request
+* create the event
+* subscribe/unsubscribe client to event from the request
 
 Afb Events require to be attached to an API. As a result they are typically created from API control callback at init time when API reaches 'ready' state. Note that it is developer responsibility to make AfbEvent handle visible from both the function that create the event to the function that use the event. As Rust is not friendly with mutable static, the best place to keep track of event handle is either the Api userdata or Verb VcbData when a unique verb is use for both subscribe+unsubscribe.
 
@@ -327,15 +360,16 @@ pub fn start(api: &AfbApi, api_data: &mut ApiUserData) -> Result<(), AfbError> {
 
 Timer are typically used to push event or to handle timeout. LibAfb supports two classes of timers:
 
-  * full timer, that leverage linux kernel timerfd capabilities
-  * delay timer, that rely on libafb job posting
+* full timer, that leverage linux kernel timerfd capabilities
+* delay timer, that rely on libafb job posting
 
 Timer callback are very similar to api/verb callback except that they require ```AfbTimerRegister!()``` and receive a timer
 handle in place of a request handle.
 
 Full timer takes:
-  * period: delay in ms that defines callback tic rate
-  * count: the number of time, the timer should tic (default: zero== infinite)
+
+* period: delay in ms that defines callback tic rate
+* count: the number of time, the timer should tic (default: zero== infinite)
 
 Note: timer handle is allocate in heap and deleted only when decount reach zero. If timer.set_count(0) it runs until afb_binder exit. User does not have to care about the timer handle live cycle as AfbTimer::new leak the handle memory.
 
@@ -377,8 +411,8 @@ let timer= match AfbTimer::new("demo_timer")
 
 Delay timers are simpler and run only once. They take two params
 
-  * delay: time in ms before raising the callback
-  * watchdog: maximum time in second to run the callback
+* delay: time in ms before raising the callback
+* watchdog: maximum time in second to run the callback
 
 At delay the callback is activated with signal==0. Is ever callback runs longer that watchdog callback is activated again with a signal value!=0.
 

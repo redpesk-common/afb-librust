@@ -8,6 +8,7 @@ Make sure that your dependencies are reachable from rust scripting engine, befor
     afb-binder -vvv --config=examples/demo/etc/binding-config.json
     firefox localhost://1234
 ```
+
 ## Debugging from vscode/codium
 
 Rust generate standard ELF object and either gdb or lldb permit Rust source debug. Nevertheless in
@@ -15,10 +16,11 @@ order gdb/lldb to understand RUST memory structures rust-lldb/rust-gdb should be
 with ```rustup``` rust-lldb is installed by default.
 
 On vscode/codium install following extensions
-    * Rust-analyzer
-    * CodeLLDB
-    * Clangd
-    * Dev-Container (for containerized SDK local-builder)
+
+* Rust-analyzer
+* CodeLLDB
+* Clangd
+* Dev-Container (for containerized SDK local-builder)
 
 ## Compiling/debugging from a container
 

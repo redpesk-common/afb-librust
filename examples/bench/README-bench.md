@@ -1,22 +1,26 @@
-In order to evaluate the cost of JSON conversion. This binding provides implements two subcalls calling the same demo api with different
+# In order to evaluate the cost of JSON conversion. This binding provides implements two subcalls calling the same demo api with different
+
 data converters:
 
- * one call with no data (api/probe)
- * one subcall in json mode
- * one subcall in binary mode
+* one call with no data (api/probe)
+* one subcall in json mode
+* one subcall in binary mode
 
 For 10000 loop with an elementary data type (2*u32+1*String)
- * no-data: 252 (cost of micro-service architecture)
- * jsonc  : 541-251= 289ms (1 input + 1 output)
- * direct : 290-251= 38ms  (1 input + 1 output)
+
+* no-data: 252 (cost of micro-service architecture)
+* jsonc  : 541-251= 289ms (1 input + 1 output)
+* direct : 290-251= 38ms  (1 input + 1 output)
 
 The cost on conversion depends deeply on data object complexity, but even on very simple structure as the one used for the test, the difference is huge:
- * ~15ns per conversion for json (I7-Intel Desktop)
- * ~ 2ns for direct mode
+
+* ~15ns per conversion for json (I7-Intel Desktop)
+* ~ 2ns for direct mode
 
 The second outcome of this bench is about AFB microservice performance with the elementary cost of a raw call. The performance obviously depends
 on debug/monitoring level and in a lesser extend from the number of security privilege to check.
- * ~25ns per API call (I7-Intel desktop)
+
+* ~25ns per API call (I7-Intel desktop)
 
 ```bash
 ./examples/bench/etc/binding-bench.sh

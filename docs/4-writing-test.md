@@ -8,18 +8,18 @@ afb-librust provides a TAP (Test Anything Protocol) framework. Testing API may r
 Technically a RUST test module in only a specialized binding. This allow to leverage afb-binder capabilities and user may choose to run test directly from
 APIs afb-binder process or from an external process.
 
- * first model is very convenient when using a source debugger.
- * second model allows to run the test suite from a host when APIs remains on the target.
+* first model is very convenient when using a source debugger.
+* second model allows to run the test suite from a host when APIs remains on the target.
 
 Tests are created with ```AfbTapTest::new``` method. Newly created test should then be added to a group (AUTORUN is default group). Custom user defined group:
 
- * should be added to test API.
- * group uid should be attach a test exit label onsuccess/onerror
+* should be added to test API.
+* group uid should be attach a test exit label onsuccess/onerror
 
 Test may run on two modes:
 
-  * API on demand mode: user selects a specify test/group and launch it from devtool UI, afb-client, CURL, ... TAP result are return JSON object.
-  * AUTORUN automatic mode: in this case test start from 1st AUTORUN test and depending on onsuccess/onerror switch to a user defined group.
+* API on demand mode: user selects a specify test/group and launch it from devtool UI, afb-client, CURL, ... TAP result are return JSON object.
+* AUTORUN automatic mode: in this case test start from 1st AUTORUN test and depending on onsuccess/onerror switch to a user defined group.
 
 Example of CLI interaction
 ```
@@ -27,6 +27,7 @@ afb-client -H localhost:1234/api rust-api info
 ```
 
 Example of batch autorun/autoexit mode
+
 ```bash
 afb-binder --config=examples/test/etc/binding-test-auto.json
 
@@ -60,19 +61,19 @@ A test is composed of
 
 * uid: this is a free text (spec reference, bug reference, ...)
 * api/verb: point on the API to be tested. Note:
-    * one test suite may test multiple APIs
-    * api may either be local or remote
-    * optional api input arguments
+  * one test suite may test multiple APIs
+  * api may either be local or remote
+  * optional api input arguments
 * expected replies
-    * status return (default 0)
-    * optional data. Note than when expect json replies jsonc::contains is used in place of jsonc::equal
+  * status return (default 0)
+  * optional data. Note than when expect json replies jsonc::contains is used in place of jsonc::equal
 * optional group labels
-    * onsuccess switch to new group if test succeed
-    * onerror same thing when test fails
+  * onsuccess switch to new group if test succeed
+  * onerror same thing when test fails
 * optional timeout
-    * default uses group timeout
-    * group default uses suite default
-    * builtin default is 5s
+  * default uses group timeout
+  * group default uses suite default
+  * builtin default is 5s
 
 ```rust
 let testa= AfbTapTest::new("jsonc-arg", "rust-api", "verb_typed")
@@ -105,13 +106,14 @@ let loa_group= AfbTapGroup::new("check-loa")
 ## adding test and group to test suite
 
 The test suite contains:
- * builtin AUTORUN group
- * optionally user defined groups
- * flags:
-    * autorun: true/false launch or not autorun a afb-binder startup
-    * autoexit: true/false exit afb-binder process at the end test
-    * output: JSON/TAP defined default output format with using autorun mode. Api/Ondemand only support JSON(TAP).
- * finalize: start test suite processing.
+
+* builtin AUTORUN group
+* optionally user defined groups
+* flags:
+  * autorun: true/false launch or not autorun a afb-binder startup
+  * autoexit: true/false exit afb-binder process at the end test
+  * output: JSON/TAP defined default output format with using autorun mode. Api/Ondemand only support JSON(TAP).
+* finalize: start test suite processing.
 
 ```rust
 impl AfbApiControls for TapUserData {
@@ -184,7 +186,8 @@ AfbBindingRegister!(binding_test_init);
 ```
 
 ## Test coverage
-```
+
+```bash
 # you need Rust grcov
 cargo install grcov
 rustup component add llvm-tools-preview

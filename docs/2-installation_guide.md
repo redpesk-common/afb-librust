@@ -21,16 +21,16 @@ but nevertheless require gcc/C compiler.
 * Declare redpesk repository: [(see doc)]({% chapter_link host-configuration-doc.setup-your-build-host %})
 
 * gcc
-    * afb-libafb
-    * json-c
+  * afb-libafb
+  * json-c
 
 * rust
-    * rustc >1.60
-    * cargo >1.60
-    * bindgen >0.6
+  * rustc >1.60
+  * cargo >1.60
+  * bindgen >0.6
 
 * sample
-    * serde-json
+  * serde-json
 
 Note: bingen & serde pull many other rust modules that are pull automatically by cargo at build time.
 
@@ -42,4 +42,3 @@ Note: bingen & serde pull many other rust modules that are pull automatically by
     touch libafb/src/capi/build.rs  # cargo fail to detect missing file that should be generated
     cargo build
 ```
-
