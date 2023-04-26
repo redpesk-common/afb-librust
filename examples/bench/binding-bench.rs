@@ -156,6 +156,7 @@ fn timer_verb_cb(request: &AfbRequest, args: &AfbData) {
                 Ok(value) => value,
             };
         }
+        Ok(())
     };
 
     let userdata = UserTimerData {
