@@ -99,9 +99,6 @@ extern "C" {
 extern "C" {
     pub fn json_object_new_array() -> *mut json_object;
 }
-extern "C" {
-    pub fn json_object_new_array_ext(initial_size: ::std::os::raw::c_int) -> *mut json_object;
-}
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct array_list {
@@ -149,12 +146,6 @@ extern "C" {
     ) -> ::std::os::raw::c_int;
 }
 extern "C" {
-    pub fn json_object_array_shrink(
-        jso: *mut json_object,
-        empty_slots: ::std::os::raw::c_int,
-    ) -> ::std::os::raw::c_int;
-}
-extern "C" {
     pub fn json_object_new_boolean(b: json_bool) -> *mut json_object;
 }
 extern "C" {
@@ -173,9 +164,6 @@ extern "C" {
     pub fn json_object_new_int64(i: i64) -> *mut json_object;
 }
 extern "C" {
-    pub fn json_object_new_uint64(i: u64) -> *mut json_object;
-}
-extern "C" {
     pub fn json_object_get_int(obj: *const json_object) -> i32;
 }
 extern "C" {
@@ -191,13 +179,7 @@ extern "C" {
     pub fn json_object_get_int64(obj: *const json_object) -> i64;
 }
 extern "C" {
-    pub fn json_object_get_uint64(obj: *const json_object) -> u64;
-}
-extern "C" {
     pub fn json_object_set_int64(obj: *mut json_object, new_value: i64) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn json_object_set_uint64(obj: *mut json_object, new_value: u64) -> ::std::os::raw::c_int;
 }
 extern "C" {
     pub fn json_object_new_double(d: f64) -> *mut json_object;
@@ -248,9 +230,6 @@ extern "C" {
     ) -> ::std::os::raw::c_int;
 }
 extern "C" {
-    pub fn json_object_new_null() -> *mut json_object;
-}
-extern "C" {
     pub fn json_object_equal(
         obj1: *mut json_object,
         obj2: *mut json_object,
@@ -286,12 +265,8 @@ pub const json_tokener_error_json_tokener_error_parse_object_key_sep: json_token
 pub const json_tokener_error_json_tokener_error_parse_object_value_sep: json_tokener_error = 11;
 pub const json_tokener_error_json_tokener_error_parse_string: json_tokener_error = 12;
 pub const json_tokener_error_json_tokener_error_parse_comment: json_tokener_error = 13;
-pub const json_tokener_error_json_tokener_error_parse_utf8_string: json_tokener_error = 14;
-pub const json_tokener_error_json_tokener_error_size: json_tokener_error = 15;
+pub const json_tokener_error_json_tokener_error_size: json_tokener_error = 14;
 pub type json_tokener_error = ::std::os::raw::c_uint;
-extern "C" {
-    pub fn json_tokener_get_parse_end(tok: *mut json_tokener) -> usize;
-}
 extern "C" {
     pub fn json_tokener_error_desc(jerr: json_tokener_error) -> *const ::std::os::raw::c_char;
 }

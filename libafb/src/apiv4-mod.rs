@@ -2689,7 +2689,7 @@ impl<'a> DoSubcall<&AfbRequest<'a>, Box<dyn AfbRqtControl>> for AfbSubCall {
                 verbstr.into_raw(),
                 params.arguments.len() as u32,
                 params.arguments.as_slice().as_ptr(),
-                cglue::afb_req_subcall_flags_afb_req_subcall_catch_events as i32,
+                (cglue::afb_req_subcall_flags_afb_req_subcall_catch_events|cglue::afb_req_subcall_flags_afb_req_subcall_api_session) as i32,
                 &mut status,
                 &mut nreplies,
                 replies.as_ref() as *const _ as *mut cglue::afb_data_t,
