@@ -170,7 +170,10 @@ macro_rules! AfbVerbRegister {
                 request: &libafb::apiv4::AfbRequest,
                 args: &libafb::datav4::AfbData,
             ) -> Result<(), AfbError>{
-                $callback(request, args, self)
+                match $callback(request, args, self) {
+                    Err(error) => Err(afb_add_trace!(error)),
+                    Ok(()) => {Ok(())},
+                }
             }
         }
     };
@@ -183,7 +186,10 @@ macro_rules! AfbVerbRegister {
                 request: &libafb::apiv4::AfbRequest,
                 args: &libafb::datav4::AfbData,
             ) -> Result<(), AfbError>{
-                $callback(request, args)
+                match $callback(request, args) {
+                    Err(error) => Err(afb_add_trace!(error)),
+                    Ok(()) => {Ok(())},
+                }
             }
         }
     };

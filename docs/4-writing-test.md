@@ -21,6 +21,11 @@ Test may run on two modes:
   * API on demand mode: user selects a specify test/group and launch it from devtool UI, afb-client, CURL, ... TAP result are return JSON object.
   * AUTORUN automatic mode: in this case test start from 1st AUTORUN test and depending on onsuccess/onerror switch to a user defined group.
 
+Example of CLI interaction
+```
+afb-client -H localhost:1234/api rust-api info
+```
+
 Example of batch autorun/autoexit mode
 ```bash
 afb-binder --config=examples/test/etc/binding-test-auto.json

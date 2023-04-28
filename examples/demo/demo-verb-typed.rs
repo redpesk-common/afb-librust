@@ -16,14 +16,7 @@ use self::demo_converter::MySimpleData;
 AfbVerbRegister!(VerbCtrl, callback);
 fn callback(request: &AfbRequest, args: &AfbData) ->Result <(), AfbError>{
     // check arg0 match MySimpleData grammar
-    let arg0 = args.get::<&MySimpleData>(0);
-    let input = match arg0 {
-        Err(error) => {
-            afb_log_msg!(Warning, request, "invalid args[0] error={}", error);
-            return Err(afb_add_trace!(error));
-        }
-        Ok(data) => data,
-    };
+    let input = args.get::<&MySimpleData>(0)?;
 
     // create a sample simple-data object as response
     let output = MySimpleData {

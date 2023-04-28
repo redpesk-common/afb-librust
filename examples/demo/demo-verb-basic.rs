@@ -12,21 +12,7 @@ use libafb::prelude::*;
 // AfbApi AfbVerb without vcbdata
 AfbVerbRegister!(VerbCtrl, callback);
 fn callback(request: &AfbRequest, args: &AfbData) -> Result<(), AfbError> {
-    let jquery = match args.get::<JsoncObj>(0) {
-        Ok(argument) => {
-            afb_log_msg!(
-                Info,
-                request,
-                "Got valid jsonc object argument={}",
-                argument
-            );
-            argument
-        }
-        Err(error) => {
-            afb_log_msg!(Error, request, "hoop invalid json argument {}", error);
-            JsoncObj::from("invalid json input argument")
-        }
-    };
+    let jquery = args.get::<JsoncObj>(0)?;
 
     // rebuilt a new json object with upcase value of initial one
     let data = jquery.to_string().to_uppercase();
