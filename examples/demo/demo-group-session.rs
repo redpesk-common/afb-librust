@@ -10,15 +10,13 @@
 use libafb::prelude::*;
 
 // session user data (one private instance per client)
-AfbSessionRegister!(SessionUserData);
+AfbSessionRegister!(SessionUserData, session_drop_cb);
 struct SessionUserData {
     count: u32,
 }
 
-impl Drop for SessionUserData {
-    fn drop(&mut self) {
-        println!("** session closing ***");
-    }
+fn session_drop_cb(session: &mut SessionUserData) {
+    println!("*** session closing count={} ***", session.count);
 }
 
 AfbVerbRegister!(CreateCtrl, create_callback);
@@ -30,7 +28,7 @@ fn create_callback(request: &AfbRequest, _args: &AfbData)  -> Result <(), AfbErr
 
 AfbVerbRegister!(DropCtrl, drop_callback);
 fn drop_callback(request: &AfbRequest, _args: &AfbData)  -> Result <(), AfbError> {
-    SessionUserData::drop(request)?;
+    SessionUserData::unref(request)?;
     request.reply(AFB_NO_DATA, 0);
     Ok(())
 }
@@ -55,7 +53,8 @@ pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
         .set_usage("no input")
         .finalize()?;
 
-    let create = AfbVerb::new("reset")
+    let create = AfbVerb::new("set/reset")
+        .set_name("reset")
         .set_info("create a new session context")
         .set_usage("no input")
         .set_callback(Box::new(CreateCtrl))

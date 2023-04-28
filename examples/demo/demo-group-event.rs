@@ -38,51 +38,12 @@ impl UserCtxData {
     }
 }
 
-// impl SessionUserData {
-//     fn get<'a>(request: &'a AfbRequest) -> Result<&'a mut Self, AfbError> {
-//         match request.get_session() {
-//             Err(error) => Err(error),
-//             Ok(any) => match any.as_any().downcast_mut::<SessionUserData>() {
-//                 None => Err(AfbError::make(
-//                     "session-any-cast",
-//                     "fail to restore <SessionUserData>",
-//                 )),
-//                 Some(value) => Ok(value),
-//             },
-//         }
-//     }
-
-//     fn set<'a>(request: &'a AfbRequest, userdata: SessionUserData) -> Result<&'a mut Self, AfbError> {
-//         match request.set_session(Box::new(userdata)) {
-//             Err(error) => Err(error),
-//             Ok(any) => match any.as_any().downcast_mut::<SessionUserData>() {
-//                 None => Err(AfbError::make(
-//                     "session-any-cast",
-//                     "fail to restore <SessionUserData>",
-//                 )),
-//                 Some(value) => Ok(value),
-//             },
-//         }
-//     }
-
-//     fn drop(request: &AfbRequest) -> Result<(), AfbError> {
-//         request.drop_session()
-//     }
-// }
-
-// impl AfbRqtSession for SessionUserData {
-//     fn as_any(&mut self) -> &mut dyn Any {
-//         self
-//     }
-// }
-
 
 // attach to session (one per client)
 AfbSessionRegister!(SessionUserData);
 struct SessionUserData {
     count: u32,
 }
-
 
 struct SubscribeData {
     ctx: Arc<UserCtxData>,
@@ -91,6 +52,7 @@ AfbVerbRegister!(SubscribeCtrl, subscribe_callback, SubscribeData);
 fn subscribe_callback(request: &AfbRequest, _args: &AfbData, userdata: &mut SubscribeData)  -> Result <(), AfbError> {
     let _session= SessionUserData::set(request, SessionUserData{count:0})?;
     userdata.ctx.event.subscribe(request) ?;
+    request.reply(AFB_NO_DATA, 0);
     Ok(())
 }
 
@@ -99,12 +61,10 @@ struct UnsubscribeData {
 }
 AfbVerbRegister!(UnsubscribeCtrl, unsubscribe_callback, UnsubscribeData);
 fn unsubscribe_callback(request: &AfbRequest, _args: &AfbData, userdata: &mut UnsubscribeData)  -> Result <(), AfbError> {
-    SessionUserData::drop(request) ?;
+    SessionUserData::unref(request) ?;
 
-    match userdata.ctx.event.unsubscribe(request) {
-        Err(error) => request.reply(afb_add_trace!(error), 405),
-        Ok(_event) => request.reply(AFB_NO_DATA, 0),
-    }
+    userdata.ctx.event.unsubscribe(request)?;
+    request.reply(AFB_NO_DATA, 0);
     Ok(())
 }
 

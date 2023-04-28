@@ -26,7 +26,7 @@ use std::boxed::Box;
 use std::ffi::{CStr, CString};
 use std::fmt;
 // libafb dependencies
-use cglue as cglue;
+use cglue;
 use datav4::*;
 use jsonc::*;
 use utilv4::*;
@@ -41,7 +41,7 @@ pub const NULLPTR: *mut std::ffi::c_void = 0 as *mut std::ffi::c_void;
 const MAX_CALL_ARGS: u32 = 10;
 
 pub trait AfbRqtControl {
-    fn verb_callback(&mut self, request: &AfbRequest, args: &AfbData) -> Result<(),AfbError>;
+    fn verb_callback(&mut self, request: &AfbRequest, args: &AfbData) -> Result<(), AfbError>;
 }
 
 pub trait AfbSubcallControl {
@@ -80,7 +80,12 @@ macro_rules! AfbBindingRegister {
                     AFB_OK
                 }
                 Err(error) => {
-                    afb_log_msg!(Critical, apiv4, "Binding init fail error={}",error.to_string());
+                    afb_log_msg!(
+                        Critical,
+                        apiv4,
+                        "Binding init fail error={}",
+                        error.to_string()
+                    );
                     AFB_FAIL
                 }
             }
@@ -91,6 +96,53 @@ macro_rules! AfbBindingRegister {
 pub use AfbSessionRegister;
 #[macro_export]
 macro_rules! AfbSessionRegister {
+    ($userdata: ident, $callback: ident) => {
+        use crate::libafb::utilv4::MakeError;
+        #[allow(non_camel_case_types)]
+        impl AfbRqtSession for $userdata {
+            fn as_any(&mut self) -> &mut dyn Any {
+                self
+            }
+            fn closing(&mut self) {
+                $callback(self)
+            }
+        }
+
+        impl $userdata {
+            fn get<'a>(request: &'a AfbRequest) -> Result<&'a mut Self, AfbError> {
+                match request.get_session() {
+                    Err(error) => Err(error),
+                    Ok(any) => match any.as_any().downcast_mut::<$userdata>() {
+                        None => Err(AfbError::make(
+                            "session-any-cast",
+                            "fail to restore <$userdata>",
+                        )),
+                        Some(value) => Ok(value),
+                    },
+                }
+            }
+
+            fn set<'a>(
+                request: &'a AfbRequest,
+                userdata: $userdata,
+            ) -> Result<&'a mut Self, AfbError> {
+                match request.set_session(Box::new(userdata)) {
+                    Err(error) => Err(error),
+                    Ok(any) => match any.as_any().downcast_mut::<$userdata>() {
+                        None => Err(AfbError::make(
+                            "session-any-cast",
+                            "fail to restore <$userdata>",
+                        )),
+                        Some(value) => Ok(value),
+                    },
+                }
+            }
+
+            fn unref(request: &AfbRequest) -> Result<(), libafb::utilv4::AfbError> {
+                request.drop_session()
+            }
+        }
+    };
     ($userdata: ident) => {
         use crate::libafb::utilv4::MakeError;
         #[allow(non_camel_case_types)]
@@ -130,7 +182,7 @@ macro_rules! AfbSessionRegister {
                 }
             }
 
-            fn drop(request: &AfbRequest) -> Result<(), libafb::utilv4::AfbError> {
+            fn unref(request: &AfbRequest) -> Result<(), libafb::utilv4::AfbError> {
                 request.drop_session()
             }
         }
@@ -169,10 +221,10 @@ macro_rules! AfbVerbRegister {
                 &mut self,
                 request: &libafb::apiv4::AfbRequest,
                 args: &libafb::datav4::AfbData,
-            ) -> Result<(), AfbError>{
+            ) -> Result<(), AfbError> {
                 match $callback(request, args, self) {
                     Err(error) => Err(afb_add_trace!(error)),
-                    Ok(()) => {Ok(())},
+                    Ok(()) => Ok(()),
                 }
             }
         }
@@ -185,10 +237,10 @@ macro_rules! AfbVerbRegister {
                 &mut self,
                 request: &libafb::apiv4::AfbRequest,
                 args: &libafb::datav4::AfbData,
-            ) -> Result<(), AfbError>{
+            ) -> Result<(), AfbError> {
                 match $callback(request, args) {
                     Err(error) => Err(afb_add_trace!(error)),
-                    Ok(()) => {Ok(())},
+                    Ok(()) => Ok(()),
                 }
             }
         }
@@ -305,9 +357,9 @@ fn add_verbs_to_group(
 #[no_mangle]
 pub extern "C" fn free_session_cb(context: *mut std::ffi::c_void) {
     // Fulup why session drop is not called ????
-    // let wrap= unsafe {&mut *(context as *const _ as *mut AfbRqtSessionWrap)};
-    // drop (&wrap.inner);
-    let cbox = unsafe { Box::from_raw(context)};
+    let wrap = unsafe { &mut *(context as *const _ as *mut AfbRqtSessionWrap) };
+    wrap.inner.closing();
+    let cbox = unsafe { Box::from_raw(context) };
     drop(cbox);
 }
 
@@ -1301,7 +1353,7 @@ pub extern "C" fn api_verbs_cb(rqtv4: cglue::afb_req_t, argc: u32, args: *const 
     }
 
     // call verb calback
-    let result= match verb_ref.ctrlbox {
+    let result = match verb_ref.ctrlbox {
         Some(verb_control) => unsafe {
             (*verb_control).verb_callback(&mut request, &mut arguments)
         },
@@ -1309,7 +1361,7 @@ pub extern "C" fn api_verbs_cb(rqtv4: cglue::afb_req_t, argc: u32, args: *const 
     };
 
     match result {
-        Ok(()) => {},
+        Ok(()) => {}
         Err(error) => request.reply(error, -100),
     }
 }
@@ -1456,7 +1508,7 @@ impl AfbVerb {
                     self.actions = jvalue;
                     Ok(self)
                 } else {
-                    Err(AfbError::new("verb-set-action","not a valid json array"))
+                    Err(AfbError::new("verb-set-action", "not a valid json array"))
                 }
             }
         }
@@ -1587,11 +1639,8 @@ struct AfbRqtSessionWrap {
     inner: Box<dyn AfbRqtSession>,
 }
 pub trait AfbRqtSession {
-    //fn new(request: AfbRequest, session: Self) -> Result<&mut Self, AfbError> ;
-    //fn get(request: AfbRequest) -> Result<&mut Self, AfbError>;
-    // fn get(&self) ->  Result<&mut dyn Any, AfbError>;
     fn as_any(&mut self) -> &mut dyn Any;
-    fn unref(&mut self) {}
+    fn closing(&mut self) {}
 }
 
 impl<'a> AfbRequest<'a> {
@@ -2430,15 +2479,14 @@ pub extern "C" fn afb_async_rqt_callback(
     match subcall_ref.verb_cb {
         Some(callback) => {
             match unsafe { (*callback).verb_callback(&mut request, &mut arguments) } {
-                Ok(()) => {},
-                Err(error) => request.reply(error,101),
+                Ok(()) => {}
+                Err(error) => request.reply(error, 101),
             }
-        },
+        }
         _ => {
             afb_log_msg!(Critical, rqtv4, "(hoops invalid RQT callback context");
         }
     };
-
 }
 
 #[no_mangle]
@@ -2477,6 +2525,7 @@ pub fn afb_error_info(errcode: i32) -> &'static str {
     match errcode {
         0 => "Success",
         -9 => "Invalid Scope",
+        -11 => "No Reply",
         -17 => "Api already exist",
         -62 => "Watchdog expire",
         -110 => "Connection timeout",
@@ -2695,7 +2744,9 @@ impl<'a> DoSubcall<&AfbRequest<'a>, Box<dyn AfbRqtControl>> for AfbSubCall {
                 verbstr.into_raw(),
                 params.arguments.len() as u32,
                 params.arguments.as_slice().as_ptr(),
-                (cglue::afb_req_subcall_flags_afb_req_subcall_catch_events|cglue::afb_req_subcall_flags_afb_req_subcall_api_session) as i32,
+                (cglue::afb_req_subcall_flags_afb_req_subcall_catch_events
+                    | cglue::afb_req_subcall_flags_afb_req_subcall_api_session)
+                    as i32,
                 &mut status,
                 &mut nreplies,
                 replies.as_ref() as *const _ as *mut cglue::afb_data_t,

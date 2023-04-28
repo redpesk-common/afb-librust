@@ -4,6 +4,7 @@
   "port": 1234,
   "alias": ["/devtools:/usr/share/afb-ui-devtools/binder"],
   "monitoring": true,
+  "cntxtimeout": 30,
 
   "binding": [
     {
