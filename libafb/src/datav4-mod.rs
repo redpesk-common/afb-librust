@@ -65,9 +65,10 @@ pub use AfbDataConverter;
 macro_rules! AfbDataConverter {
     ($uid:ident, $datat:ident) => {
         mod $uid {
+            #![allow(non_upper_snake_case)]
             use super::*;
             use std::any::Any;
-            pub static mut converter_box: ConverterBox = ConverterBox(None);
+            pub static mut CONVERTER_BOX: ConverterBox = ConverterBox(None);
 
             pub fn encode(cbuffer: *mut std::ffi::c_void) -> Result<String, String> {
                 let data = unsafe { &mut *(cbuffer as *mut $datat) };
@@ -96,7 +97,7 @@ macro_rules! AfbDataConverter {
                 match converter {
                     Ok(encoder) => {
                         unsafe {
-                            converter_box =
+                            CONVERTER_BOX =
                                 ConverterBox(Some(encoder as &'static libafb::datav4::AfbConverter))
                         };
                         Ok(encoder as &'static libafb::datav4::AfbConverter)
@@ -111,8 +112,8 @@ macro_rules! AfbDataConverter {
                 &self,
                 index: usize,
             ) -> Result<&'static $datat, libafb::utilv4::AfbError> {
-                //let converter= $uid::converter_box;
-                let typev4 = match unsafe { &$uid::converter_box } {
+                //let converter= $uid::CONVERTER_BOX;
+                let typev4 = match unsafe { &$uid::CONVERTER_BOX } {
                     ConverterBox(None) => {
                         afb_log_msg!(
                             Critical,
@@ -138,7 +139,7 @@ macro_rules! AfbDataConverter {
 
         impl ConvertResponse<$datat> for libafb::datav4::AfbParams {
             fn export(data: $datat) -> libafb::datav4::AfbExportResponse {
-                let typev4 = match unsafe { &$uid::converter_box } {
+                let typev4 = match unsafe { &$uid::CONVERTER_BOX } {
                     ConverterBox(None) => {
                         afb_log_msg!(
                             Critical,

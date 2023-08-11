@@ -28,16 +28,6 @@ pub struct MySimpleData {
 
 pub fn register(binding: AfbApiV4) -> Result<(),AfbError> {
     // Custom type should be registered at binding startup time
-    match simple_data::register() {
-        Err(error) => {
-            afb_log_msg!(
-                Critical,
-                binding,
-                "fail to register converter error={}",
-                error
-            );
-            Err(error)
-        },
-        Ok(_value) => Ok({}),
-    }
+   simple_data::register()?;
+   Ok(())
 }
