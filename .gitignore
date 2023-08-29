@@ -2,7 +2,7 @@ package
 target/
 .*.sw*
 *.tar.gz
-__*
+_*
 ~*
 *profraw
 cargo-test*

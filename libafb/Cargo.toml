@@ -10,6 +10,8 @@
 name = "lib_libafb"
 version = "0.1.0"
 authors = ["fulup@iot.bzh"]
+publish = false
+build = "capi/build.rs"
 
 [dependencies]
 bitflags = "2"

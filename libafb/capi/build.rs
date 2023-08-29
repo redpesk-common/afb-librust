@@ -31,18 +31,18 @@ fn main() {
         // -----------------------------------------------------------------------
         ";
     // invalidate the built crate whenever the wrapper changes
-    println!("cargo:rerun-if-changed=src/capi/libafb-map.h");
+    println!("cargo:rerun-if-changed=capi/libafb-map.h");
 
     // expand static inline libafb macro
     let output=Command::new("bash")
-        .args(["-c","gcc -E src/capi/libafb-map.h |sed 's/static *inline//'|sed '/^#/d'| sed '/^$/d' >src/capi/libafb-map.c"])
+        .args(["-c","gcc -E capi/libafb-map.h |sed 's/static *inline//'|sed '/^#/d'| sed '/^$/d' >capi/_libafb-map.c"])
         .output()
-        .expect("fail to excec gcc -E src/capi/libafb-map.h");
+        .expect("fail to excec gcc -E capi/_libafb-map.h");
     assert!(output.status.success());
 
     let libafb = bindgen::Builder::default()
         // main entry point for wrapper
-        .header("src/capi/libafb-map.c")
+        .header("capi/_libafb-map.c")
         .raw_line(header)
         // default wrapper config
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
@@ -62,14 +62,14 @@ fn main() {
         .expect("Unable to generate libafb");
 
     libafb
-        .write_to_file("src/capi/libafb-map.rs")
+        .write_to_file("capi/_libafb-map.rs")
         .expect("Couldn't write libafb!");
 
     // Tell Cargo that if the given file changes, to rerun this build script.
     // println!("cargo:rerun-if-changed=src/capi/libafb-map.c");
     // Use the `cc` crate to build a C file and statically link it.
     cc::Build::new()
-         .file("src/capi/libafb-map.c")
+         .file("capi/_libafb-map.c")
          .include("/usr/local/include")
          .compile("afb-glue");
 
@@ -85,7 +85,7 @@ fn main() {
     println!("cargo:rustc-link-arg=-ljson-c");
 
     // invalidate the built crate whenever the wrapper changes
-    println!("cargo:rerun-if-changed=src/capi/jsonc_map.h");
+    println!("cargo:rerun-if-changed=capi/jsonc_map.h");
 
     let header = "
     // -----------------------------------------------------------------------
@@ -100,7 +100,7 @@ fn main() {
 
     let jsonc = bindgen::Builder::default()
         // main entry point for wrapper
-        .header("src/capi/jsonc-map.h")
+        .header("capi/jsonc-map.h")
         .raw_line(header)
         // default wrapper config
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
@@ -125,7 +125,7 @@ fn main() {
         .expect("Unable to generate jsonc");
 
     jsonc
-        .write_to_file("src/capi/jsonc-map.rs")
+        .write_to_file("capi/_jsonc-map.rs")
         .expect("Couldn't write jsonc!");
 
 }

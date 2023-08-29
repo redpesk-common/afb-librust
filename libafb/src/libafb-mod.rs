@@ -25,7 +25,7 @@
 extern crate bitflags;
 
 // cglue is exported as private
-#[path = "./cglue-mod.rs"]
+#[path = "../capi/cglue-mod.rs"]
 mod cglue;
 
 #[path = "./apiv4-mod.rs"]

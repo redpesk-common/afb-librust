@@ -39,6 +39,7 @@ Note: bingen & serde pull many other rust modules that are pull automatically by
 ```bash
     git clone git.ovh.iot:redpesk/redpesk-labs/afb-librust.git
     cd afb-librust
+    touch libafb/src/capi/build.rs  # cargo fail to detect missing file that should be generated
     cargo build
 ```
 
