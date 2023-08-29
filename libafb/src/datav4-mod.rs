@@ -39,7 +39,7 @@ pub const AFB_NO_AUTH: *const cglue::afb_auth = 0 as *const cglue::afb_auth;
 pub const AFB_NO_DATA: AfbNoData = None;
 pub const AFB_OK: i32 = 0;
 pub const AFB_FAIL: i32 = 1;
-pub const AFB_FATAL: i32 = -1;
+pub const AFB_ABORT: i32 = -1;
 
 pub struct ConverterBox(pub Option<&'static AfbConverter>);
 unsafe impl Sync for ConverterBox {}

@@ -86,7 +86,7 @@ macro_rules! AfbBindingRegister {
                         "Binding init fail error={}",
                         error.to_string()
                     );
-                    AFB_FAIL
+                    AFB_ABORT
                 }
             }
         }

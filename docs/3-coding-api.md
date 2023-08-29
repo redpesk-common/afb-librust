@@ -35,7 +35,7 @@ pub fn binding_init(binding: AfbApiV4, jconf: Jsonc) -> i32 {
             }
             Err(error) => {
                 afb_log_msg!(Critical, binding, "Fail to register api error={}", error);
-                AFB_FATAL
+                AFB_ABORT
             }
         }
     };
