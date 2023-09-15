@@ -783,7 +783,7 @@ impl JsoncObj {
         let mut entry = unsafe { (*cglue::json_object_get_object(self.jso)).head };
         while entry != 0 as *mut cglue::lh_entry {
             let key = unsafe {
-                CStr::from_ptr((*entry).k as *mut i8)
+                CStr::from_ptr((*entry).k as *mut u8)
                     .to_owned()
                     .to_str()
                     .unwrap()

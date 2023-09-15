@@ -229,7 +229,7 @@ pub const AFB_BUILTIN: Option<&AfbConverter> = None;
 // restore Rust Cstring, in order to make it disposable
 #[no_mangle]
 extern "C" fn free_cstring_cb(context: *mut std::ffi::c_void) {
-    let cbuffer = context as *mut i8;
+    let cbuffer = context as *mut u8;
     let cstring = unsafe { CString::from_raw(cbuffer) };
     drop(cstring);
 }
@@ -299,7 +299,7 @@ extern "C" fn afb_decoding_cb(
     // map lib afb raw pointers to rust object require unsafe operation
     let result = unsafe {
         // retrieve raw data pointer and map it as a Datatype object
-        let cbuffer = cglue::afb_data_ro_pointer(source) as *const i8;
+        let cbuffer = cglue::afb_data_ro_pointer(source) as *const u8;
         let cstring = CStr::from_ptr(cbuffer);
         let data: &str = cstring.to_str().unwrap();
 
@@ -498,7 +498,7 @@ impl ConvertQuery<String> for AfbData {
                 format!("invalid converter format args[{}]", index),
             )),
             Some(cbuffer) => {
-                let cstring = unsafe { CStr::from_ptr(&mut *(cbuffer as *mut i8)) };
+                let cstring = unsafe { CStr::from_ptr(&mut *(cbuffer as *mut u8)) };
                 let slice: &str = cstring.to_str().unwrap();
                 Ok(slice.to_owned())
             }
