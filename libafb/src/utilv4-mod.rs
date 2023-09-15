@@ -465,7 +465,7 @@ impl DoSendLog<AfbApiV4> for AfbLogMsg {
         funcname: *mut u8,
         format: *mut u8,
     ) {
-        unsafe { cglue::afb_api_verbose(apiv4, level, file as , line as i32, funcname, format) }
+        unsafe { cglue::afb_api_verbose(apiv4, level, file , line as i32, funcname, format) }
     }
 }
 
