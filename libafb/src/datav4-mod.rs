@@ -32,6 +32,7 @@ use utilv4::*;
 pub type AfbTypeV4 = cglue::afb_type_t;
 pub type AfbDataV4 = cglue::afb_data_t;
 pub type AfbJsonStr = JsonStr;
+pub type cchar = ::std::os::raw::c_char;
 
 // trick to create a null parameter
 pub type AfbNoData = Option<std::ffi::c_void>;
