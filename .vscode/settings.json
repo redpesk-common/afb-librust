@@ -4,6 +4,7 @@
         "callsync",
         "cbuf",
         "cbuffer",
+        "cchar",
         "cglue",
         "cstring",
         "Fulup",
