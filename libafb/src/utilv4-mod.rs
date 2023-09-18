@@ -309,10 +309,10 @@ pub trait DoSendLog<T> {
     fn print_log(
         level: i32,
         handle: T,
-        file: *mut u8,
+        file: *const Cchar,
         line: i32,
-        funcname: *mut u8,
-        format: *mut u8,
+        funcname: *const Cchar,
+        format: *const Cchar,
     );
 }
 
@@ -320,10 +320,10 @@ impl<'a> DoSendLog<&AfbEventMsg<'a>> for AfbLogMsg {
     fn print_log(
         level: i32,
         event: &AfbEventMsg,
-        file: *mut u8,
+        file: *const Cchar,
         line: i32,
-        funcname: *mut u8,
-        format: *mut u8,
+        funcname: *const Cchar,
+        format: *const Cchar,
     ) {
         unsafe {
             cglue::afb_api_verbose(
@@ -342,10 +342,10 @@ impl<'a> DoSendLog<&AfbTimer> for AfbLogMsg {
     fn print_log(
         level: i32,
         _timer: &AfbTimer,
-        file: *mut u8,
+        file: *const Cchar,
         line: i32,
-        funcname: *mut u8,
-        format: *mut u8,
+        funcname: *const Cchar,
+        format: *const Cchar,
     ) {
         unsafe { cglue::afb_verbose(level, file, line as i32, funcname, format) }
     }
@@ -355,10 +355,10 @@ impl<'a> DoSendLog<&AfbSchedJob> for AfbLogMsg {
     fn print_log(
         level: i32,
         _timer: &AfbSchedJob,
-        file: *mut u8,
+        file: *const Cchar,
         line: i32,
-        funcname: *mut u8,
-        format: *mut u8,
+        funcname: *const Cchar,
+        format: *const Cchar,
     ) {
         unsafe { cglue::afb_verbose(level, file, line as i32, funcname, format) }
     }
@@ -368,10 +368,10 @@ impl<'a> DoSendLog<&AfbRequest<'a>> for AfbLogMsg {
     fn print_log(
         level: i32,
         rqt: &AfbRequest<'a>,
-        file: *mut u8,
+        file: *const Cchar,
         line: i32,
-        funcname: *mut u8,
-        format: *mut u8,
+        funcname: *const Cchar,
+        format: *const Cchar,
     ) {
         unsafe {
             cglue::afb_req_verbose(
@@ -390,10 +390,10 @@ impl<'a> DoSendLog<&AfbApi> for AfbLogMsg {
     fn print_log(
         level: i32,
         api: &AfbApi,
-        file: *mut u8,
+        file: *const Cchar,
         line: i32,
-        funcname: *mut u8,
-        format: *mut u8,
+        funcname: *const Cchar,
+        format: *const Cchar,
     ) {
         unsafe {
             cglue::afb_api_verbose(
@@ -412,10 +412,10 @@ impl DoSendLog<&AfbEvent> for AfbLogMsg {
     fn print_log(
         level: i32,
         event: &AfbEvent,
-        file: *mut u8,
+        file: *const Cchar,
         line: i32,
-        funcname: *mut u8,
-        format: *mut u8,
+        funcname: *const Cchar,
+        format: *const Cchar,
     ) {
         unsafe {
             cglue::afb_api_verbose(
@@ -434,10 +434,10 @@ impl DoSendLog<Option<u32>> for AfbLogMsg {
     fn print_log(
         level: i32,
         _not_used: Option<u32>,
-        file: *mut u8,
+        file: *const Cchar,
         line: i32,
-        funcname: *mut u8,
-        format: *mut u8,
+        funcname: *const Cchar,
+        format: *const Cchar,
     ) {
         unsafe { cglue::afb_verbose(level, file, line as i32, funcname, format) }
     }
@@ -447,10 +447,10 @@ impl DoSendLog<AfbRqtV4> for AfbLogMsg {
     fn print_log(
         level: i32,
         rqtv4: cglue::afb_req_t,
-        file: *mut u8,
+        file: *const Cchar,
         line: i32,
-        funcname: *mut u8,
-        format: *mut u8,
+        funcname: *const Cchar,
+        format: *const Cchar,
     ) {
         unsafe { cglue::afb_req_verbose(rqtv4, level, file, line as i32, funcname, format) }
     }
@@ -460,10 +460,10 @@ impl DoSendLog<AfbApiV4> for AfbLogMsg {
     fn print_log(
         level: i32,
         apiv4: AfbApiV4,
-        file: *mut u8,
+        file: *const Cchar,
         line: i32,
-        funcname: *mut u8,
-        format: *mut u8,
+        funcname: *const Cchar,
+        format: *const Cchar,
     ) {
         unsafe { cglue::afb_api_verbose(apiv4, level, file , line as i32, funcname, format) }
     }
@@ -542,8 +542,8 @@ impl AfbLogMsg {
             }
             None => {
                 let line = 0;
-                let file = 0 as *mut u8;
-                let func = 0 as *mut i8;
+                let file = 0 as *const Cchar;
+                let func = 0 as *const Cchar;
                 let format = CString::new(message)
                     .expect("Invalid message string")
                     .into_raw();

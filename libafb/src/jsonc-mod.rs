@@ -26,6 +26,7 @@
 mod jsonc_test;
 
 use utilv4::AfbError;
+use datav4::*;
 
 use cglue; // restrict jsonc C-binding visible only internally
 use std::ffi::{CStr, CString};
@@ -783,7 +784,7 @@ impl JsoncObj {
         let mut entry = unsafe { (*cglue::json_object_get_object(self.jso)).head };
         while entry != 0 as *mut cglue::lh_entry {
             let key = unsafe {
-                CStr::from_ptr((*entry).k as *mut u8)
+                CStr::from_ptr((*entry).k as *const Cchar)
                     .to_owned()
                     .to_str()
                     .unwrap()
