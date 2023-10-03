@@ -10,14 +10,14 @@
     html_logo_url = "https://iot.bzh/images/defaults/company/512-479-max-transp.png",
     html_favicon_url = "https://iot.bzh/images/defaults/favicon.ico"
 )]
-extern crate libafb;
 
 // import demo SimpleData converter.
 extern crate demo_converter;
 use self::demo_converter::MySimpleData;
 
-// import libafb dependencies
-use libafb::prelude::*;
+//import libafb dependencies
+extern crate afb_rust;
+use afb_rust::prelude::*;
 
 // This rootv4 demonstrate how to test an external rootv4 that you load within the same afb-binder process and security context
 // It leverages test (Test Anything Protocol) that is compatible with redpesk testing report.

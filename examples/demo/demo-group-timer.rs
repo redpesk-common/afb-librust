@@ -7,7 +7,7 @@
  */
 
 // import libafb dependencies
-use libafb::prelude::*;
+use afb_rust::prelude::*;
 use std::cell::Cell;
 use std::sync::Arc;
 

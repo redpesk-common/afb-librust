@@ -10,11 +10,11 @@
     html_logo_url = "https://iot.bzh/images/defaults/company/512-479-max-transp.png",
     html_favicon_url = "https://iot.bzh/images/defaults/favicon.ico"
 )]
-extern crate libafb;
+extern crate afb_rust;
 use std::time::Instant;
 
 // import libafb dependencies
-use libafb::prelude::*;
+use afb_rust::prelude::*;
 
 // import demo SimpleData converter.
 extern crate demo_converter;

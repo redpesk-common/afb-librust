@@ -87,32 +87,32 @@ macro_rules! AfbDataConverter {
             }
 
             pub fn register(
-            ) -> Result<&'static libafb::datav4::AfbConverter, libafb::utilv4::AfbError> {
+            ) -> Result<&'static afb_rust::datav4::AfbConverter, afb_rust::utilv4::AfbError> {
                 let converter =
-                    libafb::datav4::AfbConverter::new(stringify!($uid)).and_then(|obj| {
-                        obj.add_encoder(libafb::datav4::AfbBuiltinType::Json, encode, decode)
+                    afb_rust::datav4::AfbConverter::new(stringify!($uid)).and_then(|obj| {
+                        obj.add_encoder(afb_rust::datav4::AfbBuiltinType::Json, encode, decode)
                         //Fulup tobe check with Jose
-                        //obj.add_encoder(libafb::datav4::AfbBuiltinType::StringZ, encode, decode)
+                        //obj.add_encoder(afb_rust::datav4::AfbBuiltinType::StringZ, encode, decode)
                     });
 
                 match converter {
                     Ok(encoder) => {
                         unsafe {
                             CONVERTER_BOX =
-                                ConverterBox(Some(encoder as &'static libafb::datav4::AfbConverter))
+                                ConverterBox(Some(encoder as &'static afb_rust::datav4::AfbConverter))
                         };
-                        Ok(encoder as &'static libafb::datav4::AfbConverter)
+                        Ok(encoder as &'static afb_rust::datav4::AfbConverter)
                     }
                     Err(error) => Err(error),
                 }
             }
         }
 
-        impl ConvertQuery<&'static $datat> for libafb::datav4::AfbData {
+        impl ConvertQuery<&'static $datat> for afb_rust::datav4::AfbData {
             fn import(
                 &self,
                 index: usize,
-            ) -> Result<&'static $datat, libafb::utilv4::AfbError> {
+            ) -> Result<&'static $datat, afb_rust::utilv4::AfbError> {
                 //let converter= $uid::CONVERTER_BOX;
                 let typev4 = match unsafe { &$uid::CONVERTER_BOX } {
                     ConverterBox(None) => {
@@ -129,7 +129,7 @@ macro_rules! AfbDataConverter {
 
                 // retrieve c-buffer pointer to argument void* value
                 match self.get_ro(typev4, index) {
-                    None => Err(libafb::utilv4::AfbError::new(
+                    None => Err(afb_rust::utilv4::AfbError::new(
                         concat!("import-", stringify!($datat)),
                         format!("invalid converter format args[{}]", index),
                     )),
@@ -138,8 +138,8 @@ macro_rules! AfbDataConverter {
             }
         }
 
-        impl ConvertResponse<$datat> for libafb::datav4::AfbParams {
-            fn export(data: $datat) -> libafb::datav4::AfbExportResponse {
+        impl ConvertResponse<$datat> for afb_rust::datav4::AfbParams {
+            fn export(data: $datat) -> afb_rust::datav4::AfbExportResponse {
                 let typev4 = match unsafe { &$uid::CONVERTER_BOX } {
                     ConverterBox(None) => {
                         afb_log_msg!(
@@ -154,7 +154,7 @@ macro_rules! AfbDataConverter {
                 };
                 let uid = concat!("import-", stringify!($user_type));
                 let boxe = Box::new(data);
-                libafb::datav4::AfbExportResponse::Converter(AfbExportData {
+                afb_rust::datav4::AfbExportResponse::Converter(AfbExportData {
                     uid: uid,
                     buffer_ptr: Box::leak(boxe) as *const _ as *mut std::ffi::c_void,
                     typev4: typev4,

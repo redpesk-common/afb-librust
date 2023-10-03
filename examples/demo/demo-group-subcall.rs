@@ -7,7 +7,7 @@
  */
 
 // import libafb dependencies
-use libafb::prelude::*;
+use afb_rust::prelude::*;
 
 // subcall demo create a dummy "loop-test/ping" to enable loopback test
 // both call ping verb and return result.

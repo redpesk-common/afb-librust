@@ -7,7 +7,7 @@
 # ---------------------------------------------------------------------------------------
 
 [package]
-name = "lib_libafb"
+name = "afb_rust"
 version = "0.1.0"
 authors = ["fulup@iot.bzh"]
 publish = false
@@ -21,6 +21,6 @@ bindgen = ">=0.6"
 cc = ">=1.0"
 
 [lib]
-name = "libafb"
+name = "afb_rust"
 crate-type = ["lib"]
 path = "src/libafb-mod.rs"

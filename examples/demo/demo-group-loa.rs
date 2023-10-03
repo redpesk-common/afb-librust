@@ -7,7 +7,7 @@
  */
 
 // import libafb dependencies
-use libafb::prelude::*;
+use afb_rust::prelude::*;
 
 // loa test group expose 3 verbs
 // -- loa/set: move session LOA to 1

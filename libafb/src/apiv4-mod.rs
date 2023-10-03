@@ -52,7 +52,8 @@ pub use AfbBindingRegister;
 /// Register binding main entry callback to be called from afb_binder
 /// Examples
 /// ```
-/// # use libafb::prelude::*;;
+/// # extern crate jsonc;
+/// # use afb_rust::prelude::*;;
 /// AfbBindingRegister!(binding_init);
 /// pub fn binding_init(binding: AfbApiV4, jconf: JsoncObj) -> i32 {
 ///    afb_log_msg!(Notice, binding, "-- binding-init binding config={}", jconf);
@@ -72,7 +73,7 @@ macro_rules! AfbBindingRegister {
             ctlarg: *mut std::ffi::c_void,
             api_data: *mut std::ffi::c_void,
         ) -> i32 {
-            let jconf = libafb::apiv4::afb_binding_get_config(apiv4, ctlid, ctlarg, api_data);
+            let jconf = afb_rust::apiv4::afb_binding_get_config(apiv4, ctlid, ctlarg, api_data);
             match $callback(apiv4, jconf) {
                 Ok(api) => {
                     afb_log_msg!(Notice, apiv4, "RUST api uid={} started", api.get_uid());
@@ -96,7 +97,7 @@ pub use AfbSessionRegister;
 #[macro_export]
 macro_rules! AfbSessionRegister {
     ($userdata: ident, $callback: ident) => {
-        use crate::libafb::utilv4::MakeError;
+        use crate::afb_rust::utilv4::MakeError;
         #[allow(non_camel_case_types)]
         impl AfbRqtSession for $userdata {
             fn as_any(&mut self) -> &mut dyn Any {
@@ -137,13 +138,13 @@ macro_rules! AfbSessionRegister {
                 }
             }
 
-            fn unref(request: &AfbRequest) -> Result<(), libafb::utilv4::AfbError> {
+            fn unref(request: &AfbRequest) -> Result<(), afb_rust::utilv4::AfbError> {
                 request.drop_session()
             }
         }
     };
     ($userdata: ident) => {
-        use crate::libafb::utilv4::MakeError;
+        use crate::afb_rust::utilv4::MakeError;
         #[allow(non_camel_case_types)]
         impl AfbRqtSession for $userdata {
             fn as_any(&mut self) -> &mut dyn Any {
@@ -181,7 +182,7 @@ macro_rules! AfbSessionRegister {
                 }
             }
 
-            fn unref(request: &AfbRequest) -> Result<(), libafb::utilv4::AfbError> {
+            fn unref(request: &AfbRequest) -> Result<(), afb_rust::utilv4::AfbError> {
                 request.drop_session()
             }
         }
@@ -195,7 +196,7 @@ pub use AfbVerbRegister;
 /// Examples
 /// ```
 ///   # extern crate jsonc;
-///   # use libafb::prelude::*;;
+///   # use afb_rust::prelude::*;;
 ///   struct OptionalData {
 ///     // my verb private data
 ///   }
@@ -215,11 +216,11 @@ macro_rules! AfbVerbRegister {
     ($verb_name: ident, $callback:ident, $userdata:ident) => {
         #[allow(non_camel_case_types)]
         type $verb_name = $userdata;
-        impl libafb::apiv4::AfbRqtControl for $userdata {
+        impl afb_rust::apiv4::AfbRqtControl for $userdata {
             fn verb_callback(
                 &mut self,
-                request: &libafb::apiv4::AfbRequest,
-                args: &libafb::datav4::AfbData,
+                request: &afb_rust::apiv4::AfbRequest,
+                args: &afb_rust::datav4::AfbData,
             ) -> Result<(), AfbError> {
                 match $callback(request, args, self) {
                     Err(error) => Err(afb_add_trace!(error)),
@@ -231,11 +232,11 @@ macro_rules! AfbVerbRegister {
     ($verb_name: ident, $callback:ident) => {
         #[allow(non_camel_case_types)]
         struct $verb_name;
-        impl libafb::apiv4::AfbRqtControl for $verb_name {
+        impl afb_rust::apiv4::AfbRqtControl for $verb_name {
             fn verb_callback(
                 &mut self,
-                request: &libafb::apiv4::AfbRequest,
-                args: &libafb::datav4::AfbData,
+                request: &afb_rust::apiv4::AfbRequest,
+                args: &afb_rust::datav4::AfbData,
             ) -> Result<(), AfbError> {
                 match $callback(request, args) {
                     Err(error) => Err(afb_add_trace!(error)),
@@ -254,7 +255,7 @@ pub use AfbEventRegister;
 /// Examples
 /// ```
 ///   # extern crate jsonc;
-///   # use libafb::prelude::*;;
+///   # use afb_rust::prelude::*;;
 /// struct OptionalData {
 ///     // my private data
 ///     counter: u32,
@@ -278,11 +279,11 @@ macro_rules! AfbEventRegister {
     ($event_name:ident, $callback:ident, $userdata:ident) => {
         #[allow(non_camel_case_types)]
         type $event_name = $userdata;
-        impl libafb::apiv4::AfbEventControl for $userdata {
+        impl afb_rust::apiv4::AfbEventControl for $userdata {
             fn event_callback(
                 &mut self,
-                event: &libafb::apiv4::AfbEventMsg,
-                args: &libafb::datav4::AfbData,
+                event: &afb_rust::apiv4::AfbEventMsg,
+                args: &afb_rust::datav4::AfbData,
             ) {
                 $callback(event, args, self)
             }
@@ -291,11 +292,11 @@ macro_rules! AfbEventRegister {
     ($event_name: ident, $callback:ident) => {
         #[allow(non_camel_case_types)]
         struct $event_name;
-        impl libafb::apiv4::AfbEventControl for $event_name {
+        impl afb_rust::apiv4::AfbEventControl for $event_name {
             fn event_callback(
                 &mut self,
-                event: &libafb::apiv4::AfbEventMsg,
-                args: &libafb::datav4::AfbData,
+                event: &afb_rust::apiv4::AfbEventMsg,
+                args: &afb_rust::datav4::AfbData,
             ) {
                 $callback(event, args)
             }
@@ -369,7 +370,7 @@ pub extern "C" fn free_session_cb(context: *mut std::ffi::c_void) {
 /// Examples
 /// ```no_run
 ///   # extern crate jsonc;
-///   # use libafb::prelude::*;;
+///   # use afb_rust::prelude::*;;
 ///   let api= AfbApi::new("rust-api")
 ///     .set_name("rust-api")
 ///     .set_permission(AfbPermission::new("acl:rust"))
@@ -434,7 +435,7 @@ pub extern "C" fn api_info_cb(
 /// Examples
 /// ```no_run
 ///   # extern crate jsonc;
-///   # use libafb::prelude::*;;
+///   # use afb_rust::prelude::*;;
 ///   let api= AfbApi::new("rust-api")
 ///     .set_name("rust-api")
 ///     .set_permission(AfbPermission::new("acl:rust"))
@@ -474,7 +475,8 @@ pub trait AfbApiControls {
     /// as a database this is typically the place to declare them.
     /// Examples:
     /// ```
-    /// # use libafb::prelude::*;;
+    /// # extern crate jsonc;
+    /// # use afb_rust::prelude::*;;
     /// struct ApiUserData{}
     /// impl AfbApiControls for ApiUserData {
     ///   fn config(&mut self, api: &mut AfbApi, config: JsoncObj) -> Result<(),AfbError> {
@@ -504,7 +506,8 @@ pub trait AfbApiControls {
     /// in loopback mode. For test it is mandatory to register a dedicated testing API within your binding before shaking your primary API.
     /// Example:
     /// ```
-    /// # use libafb::prelude::*;;
+    /// # extern crate jsonc;
+    /// # use afb_rust::prelude::*;;
     /// struct EvtUserData {
     ///   counter: u32,
     /// }
@@ -559,7 +562,8 @@ pub trait AfbApiControls {
     /// This method is fully generic. Nevertheless Rust does not allow its automatic implementation from trait default values.
     /// Example
     /// ```
-    /// # use libafb::prelude::*;;
+    /// # extern crate jsonc;
+    /// # use afb_rust::prelude::*;;
     /// pub struct ApiUserData {
     ///   my_event: &'static AfbEvent,
     ///   my_timer: &'static mut dyn AfbTimerRef,
@@ -832,7 +836,8 @@ pub extern "C" fn api_controls_cb(
 /// User should use setters before finalizing and then only getters
 /// Examples
 /// ```
-/// # use libafb::prelude::*;;
+/// # extern crate jsonc;
+/// # use afb_rust::prelude::*;;
 /// AfbVerbRegister!(VerbCtrl, verb_callback);
 /// fn verb_callback(request: &mut AfbRequest, _args: &mut AfbData) {
 ///    request.reply("my verb callback was called", 0);
@@ -980,7 +985,7 @@ impl AfbApi {
     /// Examples
     /// ```no_run
     ///  # extern crate jsonc;
-    ///  # use libafb::prelude::*;;
+    ///  # use afb_rust::prelude::*;;
     ///  AfbVerbRegister!(VerbCtrl, verb_cb);
     ///  fn verb_cb(request: &mut AfbRequest, _args: &mut AfbData) {
     ///    request.reply ("verb callback called",0);
@@ -1028,7 +1033,7 @@ impl AfbApi {
     /// Examples
     /// ```
     ///  # extern crate jsonc;
-    ///  # use libafb::prelude::*;;
+    ///  # use afb_rust::prelude::*;;
     ///  AfbVerbRegister!(VerbCtrl, verb_cb);
     ///  fn verb_cb(request: &mut AfbRequest, _args: &mut AfbData) {
     ///    request.reply ("verb callback called",0);
@@ -1055,7 +1060,7 @@ impl AfbApi {
     /// Examples
     /// ```no_run
     ///  # extern crate jsonc;
-    ///  # use libafb::prelude::*;;
+    ///  # use afb_rust::prelude::*;;
     /// // create event
     /// let event= AfbEvent::new("my-event");
     ///
@@ -1079,7 +1084,7 @@ impl AfbApi {
     /// Examples
     /// ```
     ///  # extern crate jsonc;
-    ///  # use libafb::prelude::*;;
+    ///  # use afb_rust::prelude::*;;
     ///  AfbVerbRegister!(VerbCtrl, verb_cb);
     ///  fn verb_cb(request: &mut AfbRequest, _args: &mut AfbData) {
     ///    request.reply ("verb callback called",0);
@@ -1119,7 +1124,7 @@ impl AfbApi {
     /// Examples:
     /// ```
     ///  # extern crate jsonc;
-    ///  # use libafb::prelude::*;;
+    ///  # use afb_rust::prelude::*;;
     ///  AfbEventRegister!(EventCtrl, event_get_callback);
     ///  fn event_get_callback(event: &mut AfbEventMsg, args: &mut AfbData) {
     ///     afb_log_msg!(Notice,&event,"--callback evt={} name={}",event.get_uid(), event.get_name());
@@ -1148,7 +1153,7 @@ impl AfbApi {
     /// Examples:
     /// ```
     ///  # extern crate jsonc;
-    ///  # use libafb::prelude::*;;
+    ///  # use afb_rust::prelude::*;;
     ///  pub struct ApiUserData {
     ///     /* my api data event_handle, timer_handle, ... */
     ///  }
@@ -1183,7 +1188,7 @@ impl AfbApi {
     /// Examples:
     /// ```no_run
     ///  # extern crate jsonc;
-    ///  # use libafb::prelude::*;;
+    ///  # use afb_rust::prelude::*;;
     ///  let api= AfbApi::new("rust-api")
     ///    .set_name("rust-api")
     ///    .require_api("api-1")
@@ -1203,7 +1208,7 @@ impl AfbApi {
     /// Examples:
     /// ```no_run
     ///  # extern crate jsonc;
-    ///  # use libafb::prelude::*;;
+    ///  # use afb_rust::prelude::*;;
     ///  let api= AfbApi::new("rust-api")
     ///    .set_name("rust-api")
     ///    .require_class("audio")
@@ -1230,7 +1235,7 @@ impl AfbApi {
     /// Examples:
     /// ```no_run
     ///  # extern crate jsonc;
-    ///  # use libafb::prelude::*;;
+    ///  # use afb_rust::prelude::*;;
     ///  let api= AfbApi::new("rust-api").finalize();
     /// ```
     pub fn finalize(&mut self) -> Result<&AfbApi, AfbError> {
@@ -1366,7 +1371,8 @@ pub extern "C" fn api_verbs_cb(rqtv4: cglue::afb_req_t, argc: u32, args: *const 
 /// User should use setters before finalizing and then only getters
 /// Examples
 /// ```no_run
-/// # use libafb::prelude::*;;
+/// # extern crate jsonc;
+/// # use afb_rust::prelude::*;;
 /// let verb1= AfbVerb::new("verb1")
 ///    .set_info("my first rust verb")
 ///    .set_callback(Box::new(VerbCtrl {}))
@@ -1435,7 +1441,7 @@ impl AfbVerb {
     /// Examples
     /// ```no_run
     ///  # extern crate jsonc;
-    ///  # use libafb::prelude::*;;
+    ///  # use afb_rust::prelude::*;;
     ///  AfbVerbRegister!(VerbCtrl, verb_cb);
     ///  fn verb_cb(request: &mut AfbRequest, _args: &mut AfbData) {
     ///    request.reply ("verb callback called",0);
@@ -1759,7 +1765,7 @@ impl<'a> AfbRequest<'a> {
     /// Example
     /// ```no_run
     ///   # extern crate jsonc;
-    ///   # use libafb::prelude::*;;
+    ///   # use afb_rust::prelude::*;;
     /// let apidata = request
     ///     .get_apidata()
     ///     .downcast_mut::<ApiUserData>()
@@ -1781,7 +1787,7 @@ impl<'a> AfbRequest<'a> {
     /// Examples
     /// ```no_run
     ///   # extern crate jsonc;
-    ///   # use libafb::prelude::*;;
+    ///   # use afb_rust::prelude::*;;
     /// fn set_loa_cb(request: &AfbRequest, _args: &AfbData) {
     /// match request.set_loa(1) {
     ///    Err(error) => request.reply (afb_add_trace!(error), -1),
@@ -1820,7 +1826,7 @@ impl<'a> AfbRequest<'a> {
     /// Examples
     /// ```no_run
     ///   # extern crate jsonc;
-    ///   # use libafb::prelude::*;;
+    ///   # use afb_rust::prelude::*;;
     ///     match AfbSchedJob::new("demo-job-post-verb-cb")
     ///        .set_exec_watchdog(10) // limit exec time to 10s;
     ///        .set_callback(Box::new(UserPostData {
@@ -1852,7 +1858,7 @@ impl<'a> AfbRequest<'a> {
     /// Example:
     /// ```no_run
     ///   # extern crate jsonc;
-    ///   # use libafb::prelude::*;;
+    ///   # use afb_rust::prelude::*;;
     ///   let reply = || -> Result<(), AfbError> {
     ///        let mut response = AfbParams::new();
     ///        response.push(JsoncObj::parse("{'label':'value'}"))?;

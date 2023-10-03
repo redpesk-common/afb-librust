@@ -6,7 +6,7 @@ authors = ["fulup@iot.bzh"]
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-lib_libafb= {path ="../libafb"}
+afb_rust= {path ="../libafb"}
 
 [lib]
 # demo type crate
@@ -27,7 +27,7 @@ crate-type = ["cdylib"]
 path = "test/binding-test.rs"
 
 [[example]]
-# type converter benchmarck
+# type converter benchmark  clear && cargo build --example afb_bench
 name = "afb_bench"
 crate-type = ["cdylib"]
 path = "bench/binding-bench.rs"
