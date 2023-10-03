@@ -147,14 +147,7 @@ fn timer_verb_cb(request: &AfbRequest, args: &AfbData) -> Result<(),AfbError> {
         .set_period(tic)
         .set_decount(count)
         .set_callback(Box::new(userdata))
-        .start()
-    {
-        Err(error) => {
-            afb_log_msg!(Critical, request, &error);
-            return Err(error);
-        }
-        Ok(value) => value,
-    };
+        .start()?;
 
     let msg = format!(
         "api:{} loop:{} timer:{}ms started",
