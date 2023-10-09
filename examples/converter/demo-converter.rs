@@ -10,11 +10,11 @@
     html_logo_url = "https://iot.bzh/images/defaults/company/512-479-max-transp.png",
     html_favicon_url = "https://iot.bzh/images/defaults/favicon.ico"
 )]
-extern crate afb_rust;
+extern crate afbv4;
 extern crate serde;
 
 // import libafb dependencies
-use afb_rust::prelude::*;
+use afbv4::prelude::*;
 
 // automatically generate json encoder/decoder for MySimpleData
 AfbDataConverter!(simple_data, MySimpleData);

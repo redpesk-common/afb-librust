@@ -7,7 +7,7 @@
  */
 
 // import libafb dependencies
-use afb_rust::prelude::*;
+use afbv4::prelude::*;
 
 // mySimpleData type is within an external crate to allow sharing with other crate/binding/binder
 extern crate demo_converter;

@@ -7,7 +7,7 @@
  */
 
 // import libafb dependencies
-use afb_rust::prelude::*;
+use afbv4::prelude::*;
 
 // session user data (one private instance per client)
 AfbSessionRegister!(SessionUserData, session_drop_cb);

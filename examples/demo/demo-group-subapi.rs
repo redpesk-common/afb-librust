@@ -7,7 +7,7 @@
  */
 
 // import libafb dependencies
-use afb_rust::prelude::*;
+use afbv4::prelude::*;
 
 // note: in production a unique API/verb should do both timer creation and event subscription
 AfbVerbRegister!(HelloStopCtrl, hello_stop_cb);

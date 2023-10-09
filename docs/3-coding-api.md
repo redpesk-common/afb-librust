@@ -7,7 +7,7 @@ At first your file should start with code:
 ```rust
 // import libafb dependencies
 extern crate jsonc;
-extern crate libafb;
+extern crate afbv4;
 
 // import libafb dependencies
 use libafb::prelude::*;

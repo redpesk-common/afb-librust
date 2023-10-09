@@ -57,7 +57,7 @@ macro_rules! AfbAuthAllOf {
     $(
         vect.push(AfbPermission::from($args));
     )*
-    afb_rust::utilv4::AfbPermission::new(afb_rust::utilv4::AfbPermission::AnyOf(vect))
+    afbv4::utilv4::AfbPermission::new(afbv4::utilv4::AfbPermission::AnyOf(vect))
     }
  };
 }
@@ -71,7 +71,7 @@ macro_rules! AfbAuthAnyOf {
     $(
         vect.push(AfbPermission::from($args));
     )*
-    afb_rust::utilv4::AfbPermission::new(afb_rust::utilv4::AfbPermission::AllOf(vect))
+    afbv4::utilv4::AfbPermission::new(afbv4::utilv4::AfbPermission::AllOf(vect))
     }
  };
 }
@@ -82,8 +82,8 @@ macro_rules! AfbTimerRegister {
     ($timer_name:ident, $callback:ident, $userdata:ident) => {
         #[allow(non_camel_case_types)]
         type $timer_name = $userdata;
-        impl afb_rust::utilv4::AfbTimerControl for $userdata {
-            fn timer_callback(&mut self, timer: &afb_rust::utilv4::AfbTimer, decount: u32) {
+        impl afbv4::utilv4::AfbTimerControl for $userdata {
+            fn timer_callback(&mut self, timer: &afbv4::utilv4::AfbTimer, decount: u32) {
                 $callback(timer, decount, self)
             }
         }
@@ -91,8 +91,8 @@ macro_rules! AfbTimerRegister {
     ($timer_name: ident, $callback:ident) => {
         #[allow(non_camel_case_types)]
         struct $timer_name;
-        impl afb_rust::apiv4::AfbTimerControl for $timer_name {
-            fn timer_callback(&mut self, timer: &afb_rust::utilv4::AfbTimer, decount: u32) {
+        impl afbv4::apiv4::AfbTimerControl for $timer_name {
+            fn timer_callback(&mut self, timer: &afbv4::utilv4::AfbTimer, decount: u32) {
                 $callback(timer, decount)
             }
         }
@@ -105,8 +105,8 @@ macro_rules! AfbEvtFdRegister {
     ($evtfd_name:ident, $callback:ident, $userdata:ident) => {
         #[allow(non_camel_case_types)]
         type $evtfd_name = $userdata;
-        impl afb_rust::utilv4::AfbEvtFdControl for $userdata {
-            fn evtfd_callback(&mut self, evtfd: &afb_rust::utilv4::AfbEvtFd, revents: u32) {
+        impl afbv4::utilv4::AfbEvtFdControl for $userdata {
+            fn evtfd_callback(&mut self, evtfd: &afbv4::utilv4::AfbEvtFd, revents: u32) {
                 $callback(evtfd, revents, self)
             }
         }
@@ -114,8 +114,8 @@ macro_rules! AfbEvtFdRegister {
     ($evtfd_name: ident, $callback:ident) => {
         #[allow(non_camel_case_types)]
         struct $evtfd_name;
-        impl afb_rust::apiv4::AfbEvtFdControl for $evtfd_name {
-            fn evtfd_callback(&mut self, evtfd: &afb_rust::utilv4::AfbEvtFd, revents: u32) {
+        impl afbv4::apiv4::AfbEvtFdControl for $evtfd_name {
+            fn evtfd_callback(&mut self, evtfd: &afbv4::utilv4::AfbEvtFd, revents: u32) {
                 $callback(evtfd, revents)
             }
         }
@@ -128,8 +128,8 @@ macro_rules! AfbJobRegister {
     ($job_name:ident, $callback:ident, $userdata:ident) => {
         #[allow(non_camel_case_types)]
         type $job_name = $userdata;
-        impl afb_rust::utilv4::AfbJobControl for $userdata {
-            fn job_callback(&mut self, job: &afb_rust::utilv4::AfbSchedJob, signal: i32) {
+        impl afbv4::utilv4::AfbJobControl for $userdata {
+            fn job_callback(&mut self, job: &afbv4::utilv4::AfbSchedJob, signal: i32) {
                 $callback(job, signal, self)
             }
         }
@@ -137,8 +137,8 @@ macro_rules! AfbJobRegister {
     ($job_name: ident, $callback:ident) => {
         #[allow(non_camel_case_types)]
         struct $job_name;
-        impl afb_rust::utilv4::AfbJobControl for $job_name {
-            fn job_callback(&mut self, job: &afb_rust::utilv4::AfbSchedJob, signal: i32) {
+        impl afbv4::utilv4::AfbJobControl for $job_name {
+            fn job_callback(&mut self, job: &afbv4::utilv4::AfbSchedJob, signal: i32) {
                 $callback(job, signal)
             }
         }

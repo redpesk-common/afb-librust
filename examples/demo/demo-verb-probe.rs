@@ -7,7 +7,7 @@
 */
 
 // import libafb dependencies
-use afb_rust::prelude::*;
+use afbv4::prelude::*;
 
 // just return use to test afb-rust framework minimal cost
 AfbVerbRegister!(VerbCtrl, callback);

@@ -11,11 +11,11 @@
     html_favicon_url = "https://iot.bzh/images/defaults/favicon.ico"
 )]
 
-extern crate libafb;
+extern crate afbv4;
 extern crate serde;
 
 // import libafb dependencies
-use afb_rust::prelude::*;
+use afbv4::prelude::*;
 
 // include verb callbacks code & definitions
 // -----------------------------------------

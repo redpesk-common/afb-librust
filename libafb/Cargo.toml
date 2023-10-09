@@ -7,7 +7,7 @@
 # ---------------------------------------------------------------------------------------
 
 [package]
-name = "afb_rust"
+name = "afbv4"
 version = "0.1.0"
 authors = ["fulup@iot.bzh"]
 publish = false
@@ -17,10 +17,14 @@ build = "capi/build.rs"
 bitflags = "2"
 
 [build-dependencies]
+system-deps = "2.0"
 bindgen = ">=0.6"
 cc = ">=1.0"
 
+[package.metadata.system-deps]
+libafb = "*"
+
 [lib]
-name = "afb_rust"
+name = "afbv4"
 crate-type = ["lib"]
 path = "src/libafb-mod.rs"
