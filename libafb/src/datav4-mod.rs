@@ -139,7 +139,7 @@ macro_rules! AfbDataConverter {
                             }
                         };
                         Err(AfbError::new(
-                            concat!("export-", stringify!($afb_builtin_type)),
+                            concat!("export:",stringify!($uid)),
                             format!("invalid custom converter format args[{}]={}", index, data),
                         ))
                     }
@@ -162,7 +162,7 @@ macro_rules! AfbDataConverter {
                     }
                     ConverterBox(Some(value)) => value.typev4,
                 };
-                let uid = concat!("export-", stringify!($user_type));
+                let uid = concat!("export:", stringify!($user_type));
                 let boxe = Box::new(data);
                 afbv4::datav4::AfbExportResponse::Converter(AfbExportData {
                     uid: uid,
@@ -495,7 +495,7 @@ macro_rules! _register_query_converter {
                             }
                         };
                         Err(AfbError::new(
-                            concat!("export-", stringify!($afb_builtin_type)),
+                            concat!("export:", stringify!($afb_builtin_type)),
                             format!("invalid converter format args[{}]={}", index, data),
                         ))
                     }
@@ -688,8 +688,7 @@ macro_rules! _register_response_converter {
                 let boxe = Box::new(data);
                 let raw_data = Box::into_raw(boxe) as *mut std::ffi::c_void;
                 let export = AfbExportData {
-                    //uid: "export-builtin-number",
-                    uid: concat!("export-", stringify!($afb_builtin_type)),
+                    uid: concat!("export:", stringify!($afb_builtin_type)),
                     typev4: unsafe { (*cglue::afbBindingV4r1_itfptr).$afb_builtin_type },
                     buffer_ptr: raw_data,
                     buffer_len: 0, // auto
@@ -711,7 +710,7 @@ _register_response_converter!(f64, type_double);
 impl ConvertResponse<JsoncObj> for AfbParams {
     fn export(data: JsoncObj) -> AfbExportResponse {
         let export = AfbExportData {
-            uid: "export-builtin-JsoncObj",
+            uid: "export:builtin-JsoncObj",
             typev4: unsafe { (*cglue::afbBindingV4r1_itfptr).type_json_c },
             buffer_ptr: data.into_raw() as *const _ as *mut std::ffi::c_void,
             buffer_len: 0, // auto
@@ -724,7 +723,7 @@ impl ConvertResponse<JsoncObj> for AfbParams {
 impl ConvertResponse<&JsoncObj> for AfbParams {
     fn export(data: &JsoncObj) -> AfbExportResponse {
         let export = AfbExportData {
-            uid: "export-builtin-JsoncObj",
+            uid: "export:builtin-JsoncObj",
             typev4: unsafe { (*cglue::afbBindingV4r1_itfptr).type_json_c },
             buffer_ptr: (*data).into_raw() as *const _ as *mut std::ffi::c_void,
             buffer_len: 0, // auto
@@ -745,7 +744,7 @@ impl ConvertResponse<&AfbJsonStr> for AfbParams {
                 let cstring = CString::new(json_str as &str).expect("Invalid data string");
                 let data_ptr = cstring.into_raw() as *const _ as *mut std::ffi::c_void;
                 AfbExportData {
-                    uid: "export-builtin-stringz",
+                    uid: "export:builtin-stringz",
                     typev4: unsafe { (*cglue::afbBindingV4r1_itfptr).type_stringz },
                     buffer_ptr: data_ptr,
                     buffer_len: json_str.len() + 1,
@@ -753,7 +752,7 @@ impl ConvertResponse<&AfbJsonStr> for AfbParams {
                 }
             }
             Ok(jsonc) => AfbExportData {
-                uid: "export-builtin-jsonc",
+                uid: "export:builtin-jsonc",
                 typev4: unsafe { (*cglue::afbBindingV4r1_itfptr).type_json_c },
                 buffer_ptr: jsonc.into_raw() as *const _ as *mut std::ffi::c_void,
                 buffer_len: 0,
@@ -771,7 +770,7 @@ impl ConvertResponse<&str> for AfbParams {
         let data_ptr = cstring.into_raw() as *const _ as *mut std::ffi::c_void;
 
         let export = AfbExportData {
-            uid: "export-builtin-string",
+            uid: "export:builtin-string",
             typev4: unsafe { (*cglue::afbBindingV4r1_itfptr).type_stringz },
             buffer_ptr: data_ptr,
             buffer_len: data.len() + 1,
