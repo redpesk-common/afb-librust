@@ -21,6 +21,7 @@
  * $RP_END_LICENSE$
  */
 
+use apiv4::*;
 use cglue::{self as cglue};
 use jsonc::*;
 use std::any::Any;
@@ -109,11 +110,7 @@ macro_rules! AfbDataConverter {
         }
 
         impl ConvertQuery<&'static $datat> for afbv4::datav4::AfbData {
-            fn import(
-                &self,
-                index: usize,
-            ) -> Result<&'static $datat, afbv4::utilv4::AfbError> {
-                //let converter= $uid::CONVERTER_BOX;
+            fn import(&self, index: usize) -> Result<&'static $datat, afbv4::utilv4::AfbError> {
                 let typev4 = match unsafe { &$uid::CONVERTER_BOX } {
                     ConverterBox(None) => {
                         afb_log_msg!(
@@ -129,10 +126,23 @@ macro_rules! AfbDataConverter {
 
                 // retrieve c-buffer pointer to argument void* value
                 match self.get_ro(typev4, index) {
-                    None => Err(afbv4::utilv4::AfbError::new(
-                        concat!("import-", stringify!($datat)),
-                        format!("invalid converter format args[{}]", index),
-                    )),
+                    None => {
+                        let data = {
+                            let converter = AfbBuiltinType::get(&AfbBuiltinType::StringZ).typev4;
+                            match self.get_ro(converter, index) {
+                                None => "no readable data found",
+                                Some(cbuffer) => {
+                                    let cstring =
+                                        unsafe {std::ffi::CStr::from_ptr(&mut *(cbuffer as *mut Cchar)) };
+                                    cstring.to_str().unwrap()
+                                }
+                            }
+                        };
+                        Err(AfbError::new(
+                            concat!("export-", stringify!($afb_builtin_type)),
+                            format!("invalid custom converter format args[{}]={}", index, data),
+                        ))
+                    }
                     Some(cbuffer) => Ok(unsafe { &mut *(cbuffer as *mut $datat) }),
                 }
             }
@@ -152,7 +162,7 @@ macro_rules! AfbDataConverter {
                     }
                     ConverterBox(Some(value)) => value.typev4,
                 };
-                let uid = concat!("import-", stringify!($user_type));
+                let uid = concat!("export-", stringify!($user_type));
                 let boxe = Box::new(data);
                 afbv4::datav4::AfbExportResponse::Converter(AfbExportData {
                     uid: uid,
@@ -168,7 +178,7 @@ macro_rules! AfbDataConverter {
 // make macro visible at module level
 
 impl AfbBuiltinType {
-    fn get(builtin_type: &AfbBuiltinType) -> AfbConverter {
+    pub fn get(builtin_type: &AfbBuiltinType) -> AfbConverter {
         unsafe {
             match builtin_type {
                 AfbBuiltinType::None => AfbConverter {
@@ -472,10 +482,23 @@ macro_rules! _register_query_converter {
             fn import(&self, index: usize) -> Result<$rust_type, AfbError> {
                 let converter = unsafe { (*cglue::afbBindingV4r1_itfptr).$afb_builtin_type };
                 match self.get_ro(converter, index) {
-                    None => Err(AfbError::new(
-                        concat!("export-", stringify!($afb_builtin_type)),
-                        format!("invalid converter format args[{}]", index),
-                    )),
+                    None => {
+                        let data = {
+                            let converter = AfbBuiltinType::get(&AfbBuiltinType::StringZ).typev4;
+                            match self.get_ro(converter, index) {
+                                None => "no readable data found",
+                                Some(cbuffer) => {
+                                    let cstring =
+                                        unsafe { CStr::from_ptr(&mut *(cbuffer as *mut Cchar)) };
+                                    cstring.to_str().unwrap()
+                                }
+                            }
+                        };
+                        Err(AfbError::new(
+                            concat!("export-", stringify!($afb_builtin_type)),
+                            format!("invalid converter format args[{}]={}", index, data),
+                        ))
+                    }
                     Some(cbuffer) => Ok(unsafe { *(cbuffer as *mut $rust_type) }),
                 }
             }
@@ -549,6 +572,36 @@ impl AfbData {
                 format!("invalid argument index ask:{} max:{}", index + 1, max),
             )),
             Ok(()) => Self::import(self, index),
+        }
+    }
+
+    // return argument only if status > 0
+    pub fn get_on_status<T>(&self, index: usize) -> Result<T, AfbError>
+    where
+        AfbData: ConvertQuery<T>,
+    {
+        if self.status < 0 {
+            Err(AfbError::new(
+                "AfbData.status",
+                format!("value:{} info:{}", self.status, afb_error_info(self.status)),
+            ))
+        } else {
+            self.get(index)
+        }
+    }
+
+    // return argument only if status > 0
+    pub fn get_onsuccess<T>(&self, index: usize) -> Result<T, AfbError>
+    where
+        AfbData: ConvertQuery<T>,
+    {
+        if self.status < 0 {
+            Err(AfbError::new(
+                "AfbData.status",
+                format!("value:{} info:{}", self.status, afb_error_info(self.status)),
+            ))
+        } else {
+            self.get(index)
         }
     }
 
@@ -809,7 +862,7 @@ impl AfbParams {
     where
         AfbParams: ConvertResponse<T>,
     {
-        let mut param= AfbParams::new();
+        let mut param = AfbParams::new();
         // convert response data depending on type
         let mut data = match AfbParams::export(data_in) {
             AfbExportResponse::Converter(export) => export,

@@ -14,3 +14,7 @@ For more information about installation, run and test, click on the following li
 
 request.get_session() // return une session init a zero
 request.drop_session() // delete l'object session
+
+Fulup TBD
+
+ - faire un message plus clair quand la conversion ne fonctionne pas.
