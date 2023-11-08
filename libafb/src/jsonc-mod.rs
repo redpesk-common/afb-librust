@@ -33,6 +33,9 @@ use std::ffi::{CStr, CString};
 use std::fmt;
 use std::os::raw::c_char;
 
+// minimal internal jsonc object to external crates
+pub type JsoncJso= cglue::json_object;
+
 pub enum Jtype {
     Array = cglue::json_type_json_type_array as isize,
     String = cglue::json_type_json_type_string as isize,
