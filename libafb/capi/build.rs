@@ -73,8 +73,6 @@ fn main() {
          .include("/usr/local/include")
          .compile("afb-glue");
 
-
-
     // ============== JSONC-C interface =====================
     println!("cargo:rustc-link-search=/usr/local/lib64");
     println!("cargo:rustc-link-arg=-Wl,-rpath,./target/debug");

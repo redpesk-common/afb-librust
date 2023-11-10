@@ -12,7 +12,7 @@ version = "0.1.0"
 authors = ["fulup@iot.bzh"]
 publish = false
 build = "capi/build.rs"
-rust-version = "1.73"
+rust-version = "1.7"
 
 [dependencies]
 bitflags = "2"
