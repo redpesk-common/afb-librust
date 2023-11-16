@@ -33,6 +33,10 @@ impl AfbApiControls for TapUserData {
         afb_log_msg!(Notice, api, "starting TAP testing");
 
         // ------ Simple verb -----------
+        let test0 = AfbTapTest::new("builtin-info", "rust-api", "info")
+            .set_info("My simple info test")
+            .finalize()?;
+
         let test1 = AfbTapTest::new("builtin-ping", "rust-api", "ping")
             .set_info("My simple ping test")
             .finalize()?;
@@ -182,6 +186,7 @@ impl AfbApiControls for TapUserData {
         AfbTapSuite::new(api, "Tap Demo Test")
             .set_info("Check Example demo API works")
             .set_timeout(0)
+            .add_test(test0)
             .add_test(test1)
             .add_test(test2)
             .add_test(test3)
