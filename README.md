@@ -18,3 +18,32 @@ request.drop_session() // delete l'object session
 Fulup TBD
 
  - faire un message plus clair quand la conversion ne fonctionne pas.
+
+## Tests
+
+It is possible to run tests on this library by calling the following script.
+
+```bash
+./examples/test/etc/binding-test.sh
+```
+
+### Coverage
+
+In order to get the coverage of the tests, firstly you need to install additional tools. 
+This can be done by running the commands here below.
+
+```bash
+# Install rust compatible llvm tools
+rustup component add llvm-tools-preview
+
+# Install grcov
+cargo install grcov
+```
+
+Once the tools are all set-up you can call the test script with the coverage option.
+
+```bash
+./examples/test/etc/binding-test.sh -c
+```
+
+At the end, the entry point of html coverage report is: `target/debug/coverage/index.html`.
