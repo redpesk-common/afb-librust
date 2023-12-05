@@ -2232,7 +2232,7 @@ impl AfbEvent {
         if self._evtv4 == 0 as AfbEvtV4 {
             afb_log_msg!(
                 Critical,
-                self.get_apiv4(),
+                None,
                 format!(
                     "Not register event:{} should register before use",
                     self._uid
