@@ -21,10 +21,6 @@
  * $RP_END_LICENSE$
  */
 
-#[cfg(test)]
-#[path = "../../examples/test/jsonc-test.rs"]
-mod jsonc_test;
-
 use utilv4::AfbError;
 use datav4::*;
 
@@ -36,6 +32,7 @@ use std::os::raw::c_char;
 // minimal internal jsonc object to external crates
 pub type JsoncJso= cglue::json_object;
 
+#[derive(Debug)]
 pub enum Jtype {
     Array = cglue::json_type_json_type_array as isize,
     String = cglue::json_type_json_type_string as isize,

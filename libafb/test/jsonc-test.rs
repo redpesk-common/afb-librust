@@ -2,7 +2,6 @@
 // ----------------------------------------
 // start test => cargo test --lib -- --exact
 
-#[cfg(test)]
 use crate::prelude::*;
 
 // ------------------------------------------------
@@ -11,8 +10,12 @@ use crate::prelude::*;
 #[test]
 fn parse_json () {
     let token = "{'a':1,'b':2}";
-    let parsing = JsoncObj::parse(token);
-    assert!(parsing.is_ok(), "Fail to parse jsonc string");
+    let jvalue = JsoncObj::parse(token).unwrap();
+
+    let a= jvalue.get::<u32>("a").unwrap();
+    let b= jvalue.get::<u32>("b").unwrap();
+
+    assert! (a+a==b)
 }
 
 // ------------------------------------------------

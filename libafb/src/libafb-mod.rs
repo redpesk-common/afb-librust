@@ -24,6 +24,10 @@
 #![doc(html_logo_url = "https://iot.bzh/images/defaults/company/512-479-max-transp.png", html_favicon_url = "https://iot.bzh/images/defaults/favicon.ico")]
 extern crate bitflags;
 
+#[cfg(test)]
+#[path = "../test/jsonc-test.rs"]
+mod test;
+
 // cglue is exported as private
 #[path = "../capi/cglue-mod.rs"]
 mod cglue;
