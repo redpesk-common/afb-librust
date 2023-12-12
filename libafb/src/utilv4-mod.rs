@@ -20,12 +20,9 @@
  *  https://www.gnu.org/licenses/gpl-3.0.html.
  * $RP_END_LICENSE$
  */
-use apiv4::*;
-use datav4::*;
+use crate::prelude::*;
 
 use bitflags::bitflags;
-use cglue::{self as cglue};
-use jsonc::{JsoncObj, Jtype};
 use std::collections::HashMap;
 use std::ffi::CString;
 use std::fmt;
@@ -37,7 +34,7 @@ const TIMEOUT: u32 = 5;
 
 pub type AfbTmrV4 = cglue::afb_timer_t;
 
-pub use AfbAuthAllOf;
+pub use crate::AfbAuthAllOf;
 #[macro_export]
 macro_rules! AfbAuthAllOf {
  ( $( $args:expr ),*) => {
@@ -51,7 +48,7 @@ macro_rules! AfbAuthAllOf {
  };
 }
 
-pub use AfbAuthAnyOf;
+pub use crate::AfbAuthAnyOf;
 #[macro_export]
 macro_rules! AfbAuthAnyOf {
  ( $( $args:expr ),*) => {
@@ -65,7 +62,7 @@ macro_rules! AfbAuthAnyOf {
  };
 }
 
-pub use AfbTimerRegister;
+pub use crate::AfbTimerRegister;
 #[macro_export]
 macro_rules! AfbTimerRegister {
     ($timer_name:ident, $callback:ident, $userdata:ident) => {
@@ -88,7 +85,7 @@ macro_rules! AfbTimerRegister {
     };
 }
 
-pub use AfbEvtFdRegister;
+pub use crate::AfbEvtFdRegister;
 #[macro_export]
 macro_rules! AfbEvtFdRegister {
     ($evtfd_name:ident, $callback:ident, $userdata:ident) => {
@@ -111,7 +108,7 @@ macro_rules! AfbEvtFdRegister {
     };
 }
 
-pub use AfbJobRegister;
+pub use crate::AfbJobRegister;
 #[macro_export]
 macro_rules! AfbJobRegister {
     ($job_name:ident, $callback:ident, $userdata:ident) => {
@@ -134,7 +131,7 @@ macro_rules! AfbJobRegister {
     };
 }
 
-pub use afb_log_msg;
+pub use crate::afb_log_msg;
 #[macro_export]
 macro_rules! afb_log_msg {
  ( $level:tt, $handle:expr,$format:expr, $( $args:expr ),*) => {
@@ -156,7 +153,7 @@ macro_rules! afb_log_msg {
  }
 }
 
-pub use afb_error;
+pub use crate::afb_error;
 #[macro_export]
 macro_rules! afb_error {
  ( $label:expr, $format:expr, $( $args:expr ),*) => {
@@ -171,7 +168,7 @@ macro_rules! afb_error {
  }
 }
 
-pub use afb_log_raw;
+pub use crate::afb_log_raw;
 #[macro_export]
 macro_rules! afb_log_raw {
  ( $level:tt, $handle:expr,$format:expr, $( $args:expr ),*) => {
@@ -180,7 +177,7 @@ macro_rules! afb_log_raw {
  }
 }
 
-pub use func_name;
+pub use crate::func_name;
 #[doc(hidden)]
 #[macro_export]
 macro_rules! func_name {
@@ -194,7 +191,7 @@ macro_rules! func_name {
     }};
 }
 
-pub use afb_add_trace;
+pub use crate::afb_add_trace;
 #[macro_export]
 macro_rules! afb_add_trace {
     ($afb_error:ident) => {

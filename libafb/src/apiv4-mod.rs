@@ -26,10 +26,8 @@ use std::boxed::Box;
 use std::ffi::{CStr, CString};
 use std::fmt;
 // libafb dependencies
-use cglue;
-use datav4::*;
-use jsonc::*;
-use utilv4::*;
+use crate::prelude::*;
+
 
 // alias few external types
 pub type AfbApiV4 = cglue::afb_api_t;
@@ -48,7 +46,7 @@ pub trait AfbSubcallControl {
     fn api_callback(&mut self, api: &mut AfbApi, args: &AfbData);
 }
 
-pub use AfbBindingRegister;
+pub use crate::AfbBindingRegister;
 /// Register binding main entry callback to be called from afb_binder
 /// Examples
 /// ```
@@ -94,7 +92,7 @@ macro_rules! AfbBindingRegister {
     };
 }
 
-pub use AfbSessionRegister;
+pub use crate::AfbSessionRegister;
 #[macro_export]
 macro_rules! AfbSessionRegister {
     ($userdata: ident, $callback: ident) => {
@@ -177,7 +175,7 @@ macro_rules! AfbSessionRegister {
         }
     };
 }
-pub use AfbVerbRegister;
+pub use crate::AfbVerbRegister;
 /// Register verb control handle.
 ///   - $verb_name: created verb object class
 ///   - $callback: user define verb callback
@@ -236,7 +234,7 @@ macro_rules! AfbVerbRegister {
     };
 }
 
-pub use AfbEventRegister;
+pub use crate::AfbEventRegister;
 /// Register event control handle. Similar to verb-ctrl but receive an event in place of a request
 ///   - $event_name: created verb object class
 ///   - $callback: user define verb callback

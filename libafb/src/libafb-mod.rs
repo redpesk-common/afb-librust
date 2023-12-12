@@ -45,9 +45,10 @@ pub mod jsonc;
 pub mod utilv4;
 
 pub mod prelude {
-    pub use jsonc::*;
-    pub use apiv4::*;
-    pub use datav4::*;
-    pub use utilv4::*;
+    pub(crate) use crate::cglue;
+    pub use crate::jsonc::*;
+    pub use crate::apiv4::*;
+    pub use crate::datav4::*;
+    pub use crate::utilv4::*;
     pub use std::any::Any;
 }

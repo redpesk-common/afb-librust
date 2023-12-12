@@ -21,16 +21,12 @@
  * $RP_END_LICENSE$
  */
 
-use datav4::*;
-use utilv4::{afb_error, AfbError};
+use crate::prelude::*;
 
-use cglue; // restrict jsonc C-binding visible only internally
 use std::ffi::{CStr, CString};
 use std::fmt;
 use std::os::raw::c_char;
 
-// minimal internal jsonc object to external crates
-pub type JsoncJso = cglue::json_object;
 
 #[derive(Debug)]
 pub enum Jtype {
