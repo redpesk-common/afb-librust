@@ -43,6 +43,7 @@ fn main() {
         // main entry point for wrapper
         .header("capi/_libafb-map.c")
         .raw_line(header)
+        // default wrapper config
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .derive_debug(false)
         .layout_tests(false)
@@ -98,6 +99,7 @@ fn main() {
         // main entry point for wrapper
         .header("capi/jsonc-map.h")
         .raw_line(header)
+        // default wrapper config
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .derive_debug(false)
         .layout_tests(false)

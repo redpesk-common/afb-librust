@@ -141,10 +141,8 @@ macro_rules! AfbDataConverter {
                             }
                         };
                         afb_error!(
-                            concat!("export:", stringify!($uid)),
-                            "invalid custom converter format args[{}]={}",
-                            index,
-                            data
+                            concat!("export:",stringify!($uid)),
+                            "invalid custom converter format args[{}]={}", index, data
                         )
                     }
                     Some(cbuffer) => Ok(unsafe { &mut *(cbuffer as *mut $datat) }),
@@ -509,9 +507,7 @@ macro_rules! _register_query_converter {
                         };
                         afb_error!(
                             concat!("export:", stringify!($afb_builtin_type)),
-                            "invalid converter format args[{}]={}",
-                            index,
-                            data
+                            "invalid converter format args[{}]={}", index, data
                         )
                     }
                     Some(cbuffer) => Ok(unsafe { *(cbuffer as *mut $rust_type) }),
@@ -532,7 +528,10 @@ impl ConvertQuery<String> for AfbData {
         let uid = "builtin-string";
         let converter = unsafe { (*cglue::afbBindingV4r1_itfptr).type_stringz };
         match self.get_ro(converter, index) {
-            None => afb_error!(uid, "invalid converter format args[{}]", index),
+            None => afb_error!(
+                uid,
+                "invalid converter format args[{}]", index
+            ),
             Some(cbuffer) => {
                 let cstring = unsafe { CStr::from_ptr(&mut *(cbuffer as *mut Cchar)) };
                 let slice: &str = cstring.to_str().unwrap();
@@ -550,7 +549,10 @@ impl ConvertQuery<JsoncObj> for AfbData {
 
         // retrieve c-buffer pointer to argument void* value
         match self.get_ro(converter, index) {
-            None => afb_error!(uid, "invalid converter format args[{}]", index),
+            None => afb_error!(
+                uid,
+                "invalid converter format args[{}]", index
+            ),
             Some(cbuffer) => Ok(JsoncObj::from(cbuffer)),
         }
     }
@@ -580,9 +582,7 @@ impl AfbData {
         match self.check(index as i32) {
             Err(max) => afb_error!(
                 "AfbData.get",
-                "invalid argument index ask:{} max:{}",
-                index + 1,
-                max
+                "invalid argument index ask:{} max:{}", index + 1, max
             ),
             Ok(()) => Self::import(self, index),
         }
@@ -597,9 +597,7 @@ impl AfbData {
         if self.status < 0 {
             afb_error!(
                 "AfbData.status",
-                "value:{} info:{}",
-                self.status,
-                afb_error_info(self.status)
+                "value:{} info:{}", self.status, afb_error_info(self.status)
             )
         } else {
             self.get(index)
@@ -615,9 +613,7 @@ impl AfbData {
         if self.status < 0 {
             afb_error!(
                 "AfbData.status",
-                "value:{} info:{}",
-                self.status,
-                afb_error_info(self.status)
+                "value:{} info:{}", self.status, afb_error_info(self.status)
             )
         } else {
             self.get(index)
@@ -920,7 +916,10 @@ impl AfbParams {
             )
         };
         if status != 0 {
-            afb_error!(data.uid, "Fail:{} data export", data.uid)
+            afb_error!(
+                data.uid,
+                "Fail:{} data export", data.uid
+            )
         } else {
             self.arguments.push(data_handle);
             Ok(())
