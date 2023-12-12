@@ -278,6 +278,7 @@ impl AfbError {
         }
     }
 
+    #[track_caller]
     pub fn to_jsonc(&self) -> Result<JsoncObj, AfbError> {
         let do_jdebug = |info: &DbgInfo| -> Result<JsoncObj, AfbError> {
             let jobject = JsoncObj::new();
@@ -632,6 +633,7 @@ impl AfbTimer {
         self
     }
 
+    #[track_caller]
     pub fn start(&mut self) -> Result<&Self, AfbError> {
         if self.period == 0 || self.callback == None {
             return afb_error!(self._uid, "Timer callback must be set and period should >0",);
@@ -750,6 +752,7 @@ impl AfbSchedJob {
         self._uid
     }
 
+    #[track_caller]
     pub fn post(&mut self, delay_ms: i64) -> Result<&mut Self, AfbError> {
         match self.callback {
             None => afb_error!(self._uid, "schedjob require callback setting"),
@@ -775,6 +778,7 @@ impl AfbSchedJob {
     pub fn get_info(&self) -> &'static str {
         self.info
     }
+    #[track_caller]
     pub fn abort(&self) -> Result<(), AfbError> {
         let rc = unsafe { cglue::afb_job_abort(self._jobv4) };
         if rc < 0 {
@@ -1003,6 +1007,7 @@ impl AfbTapTest {
         self
     }
 
+    #[track_caller]
     pub fn finalize(&mut self) -> Result<&mut Self, AfbError> {
         Ok(self)
     }
@@ -1040,6 +1045,7 @@ impl AfbTapTest {
         self
     }
 
+    #[track_caller]
     pub fn add_arg<T>(&mut self, param: T) -> Result<&mut Self, AfbError>
     where
         AfbParams: ConvertResponse<T>,
@@ -1186,7 +1192,7 @@ impl AfbTapTest {
             }
         }
     }
-
+    #[track_caller]
     pub fn jobpost(&mut self) -> Result<(), AfbError> {
         let semaphore = Arc::clone(&self.semaphore);
         let (lock, cvar) = &*semaphore;
@@ -1276,7 +1282,7 @@ impl AfbTapGroup {
         });
         Box::leak(boxe)
     }
-
+    #[track_caller]
     pub fn finalize(&mut self) -> Result<&mut Self, AfbError> {
         Ok(self)
     }
@@ -1322,7 +1328,7 @@ impl AfbTapGroup {
     pub fn get_suite(&self) -> &AfbTapSuite {
         unsafe { &*(self.suite as *const _ as *mut AfbTapSuite) }
     }
-
+    #[track_caller]
     pub fn launch(&self) -> Result<(), AfbError> {
         // get group 1st test
         let test = match self.get_test(0) {
@@ -1493,7 +1499,7 @@ impl AfbTapSuite {
             }
         }
     }
-
+    #[track_caller]
     // launch a group and return report as jsonc
     pub fn launch(&self, label: &'static str) -> Result<(), AfbError> {
         match self.get_group(label) {
@@ -1501,7 +1507,7 @@ impl AfbTapSuite {
             Some(group) => group.launch(),
         }
     }
-
+    #[track_caller]
     pub fn finalize(&'static mut self) -> Result<(), AfbError> {
         // create autostart test verb and register notification event
         let vcbdata = TapGroupData {
@@ -1615,6 +1621,7 @@ struct TapTestData {
     test: *mut AfbTapTest,
 }
 impl AfbRqtControl for TapTestData {
+    #[track_caller]
     fn verb_callback(&mut self, rqt: &AfbRequest, _args: &AfbData) -> Result<(), AfbError> {
         // bypass Rust limitation that refuses to understand static object pointers
         let test = unsafe { &mut (*self.test) };
@@ -1639,6 +1646,7 @@ struct TapGroupData {
 }
 
 impl AfbRqtControl for TapGroupData {
+    #[track_caller]
     fn verb_callback(&mut self, rqt: &AfbRequest, _args: &AfbData) -> Result<(), AfbError> {
         // bypass Rust limitation that refuses to understand static object pointers
         let group = unsafe { &mut (*self.group) };
@@ -1758,7 +1766,7 @@ impl AfbEvtFd {
         self.callback = Some(Box::leak(ctrlbox));
         self
     }
-
+    #[track_caller]
     pub fn start(&mut self) -> Result<&Self, AfbError> {
         if self.fd == 0 || self.callback == None {
             return afb_error!(self.uid, "EventFd callback must be set and fd should >0",);
