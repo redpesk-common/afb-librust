@@ -161,14 +161,12 @@ pub use afb_error;
 macro_rules! afb_error {
  ( $label:expr, $format:expr, $( $args:expr ),*) => {
     {
-    use std::panic::Location;
-    Err(AfbError::new ($label, format! ($format, $($args),*), Location::caller()))
+    Err(AfbError::new ($label, format! ($format, $($args),*)))
     }
  };
  ( $label:expr, $format:expr) => {
     {
-    use std::panic::Location;
-   Err(AfbError::new ($label, $format, Location::caller()))
+     Err(AfbError::new ($label, $format))
     }
  }
 }
@@ -249,11 +247,12 @@ pub struct AfbError {
 }
 
 impl AfbError {
-    pub fn new<T>(uid: &str, msg: T, caller: &'static Location<'static>) -> AfbError
+    #[track_caller]
+    pub fn new<T>(uid: &str, msg: T) -> AfbError
     where
         AfbError: MakeError<T>,
     {
-        Self::make(uid, msg, caller)
+        Self::make(uid, msg, Location::caller())
     }
     pub fn get_uid(&self) -> String {
         self.uid.to_owned()
