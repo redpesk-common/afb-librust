@@ -23,30 +23,19 @@
 use apiv4::*;
 use datav4::*;
 
+use bitflags::bitflags;
 use cglue::{self as cglue};
 use jsonc::{JsoncObj, Jtype};
 use std::collections::HashMap;
 use std::ffi::CString;
 use std::fmt;
+use std::panic::Location;
 use std::sync::{Arc, Condvar, Mutex};
-use bitflags::bitflags;
 
 const AUTOSTART: &str = "autostart";
 const TIMEOUT: u32 = 5;
 
 pub type AfbTmrV4 = cglue::afb_timer_t;
-
-pub struct DbgInfo {
-    pub name: &'static str,
-    pub file: &'static str,
-    pub line: i32,
-}
-
-pub struct AfbError {
-    uid: String,
-    info: String,
-    dbg_info: Option<DbgInfo>,
-}
 
 pub use AfbAuthAllOf;
 #[macro_export]
@@ -149,21 +138,38 @@ pub use afb_log_msg;
 #[macro_export]
 macro_rules! afb_log_msg {
  ( $level:tt, $handle:expr,$format:expr, $( $args:expr ),*) => {
-    let dbg_info = Some(DbgInfo {
+    let dbg_info = DbgInfo {
         name: func_name!(),
         file: file!(),
-        line: line!() as i32,
-    });
+        line: line!(),
+    };
     let message= format! ($format, $($args),*);
-    AfbLogMsg::push_log (AfbLogLevel::$level, $handle, message, dbg_info)
+    AfbLogMsg::push_log (AfbLogLevel::$level, $handle, message, Some(&dbg_info))
  };
  ( $level:tt, $handle:expr,$format:expr) => {
-    let dbg_info = Some(DbgInfo {
+    let dbg_info = DbgInfo {
         name: func_name!(),
         file: file!(),
-        line: line!() as i32,
-    });
-    AfbLogMsg::push_log (AfbLogLevel::$level, $handle, $format, dbg_info)
+        line: line!(),
+    };
+    AfbLogMsg::push_log (AfbLogLevel::$level, $handle, $format, Some(&dbg_info))
+ }
+}
+
+pub use afb_error;
+#[macro_export]
+macro_rules! afb_error {
+ ( $label:expr, $format:expr, $( $args:expr ),*) => {
+    {
+    use std::panic::Location;
+    Err(AfbError::new ($label, format! ($format, $($args),*), Location::caller()))
+    }
+ };
+ ( $label:expr, $format:expr) => {
+    {
+    use std::panic::Location;
+   Err(AfbError::new ($label, $format, Location::caller()))
+    }
  }
 }
 
@@ -199,35 +205,55 @@ macro_rules! afb_add_trace {
 }
 
 pub trait MakeError<T> {
-    fn make(uid: &str, msg: T) -> AfbError;
+    fn make(uid: &str, msg: T, location: &'static Location<'static>) -> AfbError;
 }
 
 impl MakeError<&str> for AfbError {
-    fn make(uid: &str, msg: &str) -> AfbError {
+    fn make(uid: &str, msg: &str, caller: &'static Location<'static>) -> AfbError {
         AfbError {
             uid: uid.to_string(),
             info: msg.to_string(),
-            dbg_info: None,
+            dbg_info: DbgInfo {
+                name: func_name!(),
+                file: caller.file(),
+                line: caller.line(),
+            },
         }
     }
 }
 
 impl MakeError<String> for AfbError {
-    fn make(uid: &str, msg: String) -> AfbError {
+    fn make(uid: &str, msg: String, caller: &'static Location<'static>) -> AfbError {
         AfbError {
             uid: uid.to_string(),
             info: msg,
-            dbg_info: None,
+            dbg_info: DbgInfo {
+                name: func_name!(),
+                file: caller.file(),
+                line: caller.line(),
+            },
         }
     }
 }
 
+pub struct DbgInfo {
+    pub name: &'static str,
+    pub file: &'static str,
+    pub line: u32,
+}
+
+pub struct AfbError {
+    uid: String,
+    info: String,
+    dbg_info: DbgInfo,
+}
+
 impl AfbError {
-    pub fn new<T>(uid: &str, msg: T) -> AfbError
+    pub fn new<T>(uid: &str, msg: T, caller: &'static Location<'static>) -> AfbError
     where
         AfbError: MakeError<T>,
     {
-        Self::make(uid, msg)
+        Self::make(uid, msg, caller)
     }
     pub fn get_uid(&self) -> String {
         self.uid.to_owned()
@@ -236,25 +262,23 @@ impl AfbError {
         self.info.to_owned()
     }
 
+    pub fn get_dbg<'a>(&'a self) -> &DbgInfo {
+        &self.dbg_info
+    }
+
     pub fn add_trace(&self, name: &'static str, file: &'static str, line: u32) -> Self {
         AfbError {
             uid: self.uid.to_owned(),
             info: self.info.to_owned(),
-            dbg_info: Some(DbgInfo {
-            name: name,
-            file: file,
-            line: line as i32,
-            }),
+            dbg_info: DbgInfo {
+                name: name,
+                file: file,
+                line: line,
+            },
         }
     }
 
-    pub fn to_jsonc(&self) -> JsoncObj {
-        let do_jerror = || -> Result<JsoncObj, AfbError> {
-            let jobject = JsoncObj::new();
-            jobject.add("uid", &self.uid)?.add("info", &self.info)?;
-            Ok(jobject)
-        };
-
+    pub fn to_jsonc(&self) -> Result<JsoncObj, AfbError> {
         let do_jdebug = |info: &DbgInfo| -> Result<JsoncObj, AfbError> {
             let jobject = JsoncObj::new();
             jobject
@@ -264,30 +288,12 @@ impl AfbError {
             Ok(jobject)
         };
 
-        let jerror = match do_jerror() {
-            Err(error) => error.to_jsonc(),
-            Ok(jobject) => {
-                match &self.dbg_info {
-                    None => (),
-                    Some(info) => {
-                        match do_jdebug(info) {
-                            Err(error) => {
-                                jobject
-                                    .add("dbg", error.to_jsonc())
-                                    .expect("(hoops: AfbError->jsonc fail");
-                            }
-                            Ok(jdebug) => {
-                                jobject
-                                    .add("dbg", jdebug)
-                                    .expect("(hoops: AfbError->jsonc fail");
-                            }
-                        };
-                    }
-                }
-                jobject
-            }
-        };
-        jerror
+        let jobject = JsoncObj::new();
+        jobject
+            .add("uid", &self.uid)?
+            .add("info", &self.info)?
+            .add("dbg", do_jdebug(&self.dbg_info)?)?;
+        Ok(jobject)
     }
 }
 
@@ -310,7 +316,7 @@ pub trait DoSendLog<T> {
         level: i32,
         handle: T,
         file: *const Cchar,
-        line: i32,
+        line: u32,
         funcname: *const Cchar,
         format: *const Cchar,
     );
@@ -321,7 +327,7 @@ impl<'a> DoSendLog<&AfbEventMsg<'a>> for AfbLogMsg {
         level: i32,
         event: &AfbEventMsg,
         file: *const Cchar,
-        line: i32,
+        line: u32,
         funcname: *const Cchar,
         format: *const Cchar,
     ) {
@@ -343,7 +349,7 @@ impl<'a> DoSendLog<&AfbTimer> for AfbLogMsg {
         level: i32,
         _timer: &AfbTimer,
         file: *const Cchar,
-        line: i32,
+        line: u32,
         funcname: *const Cchar,
         format: *const Cchar,
     ) {
@@ -356,7 +362,7 @@ impl<'a> DoSendLog<&AfbSchedJob> for AfbLogMsg {
         level: i32,
         _timer: &AfbSchedJob,
         file: *const Cchar,
-        line: i32,
+        line: u32,
         funcname: *const Cchar,
         format: *const Cchar,
     ) {
@@ -369,7 +375,7 @@ impl<'a> DoSendLog<&AfbRequest<'a>> for AfbLogMsg {
         level: i32,
         rqt: &AfbRequest<'a>,
         file: *const Cchar,
-        line: i32,
+        line: u32,
         funcname: *const Cchar,
         format: *const Cchar,
     ) {
@@ -391,7 +397,7 @@ impl<'a> DoSendLog<&AfbApi> for AfbLogMsg {
         level: i32,
         api: &AfbApi,
         file: *const Cchar,
-        line: i32,
+        line: u32,
         funcname: *const Cchar,
         format: *const Cchar,
     ) {
@@ -413,7 +419,7 @@ impl DoSendLog<&AfbEvent> for AfbLogMsg {
         level: i32,
         event: &AfbEvent,
         file: *const Cchar,
-        line: i32,
+        line: u32,
         funcname: *const Cchar,
         format: *const Cchar,
     ) {
@@ -435,7 +441,7 @@ impl DoSendLog<Option<u32>> for AfbLogMsg {
         level: i32,
         _not_used: Option<u32>,
         file: *const Cchar,
-        line: i32,
+        line: u32,
         funcname: *const Cchar,
         format: *const Cchar,
     ) {
@@ -448,7 +454,7 @@ impl DoSendLog<AfbRqtV4> for AfbLogMsg {
         level: i32,
         rqtv4: cglue::afb_req_t,
         file: *const Cchar,
-        line: i32,
+        line: u32,
         funcname: *const Cchar,
         format: *const Cchar,
     ) {
@@ -461,11 +467,11 @@ impl DoSendLog<AfbApiV4> for AfbLogMsg {
         level: i32,
         apiv4: AfbApiV4,
         file: *const Cchar,
-        line: i32,
+        line: u32,
         funcname: *const Cchar,
         format: *const Cchar,
     ) {
-        unsafe { cglue::afb_api_verbose(apiv4, level, file , line as i32, funcname, format) }
+        unsafe { cglue::afb_api_verbose(apiv4, level, file, line as i32, funcname, format) }
     }
 }
 
@@ -517,7 +523,7 @@ impl AfbLogMsg {
         level as i32
     }
 
-    pub fn push_log<H, T>(level: AfbLogLevel, handle: H, format: T, info: Option<DbgInfo>)
+    pub fn push_log<H, T>(level: AfbLogLevel, handle: H, format: T, info: Option<&DbgInfo>)
     where
         AfbLogMsg: DoMessage<T>,
         AfbLogMsg: DoSendLog<H>,
@@ -628,10 +634,7 @@ impl AfbTimer {
 
     pub fn start(&mut self) -> Result<&Self, AfbError> {
         if self.period == 0 || self.callback == None {
-            return Err(AfbError::new(
-                self._uid,
-                "Timer callback must be set and period should >0",
-            ));
+            return afb_error!(self._uid, "Timer callback must be set and period should >0",);
         }
 
         let status = unsafe {
@@ -649,7 +652,7 @@ impl AfbTimer {
             )
         };
         if status != 0 {
-            return Err(AfbError::new(self._uid, "Afb_Timer creation fail"));
+            return afb_error!(self._uid, "Afb_Timer creation fail");
         }
         Ok(self)
     }
@@ -749,10 +752,7 @@ impl AfbSchedJob {
 
     pub fn post(&mut self, delay_ms: i64) -> Result<&mut Self, AfbError> {
         match self.callback {
-            None => Err(AfbError::new(
-                self._uid,
-                "schedjob require callback setting",
-            )),
+            None => afb_error!(self._uid, "schedjob require callback setting"),
             Some(_control) => {
                 let jobv4 = unsafe {
                     cglue::afb_job_post(
@@ -764,7 +764,7 @@ impl AfbSchedJob {
                     )
                 };
                 if jobv4 <= 0 {
-                    return Err(AfbError::new(self._uid, "Afb_Timer creation fail"));
+                    return afb_error!(self._uid, "Afb_Timer creation fail");
                 }
                 self._jobv4 = jobv4;
                 Ok(self)
@@ -778,10 +778,7 @@ impl AfbSchedJob {
     pub fn abort(&self) -> Result<(), AfbError> {
         let rc = unsafe { cglue::afb_job_abort(self._jobv4) };
         if rc < 0 {
-            Err(AfbError::new(
-                self._uid,
-                format!("No job running id={}", self._jobv4),
-            ))
+            afb_error!(self._uid, "No job running id={}", self._jobv4)
         } else {
             Ok(())
         }
@@ -1063,11 +1060,11 @@ impl AfbTapTest {
     }
 
     pub fn get_group(&self) -> &AfbTapGroup {
-        unsafe { & *(self.group as *mut AfbTapGroup) }
+        unsafe { &*(self.group as *mut AfbTapGroup) }
     }
 
     pub fn get_suite(&self) -> &AfbTapSuite {
-        let group= unsafe {& *(self.group as *mut AfbTapGroup)};
+        let group = unsafe { &*(self.group as *mut AfbTapGroup) };
         group.get_suite()
     }
 
@@ -1091,7 +1088,7 @@ impl AfbTapTest {
             match reply.get::<JsoncObj>(idx) {
                 // expect argument as no jsonc representation.
                 Err(error) => {
-                    let msg = error.to_jsonc().to_string();
+                    let msg = error.to_jsonc().unwrap().to_string();
                     return AfbTapResponse {
                         status: AFB_FAIL,
                         diagnostic: msg,
@@ -1106,14 +1103,7 @@ impl AfbTapTest {
 
                     match jtest {
                         Err(error) => {
-                            afb_log_msg!(
-                                Warning,
-                                api,
-                                "{} -> {} NotIn {}",
-                                error,
-                                jexpect,
-                                jvalue
-                            );
+                            afb_log_msg!(Warning, api, "{} -> {} NotIn {}", error, jexpect, jvalue);
                             return AfbTapResponse {
                                 status: AFB_FAIL,
                                 diagnostic: error.to_string(),
@@ -1202,10 +1192,7 @@ impl AfbTapTest {
         let (lock, cvar) = &*semaphore;
         let mut done = match lock.lock() {
             Err(_error) => {
-                return Err(AfbError::new(
-                    "fail-group-wait",
-                    format!("fail waiting on tap group={}", self.uid),
-                ))
+                return afb_error!("fail-group-wait", "fail waiting on tap group={}", self.uid)
             }
             Ok(mutex) => mutex,
         };
@@ -1314,9 +1301,10 @@ impl AfbTapGroup {
             .set_info(test.info)
             .set_callback(Box::new(TapTestData { test: test }))
             .set_usage("no input")
-            .finalize().unwrap();
+            .finalize()
+            .unwrap();
 
-        let api_group= unsafe {&mut *(self.api_group as *mut AfbGroup)};
+        let api_group = unsafe { &mut *(self.api_group as *mut AfbGroup) };
         api_group.add_verb(verb);
         self
     }
@@ -1326,19 +1314,19 @@ impl AfbTapGroup {
         if self.tests.len() <= index {
             None
         } else {
-            let test= unsafe {&mut *(self.tests[index] as *mut AfbTapTest)};
+            let test = unsafe { &mut *(self.tests[index] as *mut AfbTapTest) };
             Some(test)
         }
     }
 
     pub fn get_suite(&self) -> &AfbTapSuite {
-        unsafe { & *(self.suite as *const _ as *mut AfbTapSuite) }
+        unsafe { &*(self.suite as *const _ as *mut AfbTapSuite) }
     }
 
     pub fn launch(&self) -> Result<(), AfbError> {
         // get group 1st test
         let test = match self.get_test(0) {
-            None => return Err(AfbError::new(self.uid, "no-test-found")),
+            None => return afb_error!(self.uid, "no-test-found"),
             Some(value) => value,
         };
 
@@ -1451,7 +1439,7 @@ impl AfbTapSuite {
             .register(api.get_apiv4(), AFB_NO_AUTH);
         api.add_verb(verb.finalize().unwrap());
 
-        let api_group= unsafe {&mut *(group.api_group as *mut AfbGroup)};
+        let api_group = unsafe { &mut *(group.api_group as *mut AfbGroup) };
         api_group.register(api.get_apiv4(), AFB_NO_AUTH);
         api.add_group(api_group);
         self
@@ -1480,7 +1468,7 @@ impl AfbTapSuite {
     }
 
     pub fn get_api(&self) -> &AfbApi {
-        unsafe { & *(self.tap_api as *mut AfbApi) }
+        unsafe { &*(self.tap_api as *mut AfbApi) }
     }
 
     pub fn get_uid(&self) -> &'static str {
@@ -1488,7 +1476,7 @@ impl AfbTapSuite {
     }
 
     pub fn get_event(&self) -> &AfbEvent {
-        unsafe { & *(self.event as *mut AfbEvent) }
+        unsafe { &*(self.event as *mut AfbEvent) }
     }
 
     pub fn get_group(&self, label: &'static str) -> Option<&AfbTapGroup> {
@@ -1509,7 +1497,7 @@ impl AfbTapSuite {
     // launch a group and return report as jsonc
     pub fn launch(&self, label: &'static str) -> Result<(), AfbError> {
         match self.get_group(label) {
-            None => Err(AfbError::new("group-label-not-found", label)),
+            None => afb_error!("group-label-not-found", label),
             Some(group) => group.launch(),
         }
     }
@@ -1597,15 +1585,23 @@ struct TapSuiteAutoRun {
 /// autostart is launched as job to complete API initialisation before effectively starting test suite
 impl AfbJobControl for TapSuiteAutoRun {
     fn job_callback(&mut self, _jobs: &AfbSchedJob, _signal: i32) {
-        let suite = unsafe {&mut *(self.suite as *mut AfbTapSuite)};
+        let suite = unsafe { &mut *(self.suite as *mut AfbTapSuite) };
         let autostart = unsafe { &mut *(suite.autostart) };
 
         match autostart.launch() {
-            Err(error) => {afb_log_msg!(Critical, suite.get_api().get_apiv4(), "Test fail {}:autostart error={}", suite.get_uid(), error);},
-            Ok(()) => {},
+            Err(error) => {
+                afb_log_msg!(
+                    Critical,
+                    suite.get_api().get_apiv4(),
+                    "Test fail {}:autostart error={}",
+                    suite.get_uid(),
+                    error
+                );
+            }
+            Ok(()) => {}
         }
 
-        let autoexit= suite.get_autoexit();
+        let autoexit = suite.get_autoexit();
         suite.get_report();
 
         if autoexit {
@@ -1619,7 +1615,7 @@ struct TapTestData {
     test: *mut AfbTapTest,
 }
 impl AfbRqtControl for TapTestData {
-    fn verb_callback(&mut self, rqt: &AfbRequest, _args: &AfbData) -> Result <(), AfbError>{
+    fn verb_callback(&mut self, rqt: &AfbRequest, _args: &AfbData) -> Result<(), AfbError> {
         // bypass Rust limitation that refuses to understand static object pointers
         let test = unsafe { &mut (*self.test) };
         match test.jobpost() {
@@ -1643,7 +1639,7 @@ struct TapGroupData {
 }
 
 impl AfbRqtControl for TapGroupData {
-    fn verb_callback(&mut self, rqt: &AfbRequest, _args: &AfbData) -> Result <(), AfbError>{
+    fn verb_callback(&mut self, rqt: &AfbRequest, _args: &AfbData) -> Result<(), AfbError> {
         // bypass Rust limitation that refuses to understand static object pointers
         let group = unsafe { &mut (*self.group) };
         let suite = unsafe { &mut (*group.suite) };
@@ -1664,7 +1660,6 @@ impl AfbRqtControl for TapGroupData {
     }
 }
 
-
 pub trait AfbEvtFdControl {
     fn evtfd_callback(&mut self, evfd: &AfbEvtFd, revents: u32);
 }
@@ -1676,7 +1671,7 @@ pub extern "C" fn api_evtfd_cb(
     _efd: cglue::afb_evfd_t,
     _fd: ::std::os::raw::c_int,
     revents: u32,
-    userdata: *mut ::std::os::raw::c_void
+    userdata: *mut ::std::os::raw::c_void,
 ) {
     // extract evtfd+api object from libafb internals
     let evtfd_ref = unsafe { &mut *(userdata as *mut AfbEvtFd) };
@@ -1688,7 +1683,7 @@ pub extern "C" fn api_evtfd_cb(
     }
 
     // clean callback control box
-    if revents ==  AfbEvtFdPoll::HUP.bits() {
+    if revents == AfbEvtFdPoll::HUP.bits() {
         let _ctrlbox = unsafe { Box::from_raw(evtfd_ref) };
     }
 }
@@ -1741,17 +1736,21 @@ impl AfbEvtFd {
     }
 
     pub fn set_autounref(&mut self, autounref: bool) -> &mut Self {
-        if autounref {self.autounref = 1};
+        if autounref {
+            self.autounref = 1
+        };
         self
     }
 
     pub fn set_autoclose(&mut self, autoclose: bool) -> &mut Self {
-        if autoclose {self.autoclose = 1};
+        if autoclose {
+            self.autoclose = 1
+        };
         self
     }
 
     pub fn set_events(&mut self, events: AfbEvtFdPoll) -> &mut Self {
-        self.events= events.bits();
+        self.events = events.bits();
         self
     }
 
@@ -1762,10 +1761,7 @@ impl AfbEvtFd {
 
     pub fn start(&mut self) -> Result<&Self, AfbError> {
         if self.fd == 0 || self.callback == None {
-            return Err(AfbError::new(
-                self.uid,
-                "EventFd callback must be set and fd should >0",
-            ));
+            return afb_error!(self.uid, "EventFd callback must be set and fd should >0",);
         }
 
         let status = unsafe {
@@ -1780,7 +1776,7 @@ impl AfbEvtFd {
             )
         };
         if status != 0 {
-            return Err(AfbError::new(self.uid, "Afb_EvtFd creation fail"));
+            return afb_error!(self.uid, "Afb_EvtFd creation fail");
         }
         Ok(self)
     }
@@ -1797,16 +1793,15 @@ impl AfbEvtFd {
         unsafe { cglue::afb_evfd_addref(self.efdv4) };
     }
 
-    pub fn get_fd(&self) -> i32{
+    pub fn get_fd(&self) -> i32 {
         unsafe { cglue::afb_evfd_get_fd(self.efdv4) }
     }
 
-    pub fn get_events(&self) -> u32{
+    pub fn get_events(&self) -> u32 {
         unsafe { cglue::afb_evfd_get_events(self.efdv4) }
     }
 
     pub fn get_info(&self) -> &'static str {
         self.info
     }
-
 }

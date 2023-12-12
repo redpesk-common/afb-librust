@@ -108,7 +108,7 @@ fn jobpost_verb(request: &AfbRequest, args: &AfbData, userdata: &mut UserPostVer
     // extract jquery from 1st argument
     let jquery = match args.get::<JsoncObj>(0) {
         Ok(argument) => argument,
-        Err(error) => error.to_jsonc(),
+        Err(error) => error.to_jsonc()?,
     };
 
     match AfbSchedJob::new("demo-job-post-verb-cb")

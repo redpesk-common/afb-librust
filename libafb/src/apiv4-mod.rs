@@ -80,11 +80,12 @@ macro_rules! AfbBindingRegister {
                     AFB_OK
                 }
                 Err(error) => {
-                    afb_log_msg!(
-                        Critical,
+                    let message = format!("Binding initialization fail error={}", error);
+                    AfbLogMsg::push_log(
+                        AfbLogLevel::Critical,
                         apiv4,
-                        "Binding init fail error={}",
-                        error.to_string()
+                        message,
+                        Some(error.get_dbg()),
                     );
                     AFB_ABORT
                 }
@@ -97,7 +98,7 @@ pub use AfbSessionRegister;
 #[macro_export]
 macro_rules! AfbSessionRegister {
     ($userdata: ident, $callback: ident) => {
-        use crate::afbv4::utilv4::MakeError;
+        use crate::afbv4::utilv4::afb_error;
         #[allow(non_camel_case_types)]
         impl AfbRqtSession for $userdata {
             fn as_any(&mut self) -> &mut dyn Any {
@@ -113,10 +114,7 @@ macro_rules! AfbSessionRegister {
                 match request.get_session() {
                     Err(error) => Err(error),
                     Ok(any) => match any.as_any().downcast_mut::<$userdata>() {
-                        None => Err(AfbError::make(
-                            "session-any-cast",
-                            "fail to restore <$userdata>",
-                        )),
+                        None => afb_error!("session-any-cast", "fail to restore <$userdata>"),
                         Some(value) => Ok(value),
                     },
                 }
@@ -129,10 +127,7 @@ macro_rules! AfbSessionRegister {
                 match request.set_session(Box::new(userdata)) {
                     Err(error) => Err(error),
                     Ok(any) => match any.as_any().downcast_mut::<$userdata>() {
-                        None => Err(AfbError::make(
-                            "session-any-cast",
-                            "fail to restore <$userdata>",
-                        )),
+                        None => afb_error!("session-any-cast", "fail to restore <$userdata>"),
                         Some(value) => Ok(value),
                     },
                 }
@@ -157,10 +152,7 @@ macro_rules! AfbSessionRegister {
                 match request.get_session() {
                     Err(error) => Err(error),
                     Ok(any) => match any.as_any().downcast_mut::<$userdata>() {
-                        None => Err(AfbError::make(
-                            "session-any-cast",
-                            "fail to restore <$userdata>",
-                        )),
+                        None => afb_error!("session-any-cast", "fail to restore <$userdata>"),
                         Some(value) => Ok(value),
                     },
                 }
@@ -173,10 +165,7 @@ macro_rules! AfbSessionRegister {
                 match request.set_session(Box::new(userdata)) {
                     Err(error) => Err(error),
                     Ok(any) => match any.as_any().downcast_mut::<$userdata>() {
-                        None => Err(AfbError::make(
-                            "session-any-cast",
-                            "fail to restore <$userdata>",
-                        )),
+                        None => afb_error!("session-any-cast", "fail to restore <$userdata>"),
                         Some(value) => Ok(value),
                     },
                 }
@@ -1257,16 +1246,13 @@ impl AfbApi {
         };
 
         if status < 0 {
-            let error = AfbError::new(
+            afb_error!(
                 self._uid,
-                format!(
-                    "Fail to register api uid={} status={} info={} ",
-                    self._uid,
-                    status,
-                    afb_error_info(status)
-                ),
-            );
-            Err(error)
+                "Fail to register api uid={} status={} info={} ",
+                self._uid,
+                status,
+                afb_error_info(status)
+            )
         } else {
             Ok(self)
         }
@@ -1484,7 +1470,7 @@ impl AfbVerb {
     pub fn set_sample(&mut self, value: &'static str) -> Result<&mut Self, AfbError> {
         let jparse = JsoncObj::parse(value);
         match jparse {
-            Err(_error) => Err(AfbError::new("jsonc-parsing-error", value.to_string())),
+            Err(_error) => afb_error!("jsonc-parsing-error", value.to_string()),
             Ok(jvalue) => {
                 self.samples.insert(jvalue).unwrap();
                 Ok(self)
@@ -1512,7 +1498,7 @@ impl AfbVerb {
                     self.actions = jvalue;
                     Ok(self)
                 } else {
-                    Err(AfbError::new("verb-set-action", "not a valid json array"))
+                    afb_error!("verb-set-action", "not a valid json array")
                 }
             }
         }
@@ -1673,10 +1659,7 @@ impl<'a> AfbRequest<'a> {
             )
         };
         if status < 0 {
-            Err(AfbError::make(
-                "rqt-session-exist",
-                "request fail to create session",
-            ))
+            afb_error!("rqt-session-exist", "request fail to create session")
         } else {
             Ok(session.inner.as_mut())
         }
@@ -1685,10 +1668,7 @@ impl<'a> AfbRequest<'a> {
     pub fn drop_session(&self) -> Result<(), AfbError> {
         let status = unsafe { cglue::afb_req_context_drop(self.get_rqtv4()) };
         if status < 0 {
-            Err(AfbError::make(
-                "rqt-session-missing",
-                "request session not defined",
-            ))
+            afb_error!("rqt-session-missing", "request session not defined")
         } else {
             Ok(())
         }
@@ -1702,10 +1682,7 @@ impl<'a> AfbRequest<'a> {
             )
         };
         if status < 0 {
-            Err(AfbError::make(
-                "rqt-session-missing",
-                "request session does not exit",
-            ))
+            afb_error!("rqt-session-missing", "request session does not exit")
         } else {
             let session = unsafe { &mut *(session as *mut AfbRqtSessionWrap) };
             Ok(session.inner.as_mut())
@@ -1802,15 +1779,13 @@ impl<'a> AfbRequest<'a> {
     pub fn set_loa(&self, loa: u32) -> Result<u32, AfbError> {
         let status = unsafe { cglue::afb_req_session_set_LOA(self._rqtv4, loa) };
         if status < 0 {
-            Err(AfbError::new(
+            afb_error!(
                 &self.get_uid(),
-                format!(
-                    "invalid LOA={} api={} verb={}",
-                    loa,
-                    self.get_api().get_uid(),
-                    self.get_verb().get_uid()
-                ),
-            ))
+                "invalid LOA={} api={} verb={}",
+                loa,
+                self.get_api().get_uid(),
+                self.get_verb().get_uid()
+            )
         } else {
             Ok(loa)
         }
@@ -2179,12 +2154,12 @@ impl AfbEvent {
 
     pub fn subscribe(&self, rqt: &AfbRequest) -> Result<&Self, AfbError> {
         if self._evtv4 == 0 as AfbEvtV4 {
-            return Err(AfbError::new(self._uid, "should register before usage"));
+            return afb_error!(self._uid, "should register before usage");
         }
 
         let status = unsafe { cglue::afb_req_subscribe(rqt.get_rqtv4(), self._evtv4) };
         if status != 0 {
-            Err(AfbError::new(self._uid, "fail to subscribe event"))
+            afb_error!(self._uid, "fail to subscribe event")
         } else {
             Ok(self)
         }
@@ -2192,12 +2167,12 @@ impl AfbEvent {
 
     pub fn unsubscribe(&self, rqt: &AfbRequest) -> Result<&Self, AfbError> {
         if self._evtv4 == 0 as AfbEvtV4 {
-            return Err(AfbError::new(self._uid, "should register before usage"));
+            return afb_error!(self._uid, "should register before usage");
         }
 
         let status = unsafe { cglue::afb_req_unsubscribe(rqt.get_rqtv4(), self._evtv4) };
         if status != 0 {
-            Err(AfbError::new(self._uid, "fail to subscribe event"))
+            afb_error!(self._uid, "fail to subscribe event")
         } else {
             Ok(self)
         }
@@ -2614,16 +2589,14 @@ impl DoSubcall<&AfbApi, Box<dyn AfbSubcallControl>> for AfbSubCall {
             )
         };
         if rc < 0 || nreplies > MAX_CALL_ARGS {
-            return Err(AfbError::new(
+            return afb_error!(
                 "api-subcall",
-                format!(
-                    "api:{} verb:{} rc={} info={}",
-                    apiname,
-                    verbname,
-                    rc,
-                    afb_error_info(rc)
-                ),
-            ));
+                "api:{} verb:{} rc={} info={}",
+                apiname,
+                verbname,
+                rc,
+                afb_error_info(rc)
+            );
         }
         let datas = AfbData::new(&replies, nreplies, status);
         Ok(datas)
@@ -2686,16 +2659,14 @@ impl DoSubcall<AfbApiV4, Box<dyn AfbSubcallControl>> for AfbSubCall {
             )
         };
         if rc < 0 || nreplies > MAX_CALL_ARGS {
-            return Err(AfbError::new(
+            return afb_error!(
                 "api-subcall",
-                format!(
-                    "api:{} verb:{} rc={} info={}",
-                    apiname,
-                    verbname,
-                    rc,
-                    afb_error_info(rc)
-                ),
-            ));
+                "api:{} verb:{} rc={} info={}",
+                apiname,
+                verbname,
+                rc,
+                afb_error_info(rc)
+            );
         }
         let datas = AfbData::new(&replies, nreplies, status);
         Ok(datas)
@@ -2763,16 +2734,14 @@ impl<'a> DoSubcall<&AfbRequest<'a>, Box<dyn AfbRqtControl>> for AfbSubCall {
             )
         };
         if rc < 0 {
-            return Err(AfbError::new(
+            return afb_error!(
                 "api-subcall",
-                format!(
-                    "api:{} verb:{} rc={} info={}",
-                    apiname,
-                    verbname,
-                    rc,
-                    afb_error_info(rc)
-                ),
-            ));
+                "api:{} verb:{} rc={} info={}",
+                apiname,
+                verbname,
+                rc,
+                afb_error_info(rc)
+            );
         }
         // move const **array in something Rust may understand
         let datas = AfbData::new(&replies, nreplies, status);
@@ -2839,16 +2808,14 @@ impl DoSubcall<AfbRqtV4, Box<dyn AfbRqtControl>> for AfbSubCall {
             )
         };
         if rc < 0 {
-            return Err(AfbError::new(
+            return afb_error!(
                 "api-subcall",
-                format!(
-                    "api:{} verb:{} rc={} info={}",
-                    apiname,
-                    verbname,
-                    rc,
-                    afb_error_info(rc)
-                ),
-            ));
+                "api:{} verb:{} rc={} info={}",
+                apiname,
+                verbname,
+                rc,
+                afb_error_info(rc)
+            );
         }
         // move const **array in something Rust may understand
         let datas = AfbData::new(&replies, nreplies, status);

@@ -138,10 +138,10 @@ macro_rules! AfbDataConverter {
                                 }
                             }
                         };
-                        Err(AfbError::new(
+                        afb_error!(
                             concat!("export:",stringify!($uid)),
-                            format!("invalid custom converter format args[{}]={}", index, data),
-                        ))
+                            "invalid custom converter format args[{}]={}", index, data
+                        )
                     }
                     Some(cbuffer) => Ok(unsafe { &mut *(cbuffer as *mut $datat) }),
                 }
@@ -392,7 +392,7 @@ impl AfbConverter {
             // freeze converter type in memory heap
             Ok(Box::leak(converter))
         } else {
-            Err(AfbError::new(uid, "fail to register converter data type"))
+            afb_error!(uid, "fail to register converter data type")
         }
     }
 
@@ -433,7 +433,7 @@ impl AfbConverter {
         };
 
         if status != 0 {
-            Err(AfbError::new(&self._uid, "Fail adding encoding converter"))
+            afb_error!(&self._uid, "Fail adding encoding converter")
         } else {
             Ok(self)
         }
@@ -465,7 +465,7 @@ pub fn get_type(uid: &'static str) -> Result<&mut AfbConverter, AfbError> {
     };
 
     if status < 0 {
-        Err(AfbError::new(uid, "type lookup fail"))
+        afb_error!(uid, "type lookup fail")
     } else {
         let converter_box = Box::new(AfbConverter {
             _uid: uid,
@@ -494,10 +494,10 @@ macro_rules! _register_query_converter {
                                 }
                             }
                         };
-                        Err(AfbError::new(
+                        afb_error!(
                             concat!("export:", stringify!($afb_builtin_type)),
-                            format!("invalid converter format args[{}]={}", index, data),
-                        ))
+                            "invalid converter format args[{}]={}", index, data
+                        )
                     }
                     Some(cbuffer) => Ok(unsafe { *(cbuffer as *mut $rust_type) }),
                 }
@@ -517,10 +517,10 @@ impl ConvertQuery<String> for AfbData {
         let uid = "builtin-string";
         let converter = unsafe { (*cglue::afbBindingV4r1_itfptr).type_stringz };
         match self.get_ro(converter, index) {
-            None => Err(AfbError::new(
+            None => afb_error!(
                 uid,
-                format!("invalid converter format args[{}]", index),
-            )),
+                "invalid converter format args[{}]", index
+            ),
             Some(cbuffer) => {
                 let cstring = unsafe { CStr::from_ptr(&mut *(cbuffer as *mut Cchar)) };
                 let slice: &str = cstring.to_str().unwrap();
@@ -538,10 +538,10 @@ impl ConvertQuery<JsoncObj> for AfbData {
 
         // retrieve c-buffer pointer to argument void* value
         match self.get_ro(converter, index) {
-            None => Err(AfbError::new(
+            None => afb_error!(
                 uid,
-                format!("invalid converter format args[{}]", index),
-            )),
+                "invalid converter format args[{}]", index
+            ),
             Some(cbuffer) => Ok(JsoncObj::from(cbuffer)),
         }
     }
@@ -567,10 +567,10 @@ impl AfbData {
         AfbData: ConvertQuery<T>,
     {
         match self.check(index as i32) {
-            Err(max) => Err(AfbError::new(
+            Err(max) => afb_error!(
                 "AfbData.get",
-                format!("invalid argument index ask:{} max:{}", index + 1, max),
-            )),
+                "invalid argument index ask:{} max:{}", index + 1, max
+            ),
             Ok(()) => Self::import(self, index),
         }
     }
@@ -581,10 +581,10 @@ impl AfbData {
         AfbData: ConvertQuery<T>,
     {
         if self.status < 0 {
-            Err(AfbError::new(
+            afb_error!(
                 "AfbData.status",
-                format!("value:{} info:{}", self.status, afb_error_info(self.status)),
-            ))
+                "value:{} info:{}", self.status, afb_error_info(self.status)
+            )
         } else {
             self.get(index)
         }
@@ -596,10 +596,10 @@ impl AfbData {
         AfbData: ConvertQuery<T>,
     {
         if self.status < 0 {
-            Err(AfbError::new(
+            afb_error!(
                 "AfbData.status",
-                format!("value:{} info:{}", self.status, afb_error_info(self.status)),
-            ))
+                "value:{} info:{}", self.status, afb_error_info(self.status)
+            )
         } else {
             self.get(index)
         }
@@ -652,7 +652,7 @@ impl AfbData {
         for idx in 0..self.count {
             let data = self.get::<JsoncObj>(idx as usize);
             let jsonc = match data {
-                Err(error) => error.to_jsonc(),
+                Err(error) => error.to_jsonc().unwrap(),
                 Ok(data) => data,
             };
             jdata.insert(jsonc).unwrap();
@@ -794,14 +794,14 @@ impl ConvertResponse<&String> for AfbParams {
 
 impl ConvertResponse<&AfbError> for AfbParams {
     fn export(data: &AfbError) -> AfbExportResponse {
-        let error = data.to_jsonc();
+        let error = data.to_jsonc().unwrap();
         Self::export(error)
     }
 }
 
 impl ConvertResponse<AfbError> for AfbParams {
     fn export(data: AfbError) -> AfbExportResponse {
-        let error = data.to_jsonc();
+        let error = data.to_jsonc().unwrap();
         Self::export(error)
     }
 }
@@ -865,7 +865,7 @@ impl AfbParams {
         // convert response data depending on type
         let mut data = match AfbParams::export(data_in) {
             AfbExportResponse::Converter(export) => export,
-            _ => return Err(AfbError::new("afb_response::push", "invalid data type")),
+            _ => return afb_error!("afb_response::push", "invalid data type"),
         };
 
         match Self::insert(&mut param, &mut data) {
@@ -893,10 +893,10 @@ impl AfbParams {
             )
         };
         if status != 0 {
-            Err(AfbError::new(
+            afb_error!(
                 data.uid,
-                format!("Fail:{} data export", data.uid),
-            ))
+                "Fail:{} data export", data.uid
+            )
         } else {
             self.arguments.push(data_handle);
             Ok(())
@@ -927,7 +927,7 @@ impl AfbParams {
         // convert response data depending on type
         let mut data = match AfbParams::export(data_in) {
             AfbExportResponse::Converter(export) => export,
-            _ => return Err(AfbError::new("afb_response::push", "invalid data type")),
+            _ => return afb_error!("afb_response::push", "invalid data type"),
         };
 
         match Self::insert(self, &mut data) {

@@ -170,8 +170,8 @@ impl AfbApiControls for TapUserData {
             .set_info("Unsubscribe event").finalize()?;
 
         let event4 = AfbTapTest::new("event-push-no-listener", "rust-api", "event_group/push")
-            .set_info("push should not have any subscriber")
-            .add_expect(0)
+            .set_info("push should not have any subscriber/session return -100")
+            .set_status(-100)
             .add_arg("{'info': 'some data event'}")?
             .finalize()?;
 

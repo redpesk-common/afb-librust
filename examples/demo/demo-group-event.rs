@@ -72,16 +72,13 @@ struct PushData {
     ctx: Arc<UserCtxData>,
 }
 AfbVerbRegister!(PushCtrl, push_callback, PushData);
-fn push_callback(request: &AfbRequest, args: &AfbData, userdata: &mut PushData)  -> Result <(), AfbError> {
+fn push_callback(request: &AfbRequest, _args: &AfbData, userdata: &mut PushData)  -> Result <(), AfbError> {
     let session = SessionUserData::get(request)?;
     session.count += 1;
 
-    let jquery= args.get::<JsoncObj>(0) ?;
-
     // increment event counter and push event to listener(s)
     let mut response = AfbParams::new();
-    response.push(userdata.ctx.incr_counter()).unwrap();
-    response.push(jquery).unwrap();
+    response.push(userdata.ctx.incr_counter())?;
     let listeners = userdata.ctx.event.push(response);
     request.reply(listeners, 0);
     Ok(())
