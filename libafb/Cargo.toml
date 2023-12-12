@@ -20,7 +20,7 @@ bitflags = "2"
 
 [build-dependencies]
 system-deps = "2.0"
-bindgen = ">=0.6"
+bindgen = ">=0.69"
 cc = ">=1.0"
 
 [package.metadata.system-deps]
