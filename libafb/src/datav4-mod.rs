@@ -72,6 +72,7 @@ macro_rules! AfbDataConverter {
             use std::any::Any;
             pub static mut CONVERTER_BOX: ConverterBox = ConverterBox(None);
 
+            #[track_caller]
             pub fn encode(cbuffer: *mut std::ffi::c_void) -> Result<String, String> {
                 let data = unsafe { &mut *(cbuffer as *mut $datat) };
                 match serde_json::to_string(data) {
@@ -80,6 +81,7 @@ macro_rules! AfbDataConverter {
                 }
             }
 
+            #[track_caller]
             pub fn decode(json_string: &str) -> Result<Box<dyn Any>, String> {
                 match serde_json::from_str::<$datat>(json_string) {
                     Ok(value) => Ok(Box::new(value)),
@@ -87,6 +89,7 @@ macro_rules! AfbDataConverter {
                 }
             }
 
+            #[track_caller]
             pub fn register(
             ) -> Result<&'static afbv4::datav4::AfbConverter, afbv4::utilv4::AfbError> {
                 let converter =
@@ -132,15 +135,18 @@ macro_rules! AfbDataConverter {
                             match self.get_ro(converter, index) {
                                 None => "no readable data found",
                                 Some(cbuffer) => {
-                                    let cstring =
-                                        unsafe {std::ffi::CStr::from_ptr(&mut *(cbuffer as *mut Cchar)) };
+                                    let cstring = unsafe {
+                                        std::ffi::CStr::from_ptr(&mut *(cbuffer as *mut Cchar))
+                                    };
                                     cstring.to_str().unwrap()
                                 }
                             }
                         };
                         afb_error!(
-                            concat!("export:",stringify!($uid)),
-                            "invalid custom converter format args[{}]={}", index, data
+                            concat!("export:", stringify!($uid)),
+                            "invalid custom converter format args[{}]={}",
+                            index,
+                            data
                         )
                     }
                     Some(cbuffer) => Ok(unsafe { &mut *(cbuffer as *mut $datat) }),
@@ -178,6 +184,7 @@ macro_rules! AfbDataConverter {
 // make macro visible at module level
 
 impl AfbBuiltinType {
+    #[track_caller]
     pub fn get(builtin_type: &AfbBuiltinType) -> AfbConverter {
         unsafe {
             match builtin_type {
@@ -353,10 +360,12 @@ struct AfbEncoder {
 }
 
 impl AfbEncoder {
+    #[track_caller]
     pub fn get_encoder(&mut self) -> EncoderCb {
         self.encoder
     }
 
+    #[track_caller]
     pub fn get_decoder(&mut self) -> DecoderCb {
         self.decoder
     }
@@ -369,6 +378,7 @@ pub struct AfbConverter {
 
 impl AfbConverter {
     // create a new converter type within libafb
+    #[track_caller]
     pub fn new(uid: &'static str) -> Result<&mut Self, AfbError> {
         // register new type within libafb
         let cuid = CString::new(uid)
@@ -396,6 +406,7 @@ impl AfbConverter {
         }
     }
 
+    #[track_caller]
     pub fn add_encoder(
         &mut self,
         encoder_type: AfbBuiltinType,
@@ -440,19 +451,23 @@ impl AfbConverter {
     }
 
     // return object getter trait to prevent any malicious modification
+    #[track_caller]
     pub fn finalize(&mut self) -> &AfbConverter {
         self
     }
 
+    #[track_caller]
     pub fn get_uid(&self) -> &'static str {
         self._uid
     }
 
+    #[track_caller]
     pub fn get_typev4(&self) -> cglue::afb_type_t {
         self.typev4
     }
 }
 
+#[track_caller]
 pub fn get_type(uid: &'static str) -> Result<&mut AfbConverter, AfbError> {
     let typev4: cglue::afb_type_t = 0 as cglue::afb_type_t;
     let cuid = CString::new(uid).expect("Invalid converter uid key");
@@ -496,7 +511,9 @@ macro_rules! _register_query_converter {
                         };
                         afb_error!(
                             concat!("export:", stringify!($afb_builtin_type)),
-                            "invalid converter format args[{}]={}", index, data
+                            "invalid converter format args[{}]={}",
+                            index,
+                            data
                         )
                     }
                     Some(cbuffer) => Ok(unsafe { *(cbuffer as *mut $rust_type) }),
@@ -517,10 +534,7 @@ impl ConvertQuery<String> for AfbData {
         let uid = "builtin-string";
         let converter = unsafe { (*cglue::afbBindingV4r1_itfptr).type_stringz };
         match self.get_ro(converter, index) {
-            None => afb_error!(
-                uid,
-                "invalid converter format args[{}]", index
-            ),
+            None => afb_error!(uid, "invalid converter format args[{}]", index),
             Some(cbuffer) => {
                 let cstring = unsafe { CStr::from_ptr(&mut *(cbuffer as *mut Cchar)) };
                 let slice: &str = cstring.to_str().unwrap();
@@ -538,10 +552,7 @@ impl ConvertQuery<JsoncObj> for AfbData {
 
         // retrieve c-buffer pointer to argument void* value
         match self.get_ro(converter, index) {
-            None => afb_error!(
-                uid,
-                "invalid converter format args[{}]", index
-            ),
+            None => afb_error!(uid, "invalid converter format args[{}]", index),
             Some(cbuffer) => Ok(JsoncObj::from(cbuffer)),
         }
     }
@@ -554,6 +565,7 @@ pub struct AfbData {
 }
 
 impl AfbData {
+    #[track_caller]
     pub fn new(args: &[AfbDataV4], argc: u32, status: i32) -> Self {
         AfbData {
             count: argc,
@@ -562,6 +574,7 @@ impl AfbData {
         }
     }
 
+    #[track_caller]
     pub fn get<T>(&self, index: usize) -> Result<T, AfbError>
     where
         AfbData: ConvertQuery<T>,
@@ -569,13 +582,16 @@ impl AfbData {
         match self.check(index as i32) {
             Err(max) => afb_error!(
                 "AfbData.get",
-                "invalid argument index ask:{} max:{}", index + 1, max
+                "invalid argument index ask:{} max:{}",
+                index + 1,
+                max
             ),
             Ok(()) => Self::import(self, index),
         }
     }
 
     // return argument only if status > 0
+    #[track_caller]
     pub fn get_on_status<T>(&self, index: usize) -> Result<T, AfbError>
     where
         AfbData: ConvertQuery<T>,
@@ -583,7 +599,9 @@ impl AfbData {
         if self.status < 0 {
             afb_error!(
                 "AfbData.status",
-                "value:{} info:{}", self.status, afb_error_info(self.status)
+                "value:{} info:{}",
+                self.status,
+                afb_error_info(self.status)
             )
         } else {
             self.get(index)
@@ -591,6 +609,7 @@ impl AfbData {
     }
 
     // return argument only if status > 0
+    #[track_caller]
     pub fn get_onsuccess<T>(&self, index: usize) -> Result<T, AfbError>
     where
         AfbData: ConvertQuery<T>,
@@ -598,7 +617,9 @@ impl AfbData {
         if self.status < 0 {
             afb_error!(
                 "AfbData.status",
-                "value:{} info:{}", self.status, afb_error_info(self.status)
+                "value:{} info:{}",
+                self.status,
+                afb_error_info(self.status)
             )
         } else {
             self.get(index)
@@ -606,6 +627,7 @@ impl AfbData {
     }
 
     // return Null is max argument count is index too big
+    #[track_caller]
     pub fn check(&self, index: i32) -> Result<(), u32> {
         let count = self.count as i32;
         let check = if (index >= 0) && (index < count) {
@@ -618,18 +640,22 @@ impl AfbData {
         check
     }
 
+    #[track_caller]
     pub fn get_count(&self) -> u32 {
         self.count
     }
 
+    #[track_caller]
     pub fn get_status(&self) -> i32 {
         self.status
     }
 
+    #[track_caller]
     pub fn get_v4(&self, index: u32) -> cglue::afb_data_t {
         self.argsv4[index as usize]
     }
 
+    #[track_caller]
     pub fn get_ro(&self, typev4: AfbTypeV4, index: usize) -> Option<*mut std::ffi::c_void> {
         let result = unsafe {
             let source = self.argsv4[index];
@@ -646,6 +672,7 @@ impl AfbData {
         result
     }
 
+    #[track_caller]
     pub fn to_jsonc(&self) -> JsoncObj {
         let jsonc = JsoncObj::new();
         let jdata = JsoncObj::array();
@@ -851,12 +878,14 @@ impl Clone for AfbParams {
 }
 
 impl AfbParams {
+    #[track_caller]
     pub fn new() -> Self {
         AfbParams {
             arguments: Vec::new(),
         }
     }
 
+    #[track_caller]
     pub fn from<T>(data_in: T) -> Result<Self, AfbError>
     where
         AfbParams: ConvertResponse<T>,
@@ -893,16 +922,14 @@ impl AfbParams {
             )
         };
         if status != 0 {
-            afb_error!(
-                data.uid,
-                "Fail:{} data export", data.uid
-            )
+            afb_error!(data.uid, "Fail:{} data export", data.uid)
         } else {
             self.arguments.push(data_handle);
             Ok(())
         }
     }
 
+    #[track_caller]
     pub fn convert<T>(data_in: T) -> Result<AfbParams, AfbError>
     where
         AfbParams: ConvertResponse<T>,
@@ -920,6 +947,7 @@ impl AfbParams {
         }
     }
 
+    #[track_caller]
     pub fn push<T>(&mut self, data_in: T) -> Result<&mut Self, AfbError>
     where
         AfbParams: ConvertResponse<T>,

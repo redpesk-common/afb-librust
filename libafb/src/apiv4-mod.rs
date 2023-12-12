@@ -1467,6 +1467,7 @@ impl AfbVerb {
     ///    .set_sample("{'skipail': 'IoT.bzh', 'info':'missing location+zip'}").expect("invalid json sample")
     ///    .finalize()
     /// ```
+
     pub fn set_sample(&mut self, value: &'static str) -> Result<&mut Self, AfbError> {
         let jparse = JsoncObj::parse(value);
         match jparse {
