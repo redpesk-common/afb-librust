@@ -643,14 +643,20 @@ pub extern "C" fn api_controls_cb(
             if status >= 0 {
                 for slot in &api_ref.require_apis {
                     let name = CString::new(*slot).expect("invalid api name");
-                    unsafe { cglue::afb_api_require_api(apiv4, name.as_ptr(), 0) };
+                    let rc= unsafe { cglue::afb_api_require_api(apiv4, name.as_ptr(), 0) };
+                    if rc < 0 {
+                       afb_log_msg!(Critical, apiv4, "Require on api:{} fail", slot);
+                    }
                 }
             }
 
             if status >= 0 {
                 for slot in &api_ref.require_classes {
                     let name = CString::new(*slot).expect("invalid api name");
-                    unsafe { cglue::afb_api_require_class(apiv4, name.as_ptr()) };
+                    let rc= unsafe { cglue::afb_api_require_class(apiv4, name.as_ptr()) };
+                    if rc < 0 {
+                       afb_log_msg!(Critical, apiv4, "Require on api class:{} fail", slot);
+                    }
                 }
             }
 
