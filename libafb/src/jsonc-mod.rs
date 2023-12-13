@@ -57,6 +57,9 @@ pub struct JsoncObj {
     jso: *mut cglue::json_object,
 }
 
+// minimal internal jsonc object to external crates
+pub type JsoncJso= cglue::json_object;
+
 pub struct Jentry {
     pub key: String,
     pub obj: JsoncObj,
