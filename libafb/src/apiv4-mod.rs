@@ -25,6 +25,7 @@ use std::any::Any;
 use std::boxed::Box;
 use std::ffi::{CStr, CString};
 use std::fmt;
+use std::cell::Cell;
 // libafb dependencies
 use crate::prelude::*;
 
@@ -620,7 +621,7 @@ pub extern "C" fn api_controls_cb(
     // extract config rust object from C void* ctrlbox
     //let ctlid = ctlid_v4 as cglue::afb_ctlid_t;
     let ctlarg = ctlarg_v4 as cglue::afb_ctlarg_t;
-    let api_ref = unsafe { &mut *(apictx as *mut AfbApi) };
+    let api_ref = unsafe {& *(apictx as *mut AfbApi) };
 
     let status = match ctlid {
         cglue::afb_ctlid_afb_ctlid_Pre_Init => {
@@ -678,7 +679,7 @@ pub extern "C" fn api_controls_cb(
                     if status < 0 {
                         afb_log_msg!(
                             Critical,
-                            api_ref._apiv4,
+                            api_ref._apiv4.get(),
                             "Fail to register verb={}",
                             verb_ref.get_uid()
                         );
@@ -694,7 +695,7 @@ pub extern "C" fn api_controls_cb(
                     if status < 0 {
                         afb_log_msg!(
                             Critical,
-                            api_ref._apiv4,
+                            api_ref._apiv4.get(),
                             "Fail to register group={}",
                             group_ref.get_uid()
                         );
@@ -710,7 +711,7 @@ pub extern "C" fn api_controls_cb(
                     if status < 0 {
                         afb_log_msg!(
                             Critical,
-                            api_ref._apiv4,
+                            api_ref._apiv4.get(),
                             "Fail to register event={}",
                             event_ref.get_uid()
                         );
@@ -726,7 +727,7 @@ pub extern "C" fn api_controls_cb(
                     if status < 0 {
                         afb_log_msg!(
                             Critical,
-                            api_ref._apiv4,
+                            api_ref._apiv4.get(),
                             "Fail to register event={}",
                             event_ref.get_uid()
                         );
@@ -853,7 +854,7 @@ pub extern "C" fn api_controls_cb(
 pub struct AfbApi {
     _uid: &'static str,
     _count: usize,
-    _apiv4: cglue::afb_api_t,
+    _apiv4: Cell<cglue::afb_api_t>,
     name: &'static str,
     info: &'static str,
     version: &'static str,
@@ -885,7 +886,7 @@ impl AfbApi {
         let api_box = Box::new(AfbApi {
             _uid: uid,
             _count: 0,
-            _apiv4: 0 as cglue::afb_api_t,
+            _apiv4: Cell::new(0 as cglue::afb_api_t),
             do_info: true,
             do_seal: true,
             do_ping: true,
@@ -1216,9 +1217,10 @@ impl AfbApi {
     #[doc(hidden)]
     // hack to update apiv4 after api object creation
     pub fn set_apiv4(&self, apiv4: cglue::afb_api_t) {
-        #[allow(invalid_reference_casting)]
-        let api_ref = unsafe { &mut *(self as *const _ as *mut AfbApi) };
-        api_ref._apiv4 = apiv4;
+        // #[allow(invalid_reference_casting)]
+        // let api_ref = unsafe { &mut *(self as *const _ as *mut AfbApi) };
+        // api_ref._apiv4.get() = apiv4;
+        self._apiv4.set(apiv4);
     }
 
     /// Finalize an API and effectivly register API withing C/LibAFB framework
@@ -1279,7 +1281,7 @@ impl AfbApi {
         self.info
     }
     pub fn get_apiv4(&self) -> cglue::afb_api_t {
-        self._apiv4
+        self._apiv4.get()
     }
     pub fn get_version(&self) -> &'static str {
         self.version
