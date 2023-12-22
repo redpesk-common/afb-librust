@@ -29,6 +29,9 @@ fn main() {
         //     - src/capi/libafb-map.h for static values
         // -----------------------------------------------------------------------
         ";
+    // probe for dependencies
+    system_deps::Config::new().probe().unwrap();
+
     // invalidate the built crate whenever the wrapper changes
     println!("cargo:rerun-if-changed=capi/libafb-map.h");
 

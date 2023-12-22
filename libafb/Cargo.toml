@@ -24,7 +24,8 @@ bindgen = ">=0.69"
 cc = ">=1.0"
 
 [package.metadata.system-deps]
-libafb = "*"
+libafb = "5"
+json-c  = "*"
 
 [lib]
 name = "afbv4"
