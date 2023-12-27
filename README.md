@@ -15,9 +15,12 @@ For more information about installation, run and test, click on the following li
 request.get_session() // return une session init a zero
 request.drop_session() // delete l'object session
 
-Fulup TBD
+## Compilation bugs
 
- - faire un message plus clair quand la conversion ne fonctionne pas.
+Something cargo complains about ```stddef.h``` which is own by ```kernel-headers```
+ * install kernel-headers
+ * install clang
+
 
 ## Tests
 
@@ -29,7 +32,7 @@ It is possible to run tests on this library by calling the following script.
 
 ### Coverage
 
-In order to get the coverage of the tests, firstly you need to install additional tools. 
+In order to get the coverage of the tests, firstly you need to install additional tools.
 This can be done by running the commands here below.
 
 ```bash
