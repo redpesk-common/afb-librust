@@ -4,9 +4,11 @@
 COVERAGE=false
 
 # Get the root directory of the project
-CARGO_TOML_ROOT=$(cargo locate-project --workspace --message-format plain)
-CARGO_ROOT_DIR=$(dirname "$CARGO_TOML_ROOT")
-export CARGO_TARGET_DIR="$CARGO_ROOT_DIR/target"
+if test -z "$CARGO_TARGET_DIR"; then
+    CARGO_TOML_ROOT=$(cargo locate-project --workspace --message-format plain)
+    CARGO_ROOT_DIR=$(dirname "$CARGO_TOML_ROOT")
+    export CARGO_TARGET_DIR="$CARGO_ROOT_DIR/target"
+fi
 
 # ******************************
 # ***** GET THE PARAMETERS *****
@@ -28,7 +30,7 @@ done
 
 if $COVERAGE; then
     echo "[COVERAGE] Cleaning last coverage run"
-    
+
     # Clean repository if coverage enabled
     rm -f "$CARGO_ROOT_DIR"/*.profraw
     rm -f "$CARGO_ROOT_DIR"/libafb/*.profraw
