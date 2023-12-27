@@ -73,14 +73,11 @@ fn main() {
     cc::Build::new()
          .file("capi/_libafb-map.c")
          .include("/usr/local/include")
+         .include("/usr/include/linux")
          .compile("afb-glue");
 
     // ============== JSONC-C interface =====================
-    println!("cargo:rustc-link-search=/usr/local/lib64");
-    println!("cargo:rustc-link-arg=-Wl,-rpath,./target/debug");
-    println!("cargo:rustc-link-arg=-ljson-c");
-
-        // add here any special search path specific to your configuration
+    // add here any special search path specific to your configuration
     println!("cargo:rustc-link-search=/usr/local/lib64");
     println!("cargo:rustc-link-arg=-ljson-c");
 
