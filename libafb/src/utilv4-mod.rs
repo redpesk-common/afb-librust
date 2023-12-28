@@ -695,12 +695,6 @@ pub extern "C" fn api_schedjob_cb(signal: i32, userdata: *mut std::os::raw::c_vo
         Some(control) => unsafe { (*control).job_callback(job_ref, signal) },
         _ => panic!("schedjob={} no callback defined", job_ref._uid),
     }
-
-    // clean callback control box
-    let _ctrlbox = unsafe { Box::from_raw(job_ref) };
-    if signal != 0 {
-        unsafe { cglue::afb_job_abort(job_ref._jobv4) };
-    }
 }
 
 pub trait AfbJobControl {
@@ -750,7 +744,7 @@ impl AfbSchedJob {
     }
 
     #[track_caller]
-    pub fn post(&mut self, delay_ms: i64) -> Result<&mut Self, AfbError> {
+    pub fn post(&self, delay_ms: i64) -> Result<i32, AfbError> {
         match self.callback {
             None => afb_error!(self._uid, "schedjob require callback setting"),
             Some(_control) => {
@@ -764,10 +758,9 @@ impl AfbSchedJob {
                     )
                 };
                 if jobv4 <= 0 {
-                    return afb_error!(self._uid, "Afb_Timer creation fail");
+                    return afb_error!(self._uid, "Job_post launch fail");
                 }
-                self._jobv4 = jobv4;
-                Ok(self)
+                Ok(jobv4)
             }
         }
     }
@@ -776,13 +769,27 @@ impl AfbSchedJob {
         self.info
     }
     #[track_caller]
-    pub fn abort(&self) -> Result<(), AfbError> {
-        let rc = unsafe { cglue::afb_job_abort(self._jobv4) };
+    pub fn abort(&self, jobv4: i32) -> Result<(), AfbError> {
+        let rc = unsafe { cglue::afb_job_abort(jobv4) };
         if rc < 0 {
-            afb_error!(self._uid, "No job running id={}", self._jobv4)
+            afb_error!(self._uid, "No job running id={}", jobv4)
         } else {
             Ok(())
         }
+    }
+
+    // delete job post handle and attached callback context
+    pub fn drop(&self) {
+        unsafe {
+            if let Some(callback)= self.callback {
+                let _callback = Box::from_raw(callback as *const _ as *mut std::ffi::c_void);
+            }
+            let _ctrlbox = Box::from_raw(self as *const _ as *mut std::ffi::c_void) ;
+        }
+    }
+
+    pub fn finalize (&mut self) -> &Self {
+        self
     }
 }
 
