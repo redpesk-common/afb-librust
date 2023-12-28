@@ -210,10 +210,7 @@ macro_rules! AfbVerbRegister {
                 request: &afbv4::apiv4::AfbRequest,
                 args: &afbv4::datav4::AfbData,
             ) -> Result<(), AfbError> {
-                match $callback(request, args, self) {
-                    Err(error) => Err(afb_add_trace!(error)),
-                    Ok(()) => Ok(()),
-                }
+                $callback(request, args, self)
             }
         }
     };
@@ -226,10 +223,7 @@ macro_rules! AfbVerbRegister {
                 request: &afbv4::apiv4::AfbRequest,
                 args: &afbv4::datav4::AfbData,
             ) -> Result<(), AfbError> {
-                match $callback(request, args) {
-                    Err(error) => Err(afb_add_trace!(error)),
-                    Ok(()) => Ok(()),
-                }
+                $callback(request, args)
             }
         }
     };
@@ -1358,7 +1352,11 @@ pub extern "C" fn api_verbs_cb(rqtv4: cglue::afb_req_t, argc: u32, args: *const 
 
     match result {
         Ok(()) => {}
-        Err(error) => request.reply(error, -100),
+        Err(error) => {
+            let dbg= error.get_dbg();
+            afb_log_raw!(Notice, &request, "{} file:{}:{}", error,dbg.file,dbg.line);
+            request.reply(error, -100);
+        },
     }
 }
 
