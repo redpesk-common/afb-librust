@@ -935,7 +935,7 @@ struct TapCtxData {
 }
 
 impl AfbJobControl for TapCtxData {
-    fn job_callback(&mut self, _job: &AfbSchedJob, signal: i32) {
+    fn job_callback(&mut self, job: &AfbSchedJob, signal: i32) {
         let test = unsafe { &mut *(self.test as *mut AfbTapTest) };
         let suite = test.get_suite();
         let event = suite.get_event();
@@ -955,6 +955,7 @@ impl AfbJobControl for TapCtxData {
             let response = test.check_response(reply);
             test.done(response);
         }
+        job.drop(); // jobpost is rebuilt for each test
     }
 }
 pub struct AfbTapResponse {
@@ -1594,7 +1595,7 @@ struct TapSuiteAutoRun {
 
 /// autostart is launched as job to complete API initialisation before effectively starting test suite
 impl AfbJobControl for TapSuiteAutoRun {
-    fn job_callback(&mut self, _jobs: &AfbSchedJob, _signal: i32) {
+    fn job_callback(&mut self, job: &AfbSchedJob, _signal: i32) {
         let suite = unsafe { &mut *(self.suite as *mut AfbTapSuite) };
         let autostart = unsafe { &mut *(suite.autostart) };
 
@@ -1613,6 +1614,7 @@ impl AfbJobControl for TapSuiteAutoRun {
 
         let autoexit = suite.get_autoexit();
         suite.get_report();
+        job.drop();
 
         if autoexit {
             std::process::exit(0);

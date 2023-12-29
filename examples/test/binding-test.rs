@@ -164,15 +164,16 @@ impl AfbApiControls for TapUserData {
         let event2 = AfbTapTest::new("event-push-one-listener", "rust-api", "event_group/push")
             .set_info("check event as 1 listener")
             .add_arg("{'info': 'some data event'}")?
+            .add_expect(1) // on listener
             .finalize()?;
 
         let event3 = AfbTapTest::new("event-unsubscribe", "rust-api", "event_group/unsubscribe")
             .set_info("Unsubscribe event").finalize()?;
 
         let event4 = AfbTapTest::new("event-push-no-listener", "rust-api", "event_group/push")
-            .set_info("push should not have any subscriber/session return -100")
-            .set_status(-100)
+            .set_info("push should not have any subscriber/session")
             .add_arg("{'info': 'some data event'}")?
+            .set_status(-100) // no more session
             .finalize()?;
 
         let event_group = AfbTapGroup::new("check-event")
