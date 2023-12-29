@@ -2593,7 +2593,7 @@ impl DoSubcall<&AfbApi, Box<dyn AfbSubcallControl>> for AfbSubCall {
                 replies.as_ref() as *const _ as *mut cglue::afb_data_t,
             )
         };
-        if rc < 0 || nreplies > MAX_CALL_ARGS {
+        if rc < 0 || nreplies > MAX_CALL_ARGS || status < 0{
             return afb_error!(
                 "api-subcall",
                 "api:{} verb:{} rc={} info={}",
@@ -2663,7 +2663,7 @@ impl DoSubcall<AfbApiV4, Box<dyn AfbSubcallControl>> for AfbSubCall {
                 replies.as_ref() as *const _ as *mut cglue::afb_data_t,
             )
         };
-        if rc < 0 || nreplies > MAX_CALL_ARGS {
+        if rc < 0 || nreplies > MAX_CALL_ARGS || status < 0{
             return afb_error!(
                 "api-subcall",
                 "api:{} verb:{} rc={} info={}",
@@ -2738,7 +2738,7 @@ impl<'a> DoSubcall<&AfbRequest<'a>, Box<dyn AfbRqtControl>> for AfbSubCall {
                 replies.as_ref() as *const _ as *mut cglue::afb_data_t,
             )
         };
-        if rc < 0 {
+        if rc < 0  || status < 0 {
             return afb_error!(
                 "api-subcall",
                 "api:{} verb:{} rc={} info={}",
@@ -2812,7 +2812,7 @@ impl DoSubcall<AfbRqtV4, Box<dyn AfbRqtControl>> for AfbSubCall {
                 replies.as_ref() as *const _ as *mut cglue::afb_data_t,
             )
         };
-        if rc < 0 {
+        if rc < 0 || status < 0 {
             return afb_error!(
                 "api-subcall",
                 "api:{} verb:{} rc={} info={}",
