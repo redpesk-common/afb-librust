@@ -2600,7 +2600,7 @@ impl DoSubcall<&AfbApi, Box<dyn AfbSubcallControl>> for AfbSubCall {
                 apiname,
                 verbname,
                 rc,
-                afb_error_info(rc)
+                afb_error_info(status)
             );
         }
         let datas = AfbData::new(&replies, nreplies, status);
@@ -2670,7 +2670,7 @@ impl DoSubcall<AfbApiV4, Box<dyn AfbSubcallControl>> for AfbSubCall {
                 apiname,
                 verbname,
                 rc,
-                afb_error_info(rc)
+                afb_error_info(status)
             );
         }
         let datas = AfbData::new(&replies, nreplies, status);
@@ -2745,7 +2745,7 @@ impl<'a> DoSubcall<&AfbRequest<'a>, Box<dyn AfbRqtControl>> for AfbSubCall {
                 apiname,
                 verbname,
                 rc,
-                afb_error_info(rc)
+                afb_error_info(status)
             );
         }
         // move const **array in something Rust may understand
@@ -2819,7 +2819,7 @@ impl DoSubcall<AfbRqtV4, Box<dyn AfbRqtControl>> for AfbSubCall {
                 apiname,
                 verbname,
                 rc,
-                afb_error_info(rc)
+                afb_error_info(status)
             );
         }
         // move const **array in something Rust may understand
