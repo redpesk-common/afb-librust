@@ -2666,10 +2666,10 @@ impl DoSubcall<AfbApiV4, Box<dyn AfbSubcallControl>> for AfbSubCall {
         if rc < 0 || nreplies > MAX_CALL_ARGS || status < 0{
             return afb_error!(
                 "api-subcall",
-                "api:{} verb:{} rc={} info={}",
+                "api:{} verb:{} status={} info={}",
                 apiname,
                 verbname,
-                rc,
+                status,
                 afb_error_info(status)
             );
         }
@@ -2741,10 +2741,10 @@ impl<'a> DoSubcall<&AfbRequest<'a>, Box<dyn AfbRqtControl>> for AfbSubCall {
         if rc < 0  || status < 0 {
             return afb_error!(
                 "api-subcall",
-                "api:{} verb:{} rc={} info={}",
+                "api:{} verb:{} status={} info={}",
                 apiname,
                 verbname,
-                rc,
+                status,
                 afb_error_info(status)
             );
         }
@@ -2815,10 +2815,10 @@ impl DoSubcall<AfbRqtV4, Box<dyn AfbRqtControl>> for AfbSubCall {
         if rc < 0 || status < 0 {
             return afb_error!(
                 "api-subcall",
-                "api:{} verb:{} rc={} info={}",
+                "api:{} verb:{} status={} info={}",
                 apiname,
                 verbname,
-                rc,
+                status,
                 afb_error_info(status)
             );
         }
