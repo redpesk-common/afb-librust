@@ -38,7 +38,7 @@ pub static mut rustBindingV4root: usize = 0;
 
 #[export_name = "afbBindingV4_itf_revision"]
 #[no_mangle]
-pub static mut rustBindingV4_itf_revision: u16 = 3; // => AFB_BINDING_X4R1_ITF_REVISION
+pub static mut rustBindingV4_itf_revision: u16 = afbBindingV4_itf_revision as u16; // => AFB_BINDING_X4R1_ITF_REVISION
 
 pub const JSON_C_TO_STRING_PLAIN: u32 = 0;
 pub const JSON_C_TO_STRING_SPACED: u32 = 1;
