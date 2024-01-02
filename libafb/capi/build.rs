@@ -30,6 +30,7 @@ fn main() {
         // -----------------------------------------------------------------------
         ";
     // probe for dependencies
+    #[cfg(feature="rpm_build")]
     system_deps::Config::new().probe().unwrap();
 
     // invalidate the built crate whenever the wrapper changes
