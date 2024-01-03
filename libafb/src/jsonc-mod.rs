@@ -27,7 +27,6 @@ use std::ffi::{CStr, CString};
 use std::fmt;
 use std::os::raw::c_char;
 
-
 #[derive(Debug)]
 pub enum Jtype {
     Array = cglue::json_type_json_type_array as isize,
@@ -58,7 +57,7 @@ pub struct JsoncObj {
 }
 
 // minimal internal jsonc object to external crates
-pub type JsoncJso= cglue::json_object;
+pub type JsoncJso = cglue::json_object;
 
 pub struct Jentry {
     pub key: String,
@@ -298,6 +297,23 @@ impl DoAddon<f64> for JsoncObj {
     fn insert(&self, value: f64) {
         unsafe {
             let object = cglue::json_object_new_double(value);
+            self.add_to_array(object);
+        }
+    }
+}
+
+impl DoAddon<bool> for JsoncObj {
+    #[track_caller]
+    fn add(&self, key: &str, value: bool) {
+        unsafe {
+            let object = cglue::json_object_new_boolean(value as i32);
+            self.add_to_object(key, object);
+        }
+    }
+    #[track_caller]
+    fn insert(&self, value: bool) {
+        unsafe {
+            let object = cglue::json_object_new_boolean(value as i32);
             self.add_to_array(object);
         }
     }
@@ -548,7 +564,7 @@ impl JsoncObj {
     where
         JsoncObj: DoPutJso<T>,
     {
-            Self::put_jso(self.jso)
+        Self::put_jso(self.jso)
     }
 
     /// add a Rust (int,float,...) to jsonc-c object
