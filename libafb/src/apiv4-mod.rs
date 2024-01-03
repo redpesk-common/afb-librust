@@ -266,7 +266,7 @@ macro_rules! AfbEventRegister {
                 &mut self,
                 event: &afbv4::apiv4::AfbEventMsg,
                 args: &afbv4::datav4::AfbData,
-            ) {
+            ) -> Result<(), AfbError> {
                 $callback(event, args, self)
             }
         }
@@ -279,7 +279,7 @@ macro_rules! AfbEventRegister {
                 &mut self,
                 event: &afbv4::apiv4::AfbEventMsg,
                 args: &afbv4::datav4::AfbData,
-            ) {
+            ) -> Result<(), AfbError> {
                 $callback(event, args)
             }
         }
@@ -2019,16 +2019,25 @@ pub extern "C" fn api_events_cb(
     );
 
     // call event calback
-    match handler_ref.ctrlbox {
+    let result= match handler_ref.ctrlbox {
         Some(event_control) => unsafe {
             (*event_control).event_callback(&mut event, &mut arguments)
         },
         _ => panic!("event={} no callback defined", handler_ref._uid),
+    };
+
+    match result {
+        Ok(()) => {}
+        Err(error) => {
+            let dbg= error.get_dbg();
+            afb_log_raw!(Notice, apiv4, "{}:{} file:{}:{}", handler_ref._uid, error,dbg.file,dbg.line);
+        },
     }
+
 }
 
 pub trait AfbEventControl {
-    fn event_callback(&mut self, event: &AfbEventMsg, args: &AfbData);
+    fn event_callback(&mut self, event: &AfbEventMsg, args: &AfbData) -> Result<(),AfbError>;
 }
 
 pub struct AfbEvtHandler {
@@ -2466,17 +2475,23 @@ pub extern "C" fn afb_async_rqt_callback(
 
     // extract verb+api object from libafb internals
     let subcall_ref = unsafe { &mut *(userdata as *mut AfbSubCall) };
-    match subcall_ref.verb_cb {
-        Some(callback) => {
-            match unsafe { (*callback).verb_callback(&mut request, &mut arguments) } {
-                Ok(()) => {}
-                Err(error) => request.reply(error, 101),
-            }
-        }
-        _ => {
-            afb_log_msg!(Critical, rqtv4, "(hoops invalid RQT callback context");
-        }
+    let result= match subcall_ref.verb_cb {
+        Some(callback) => unsafe {
+            (*callback).verb_callback(&mut request, &mut arguments)
+        },
+        _ => panic!("verb={} no callback defined", verb_ref._uid),
+
     };
+
+    match result {
+        Ok(()) => {}
+        Err(error) => {
+            let dbg= error.get_dbg();
+            afb_log_raw!(Notice, &request, "{} file:{}:{}", error,dbg.file,dbg.line);
+            request.reply(error, -100);
+        },
+    }
+
 }
 
 #[no_mangle]

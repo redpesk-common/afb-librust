@@ -69,7 +69,7 @@ macro_rules! AfbTimerRegister {
         #[allow(non_camel_case_types)]
         type $timer_name = $userdata;
         impl afbv4::utilv4::AfbTimerControl for $userdata {
-            fn timer_callback(&mut self, timer: &afbv4::utilv4::AfbTimer, decount: u32) {
+            fn timer_callback(&mut self, timer: &afbv4::utilv4::AfbTimer, decount: u32) -> Result<(), AfbError> {
                 $callback(timer, decount, self)
             }
         }
@@ -78,7 +78,7 @@ macro_rules! AfbTimerRegister {
         #[allow(non_camel_case_types)]
         struct $timer_name;
         impl afbv4::apiv4::AfbTimerControl for $timer_name {
-            fn timer_callback(&mut self, timer: &afbv4::utilv4::AfbTimer, decount: u32) {
+            fn timer_callback(&mut self, timer: &afbv4::utilv4::AfbTimer, decount: u32) -> Result<(), AfbError> {
                 $callback(timer, decount)
             }
         }
@@ -92,7 +92,7 @@ macro_rules! AfbEvtFdRegister {
         #[allow(non_camel_case_types)]
         type $evtfd_name = $userdata;
         impl afbv4::utilv4::AfbEvtFdControl for $userdata {
-            fn evtfd_callback(&mut self, evtfd: &afbv4::utilv4::AfbEvtFd, revents: u32) {
+            fn evtfd_callback(&mut self, evtfd: &afbv4::utilv4::AfbEvtFd, revents: u32) -> Result<(), AfbError> {
                 $callback(evtfd, revents, self)
             }
         }
@@ -101,7 +101,7 @@ macro_rules! AfbEvtFdRegister {
         #[allow(non_camel_case_types)]
         struct $evtfd_name;
         impl afbv4::apiv4::AfbEvtFdControl for $evtfd_name {
-            fn evtfd_callback(&mut self, evtfd: &afbv4::utilv4::AfbEvtFd, revents: u32) {
+            fn evtfd_callback(&mut self, evtfd: &afbv4::utilv4::AfbEvtFd, revents: u32) -> Result<(), AfbError> {
                 $callback(evtfd, revents)
             }
         }
@@ -115,7 +115,7 @@ macro_rules! AfbJobRegister {
         #[allow(non_camel_case_types)]
         type $job_name = $userdata;
         impl afbv4::utilv4::AfbJobControl for $userdata {
-            fn job_callback(&mut self, job: &afbv4::utilv4::AfbSchedJob, signal: i32) {
+            fn job_callback(&mut self, job: &afbv4::utilv4::AfbSchedJob, signal: i32) -> Result<(), AfbError> {
                 $callback(job, signal, self)
             }
         }
@@ -124,7 +124,7 @@ macro_rules! AfbJobRegister {
         #[allow(non_camel_case_types)]
         struct $job_name;
         impl afbv4::utilv4::AfbJobControl for $job_name {
-            fn job_callback(&mut self, job: &afbv4::utilv4::AfbSchedJob, signal: i32) {
+            fn job_callback(&mut self, job: &afbv4::utilv4::AfbSchedJob, signal: i32) -> Result<(), AfbError> {
                 $callback(job, signal)
             }
         }
@@ -558,7 +558,7 @@ impl AfbLogMsg {
 }
 
 pub trait AfbTimerControl {
-    fn timer_callback(&mut self, timer: &AfbTimer, decount: u32);
+    fn timer_callback(&mut self, timer: &AfbTimer, decount: u32) -> Result<(), AfbError>;
 }
 
 // Afb AfbTimerHandle implementation
@@ -573,9 +573,17 @@ pub extern "C" fn api_timers_cb(
     let timer_ref = unsafe { &mut *(userdata as *mut AfbTimer) };
 
     // call timer calback
-    match timer_ref.callback {
+    let result= match timer_ref.callback {
         Some(timer_control) => unsafe { (*timer_control).timer_callback(timer_ref, decount) },
         _ => panic!("timer={} no callback defined", timer_ref._uid),
+    };
+
+    match result {
+        Ok(()) => {}
+        Err(error) => {
+            let dbg= error.get_dbg();
+            afb_log_raw!(Notice, None, "{}:{} file:{}:{}",timer_ref._uid, error,dbg.file,dbg.line);
+        },
     }
 
     // clean callback control box
@@ -691,14 +699,22 @@ pub extern "C" fn api_schedjob_cb(signal: i32, userdata: *mut std::os::raw::c_vo
     let job_ref = unsafe { &mut *(userdata as *mut AfbSchedJob) };
 
     // call timer calback
-    match job_ref.callback {
+    let result= match job_ref.callback {
         Some(control) => unsafe { (*control).job_callback(job_ref, signal) },
         _ => panic!("schedjob={} no callback defined", job_ref._uid),
+    };
+
+    match result {
+        Ok(()) => {}
+        Err(error) => {
+            let dbg= error.get_dbg();
+            afb_log_raw!(Notice, None, "{}:{} file:{}:{}", job_ref._uid, error,dbg.file,dbg.line);
+        },
     }
 }
 
 pub trait AfbJobControl {
-    fn job_callback(&mut self, jobs: &AfbSchedJob, signal: i32);
+    fn job_callback(&mut self, jobs: &AfbSchedJob, signal: i32) ->Result<(), AfbError>;
 }
 pub struct AfbSchedJob {
     _uid: &'static str,
@@ -935,7 +951,7 @@ struct TapCtxData {
 }
 
 impl AfbJobControl for TapCtxData {
-    fn job_callback(&mut self, job: &AfbSchedJob, signal: i32) {
+    fn job_callback(&mut self, job: &AfbSchedJob, signal: i32) -> Result<(),AfbError>{
         let test = unsafe { &mut *(self.test as *mut AfbTapTest) };
         let suite = test.get_suite();
         let event = suite.get_event();
@@ -956,6 +972,7 @@ impl AfbJobControl for TapCtxData {
             test.done(response);
         }
         job.drop(); // jobpost is rebuilt for each test
+        Ok(())
     }
 }
 pub struct AfbTapResponse {
@@ -1595,13 +1612,13 @@ struct TapSuiteAutoRun {
 
 /// autostart is launched as job to complete API initialisation before effectively starting test suite
 impl AfbJobControl for TapSuiteAutoRun {
-    fn job_callback(&mut self, job: &AfbSchedJob, _signal: i32) {
+    fn job_callback(&mut self, job: &AfbSchedJob, _signal: i32) -> Result<(), AfbError>{
         let suite = unsafe { &mut *(self.suite as *mut AfbTapSuite) };
         let autostart = unsafe { &mut *(suite.autostart) };
 
         match autostart.launch() {
             Err(error) => {
-                afb_log_msg!(
+                afb_log_raw!(
                     Critical,
                     suite.get_api().get_apiv4(),
                     "Test fail {}:autostart error={}",
@@ -1619,6 +1636,7 @@ impl AfbJobControl for TapSuiteAutoRun {
         if autoexit {
             std::process::exit(0);
         }
+        Ok(())
     }
 }
 
@@ -1675,7 +1693,7 @@ impl AfbRqtControl for TapGroupData {
 }
 
 pub trait AfbEvtFdControl {
-    fn evtfd_callback(&mut self, evfd: &AfbEvtFd, revents: u32);
+    fn evtfd_callback(&mut self, evfd: &AfbEvtFd, revents: u32) -> Result<(),AfbError>;
 }
 
 // Afb AfbTimerHandle implementation
@@ -1691,9 +1709,17 @@ pub extern "C" fn api_evtfd_cb(
     let evtfd_ref = unsafe { &mut *(userdata as *mut AfbEvtFd) };
 
     // call evtfd calback
-    match evtfd_ref.callback {
+    let result= match evtfd_ref.callback {
         Some(evtfd_control) => unsafe { (*evtfd_control).evtfd_callback(evtfd_ref, revents) },
         _ => panic!("evtfd={} no callback defined", evtfd_ref.uid),
+    };
+
+    match result {
+        Ok(()) => {}
+        Err(error) => {
+            let dbg= error.get_dbg();
+            afb_log_raw!(Notice, None, "{}:{} file:{}:{}", evtfd_ref.uid, error,dbg.file,dbg.line);
+        },
     }
 
     // clean callback control box

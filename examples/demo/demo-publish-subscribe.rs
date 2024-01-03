@@ -108,11 +108,12 @@ struct UserTimerData {
 }
 
 AfbTimerRegister!(TimerCtrl, timer_callback, UserTimerData);
-fn timer_callback(_timer: &AfbTimer, _decount: u32, userdata: &mut UserTimerData) {
+fn timer_callback(_timer: &AfbTimer, _decount: u32, userdata: &mut UserTimerData) -> Result<(), AfbError>{
     let ctx = userdata.ctx.clone();
 
     let count = ctx.incr_counter();
     let _listener = ctx.event.push(count);
+    Ok(())
 }
 
 pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
@@ -130,21 +131,12 @@ pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
     let timerdata = UserTimerData {
         ctx: Arc::clone(&ctxdata),
     };
-    match AfbTimer::new("sensor_simulator")
+
+    AfbTimer::new("sensor_simulator")
         .set_period(1000)
         .set_callback(Box::new(timerdata))
         //.set_decount(9999)
-        .start()
-    {
-        Err(error) => {
-            afb_log_msg!(Critical, apiv4, &error);
-            panic!("fail to create timer");
-        }
-        Ok(timer) => {
-            afb_log_msg!(Info, apiv4, "timer started uid={}", timer.get_uid());
-            timer
-        }
-    };
+        .start()?;
 
     let vcbdata = UserVcbData {
         ctx: Arc::clone(&ctxdata),

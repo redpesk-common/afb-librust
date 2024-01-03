@@ -43,7 +43,7 @@ struct UserVcbData {
 
 // Callback is called for each tick until decount>0
 AfbTimerRegister!(TimerCtrl, timer_callback, UserVcbData);
-fn timer_callback(timer: &AfbTimer, decount: u32, userdata: &mut UserVcbData) {
+fn timer_callback(timer: &AfbTimer, decount: u32, userdata: &mut UserVcbData) -> Result<(), AfbError>{
     // check request introspection
     let timer_uid = timer.get_uid();
     let count = userdata.ctx.incr_counter();
@@ -57,6 +57,7 @@ fn timer_callback(timer: &AfbTimer, decount: u32, userdata: &mut UserVcbData) {
         decount
     );
     let _count = userdata.ctx.event.push(userdata.ctx.get_counter());
+    Ok(())
 }
 
 AfbVerbRegister!(StartTimerCtrl, start_timer_callback, UserVcbData);
@@ -99,11 +100,10 @@ struct JobPostCtx {
 }
 // this callback starts from AfbSchedJob::new. If signal!=0 then callback overpass its watchdog timeout
 AfbJobRegister!(DelayCtrl, jobpost_callback, JobPostCtx);
-fn jobpost_callback(job: &AfbSchedJob, signal: i32, userdata: &mut JobPostCtx) {
+fn jobpost_callback(job: &AfbSchedJob, signal: i32, userdata: &mut JobPostCtx) -> Result<(),AfbError>{
     let data_set = match userdata.data_set.try_borrow() {
         Err(_) => {
-            afb_log_msg!(Error, job, "jobpost_callback fail to access data_set");
-            return;
+            return afb_error!("jobpost_callback", "fail to access data_set");
         }
         Ok(value) => value,
     };
@@ -117,9 +117,10 @@ fn jobpost_callback(job: &AfbSchedJob, signal: i32, userdata: &mut JobPostCtx) {
         data_set.count
     );
     let mut response = AfbParams::new();
-    response.push(data_set.count).unwrap();
-    response.push(&data_set.jsonc).unwrap();
+    response.push(data_set.count)?;
+    response.push(&data_set.jsonc)?;
     request.reply(response, signal);
+    Ok(())
 }
 
 // post a job at 3s with a clone of the received json query

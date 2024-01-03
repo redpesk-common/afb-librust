@@ -88,7 +88,7 @@ struct EvtUserData {
     ctx: Arc<UserCtxData>,
 }
 AfbEventRegister!(EventGetCtrl, event_get_callback, EvtUserData);
-fn event_get_callback(event: &AfbEventMsg, args: &AfbData, userdata: &mut EvtUserData) {
+fn event_get_callback(event: &AfbEventMsg, args: &AfbData, userdata: &mut EvtUserData) -> Result<(),AfbError> {
     // check request introspection
     let evt_uid = event.get_uid();
     let evt_name = event.get_name();
@@ -104,16 +104,9 @@ fn event_get_callback(event: &AfbEventMsg, args: &AfbData, userdata: &mut EvtUse
         api_uid
     );
 
-    match args.get::<JsoncObj>(0) {
-        Ok(argument) => {
-            afb_log_msg!(Info, event, "Got valid jsonc object argument={}", argument);
-            argument
-        }
-        Err(error) => {
-            afb_log_msg!(Error, event, "hoop invalid json argument {}", error);
-            JsoncObj::from("invalid json input argument")
-        }
-    };
+    let jsonc= args.get::<JsoncObj>(0)?;
+    afb_log_msg!(Info, event, "Got valid jsonc object argument={}", jsonc);
+    Ok(())
 }
 
 // prefix group of event verbs and attach a default privilege
