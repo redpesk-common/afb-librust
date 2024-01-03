@@ -490,6 +490,7 @@ pub fn get_type(uid: &'static str) -> Result<&mut AfbConverter, AfbError> {
 macro_rules! _register_query_converter {
     ($rust_type:ty, $afb_builtin_type:ident) => {
         impl ConvertQuery<$rust_type> for AfbData {
+            #[track_caller]
             fn import(&self, index: usize) -> Result<$rust_type, AfbError> {
                 let converter = unsafe { (*cglue::afbBindingV4r1_itfptr).$afb_builtin_type };
                 match self.get_ro(converter, index) {
