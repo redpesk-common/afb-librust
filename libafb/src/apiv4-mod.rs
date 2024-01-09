@@ -23,12 +23,11 @@
 
 use std::any::Any;
 use std::boxed::Box;
+use std::cell::Cell;
 use std::ffi::{CStr, CString};
 use std::fmt;
-use std::cell::Cell;
 // libafb dependencies
 use crate::prelude::*;
-
 
 // alias few external types
 pub type AfbApiV4 = cglue::afb_api_t;
@@ -44,7 +43,7 @@ pub trait AfbRqtControl {
 }
 
 pub trait AfbSubcallControl {
-    fn api_callback(&mut self, api: &mut AfbApi, args: &AfbData);
+    fn api_callback(&mut self, api: &mut AfbApi, args: &AfbData) -> Result<(), AfbError>;
 }
 
 pub use crate::AfbBindingRegister;
@@ -615,7 +614,7 @@ pub extern "C" fn api_controls_cb(
     // extract config rust object from C void* ctrlbox
     //let ctlid = ctlid_v4 as cglue::afb_ctlid_t;
     let ctlarg = ctlarg_v4 as cglue::afb_ctlarg_t;
-    let api_ref = unsafe {& *(apictx as *mut AfbApi) };
+    let api_ref = unsafe { &*(apictx as *mut AfbApi) };
 
     let status = match ctlid {
         cglue::afb_ctlid_afb_ctlid_Pre_Init => {
@@ -638,9 +637,9 @@ pub extern "C" fn api_controls_cb(
             if status >= 0 {
                 for slot in &api_ref.require_apis {
                     let name = CString::new(*slot).expect("invalid api name");
-                    let rc= unsafe { cglue::afb_api_require_api(apiv4, name.as_ptr(), 0) };
+                    let rc = unsafe { cglue::afb_api_require_api(apiv4, name.as_ptr(), 0) };
                     if rc < 0 {
-                       afb_log_msg!(Critical, apiv4, "Require on api:{} fail", slot);
+                        afb_log_msg!(Critical, apiv4, "Require on api:{} fail", slot);
                     }
                 }
             }
@@ -648,9 +647,9 @@ pub extern "C" fn api_controls_cb(
             if status >= 0 {
                 for slot in &api_ref.require_classes {
                     let name = CString::new(*slot).expect("invalid api name");
-                    let rc= unsafe { cglue::afb_api_require_class(apiv4, name.as_ptr()) };
+                    let rc = unsafe { cglue::afb_api_require_class(apiv4, name.as_ptr()) };
                     if rc < 0 {
-                       afb_log_msg!(Critical, apiv4, "Require on api class:{} fail", slot);
+                        afb_log_msg!(Critical, apiv4, "Require on api class:{} fail", slot);
                     }
                 }
             }
@@ -1353,10 +1352,10 @@ pub extern "C" fn api_verbs_cb(rqtv4: cglue::afb_req_t, argc: u32, args: *const 
     match result {
         Ok(()) => {}
         Err(error) => {
-            let dbg= error.get_dbg();
-            afb_log_raw!(Notice, &request, "{} file:{}:{}", error,dbg.file,dbg.line);
+            let dbg = error.get_dbg();
+            afb_log_raw!(Notice, &request, "{} file:{}:{}", error, dbg.file, dbg.line);
             request.reply(error, -100);
-        },
+        }
     }
 }
 
@@ -2020,7 +2019,7 @@ pub extern "C" fn api_events_cb(
     );
 
     // call event calback
-    let result= match handler_ref.ctrlbox {
+    let result = match handler_ref.ctrlbox {
         Some(event_control) => unsafe {
             (*event_control).event_callback(&mut event, &mut arguments)
         },
@@ -2030,15 +2029,22 @@ pub extern "C" fn api_events_cb(
     match result {
         Ok(()) => {}
         Err(error) => {
-            let dbg= error.get_dbg();
-            afb_log_raw!(Notice, apiv4, "{}:{} file:{}:{}", handler_ref._uid, error,dbg.file,dbg.line);
-        },
+            let dbg = error.get_dbg();
+            afb_log_raw!(
+                Notice,
+                apiv4,
+                "{}:{} file:{}:{}",
+                handler_ref._uid,
+                error,
+                dbg.file,
+                dbg.line
+            );
+        }
     }
-
 }
 
 pub trait AfbEventControl {
-    fn event_callback(&mut self, event: &AfbEventMsg, args: &AfbData) -> Result<(),AfbError>;
+    fn event_callback(&mut self, event: &AfbEventMsg, args: &AfbData) -> Result<(), AfbError>;
 }
 
 pub struct AfbEvtHandler {
@@ -2476,23 +2482,19 @@ pub extern "C" fn afb_async_rqt_callback(
 
     // extract verb+api object from libafb internals
     let subcall_ref = unsafe { &mut *(userdata as *mut AfbSubCall) };
-    let result= match subcall_ref.verb_cb {
-        Some(callback) => unsafe {
-            (*callback).verb_callback(&mut request, &mut arguments)
-        },
+    let result = match subcall_ref.verb_cb {
+        Some(callback) => unsafe { (*callback).verb_callback(&mut request, &mut arguments) },
         _ => panic!("verb={} no callback defined", verb_ref._uid),
-
     };
 
     match result {
         Ok(()) => {}
         Err(error) => {
-            let dbg= error.get_dbg();
-            afb_log_raw!(Notice, &request, "{} file:{}:{}", error,dbg.file,dbg.line);
+            let dbg = error.get_dbg();
+            afb_log_raw!(Notice, &request, "{} file:{}:{}", error, dbg.file, dbg.line);
             request.reply(error, -100);
-        },
+        }
     }
-
 }
 
 #[no_mangle]
@@ -2519,12 +2521,20 @@ pub extern "C" fn afb_async_api_callback(
 
     // extract verb+api object from libafb internals
     let subcall_ref = unsafe { &mut *(userdata as *mut AfbSubCall) };
-    match subcall_ref.api_cb {
+    let result=match subcall_ref.api_cb {
         Some(callback) => unsafe { (*callback).api_callback(api_ref, &mut arguments) },
         _ => {
             afb_log_msg!(Critical, apiv4, "(hoops invalid RQT callback context");
+            return;
         }
     };
+    match result {
+        Ok(()) => {}
+        Err(error) => {
+            let dbg = error.get_dbg();
+            afb_log_raw!(Notice, apiv4, "{} file:{}:{}", error, dbg.file, dbg.line);
+        }
+    }
 }
 
 pub fn afb_error_info(errcode: i32) -> &'static str {
@@ -2609,7 +2619,7 @@ impl DoSubcall<&AfbApi, Box<dyn AfbSubcallControl>> for AfbSubCall {
                 replies.as_ref() as *const _ as *mut cglue::afb_data_t,
             )
         };
-        if rc < 0 || nreplies > MAX_CALL_ARGS || status < 0{
+        if rc < 0 || nreplies > MAX_CALL_ARGS || status < 0 {
             return afb_error!(
                 "api-subcall",
                 "api:{} verb:{} rc={} info={}",
@@ -2679,7 +2689,7 @@ impl DoSubcall<AfbApiV4, Box<dyn AfbSubcallControl>> for AfbSubCall {
                 replies.as_ref() as *const _ as *mut cglue::afb_data_t,
             )
         };
-        if rc < 0 || nreplies > MAX_CALL_ARGS || status < 0{
+        if rc < 0 || nreplies > MAX_CALL_ARGS || status < 0 {
             return afb_error!(
                 "api-subcall",
                 "api:{} verb:{} status={} info={}",
@@ -2754,7 +2764,7 @@ impl<'a> DoSubcall<&AfbRequest<'a>, Box<dyn AfbRqtControl>> for AfbSubCall {
                 replies.as_ref() as *const _ as *mut cglue::afb_data_t,
             )
         };
-        if rc < 0  || status < 0 {
+        if rc < 0 || status < 0 {
             return afb_error!(
                 "api-subcall",
                 "api:{} verb:{} status={} info={}",
