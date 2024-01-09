@@ -111,6 +111,7 @@ macro_rules! AfbDataConverter {
         }
 
         impl ConvertQuery<&'static $datat> for afbv4::datav4::AfbData {
+            #[track_caller]
             fn import(&self, index: usize) -> Result<&'static $datat, afbv4::utilv4::AfbError> {
                 let typev4 = match unsafe { &$uid::CONVERTER_BOX } {
                     ConverterBox(None) => {
@@ -151,6 +152,7 @@ macro_rules! AfbDataConverter {
         }
 
         impl ConvertResponse<$datat> for afbv4::datav4::AfbParams {
+            #[track_caller]
             fn export(data: $datat) -> afbv4::datav4::AfbExportResponse {
                 let typev4 = match unsafe { &$uid::CONVERTER_BOX } {
                     ConverterBox(None) => {
