@@ -251,7 +251,7 @@ impl DoGetJso<&str> for JsoncObj {
                 &jslot as *const _ as *mut *mut cglue::json_object,
             ) == 0
             {
-                result = afb_error!("jconc-get_obj", "jsonc key not found");
+                result = afb_error!("jconc-key-missing", key.to_string());
             } else {
                 result = Ok(jslot);
             }
