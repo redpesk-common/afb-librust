@@ -289,8 +289,7 @@ impl AfbError {
         let jobject = JsoncObj::new();
         jobject
             .add("uid", &self.uid)?
-            .add("info", &self.info)?
-            .add("dbg", do_jdebug(&self.dbg_info)?)?;
+            .add("info", &self.info)?;
         Ok(jobject)
     }
 }
