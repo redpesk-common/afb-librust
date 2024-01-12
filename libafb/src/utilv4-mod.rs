@@ -277,15 +277,6 @@ impl AfbError {
 
     #[track_caller]
     pub fn to_jsonc(&self) -> Result<JsoncObj, AfbError> {
-        let do_jdebug = |info: &DbgInfo| -> Result<JsoncObj, AfbError> {
-            let jobject = JsoncObj::new();
-            jobject
-                .add("name", info.name)?
-                .add("file", info.file)?
-                .add("line", info.line)?;
-            Ok(jobject)
-        };
-
         let jobject = JsoncObj::new();
         jobject
             .add("uid", &self.uid)?
