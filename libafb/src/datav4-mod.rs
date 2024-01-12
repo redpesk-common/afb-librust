@@ -707,6 +707,7 @@ pub trait ConvertResponse<T> {
 macro_rules! _register_response_converter {
     ($rust_type:ty, $afb_builtin_type:ident) => {
         impl ConvertResponse<$rust_type> for AfbParams {
+            #[track_caller]
             fn export(data: $rust_type) -> AfbExportResponse {
                 // cast integer to c-void*
                 let boxe = Box::new(data);
@@ -732,6 +733,7 @@ _register_response_converter!(bool, type_bool);
 _register_response_converter!(f64, type_double);
 
 impl ConvertResponse<JsoncObj> for AfbParams {
+    #[track_caller]
     fn export(data: JsoncObj) -> AfbExportResponse {
         let export = AfbExportData {
             uid: "export:builtin-JsoncObj",
@@ -745,6 +747,7 @@ impl ConvertResponse<JsoncObj> for AfbParams {
 }
 
 impl ConvertResponse<&JsoncObj> for AfbParams {
+    #[track_caller]
     fn export(data: &JsoncObj) -> AfbExportResponse {
         let export = AfbExportData {
             uid: "export:builtin-JsoncObj",
@@ -758,6 +761,7 @@ impl ConvertResponse<&JsoncObj> for AfbParams {
 }
 
 impl ConvertResponse<&AfbJsonStr> for AfbParams {
+    #[track_caller]
     fn export(data: &AfbJsonStr) -> AfbExportResponse {
         // extract string from AfbJsonStr
         let json_str = data.0;
@@ -788,6 +792,7 @@ impl ConvertResponse<&AfbJsonStr> for AfbParams {
 }
 
 impl ConvertResponse<&str> for AfbParams {
+    #[track_caller]
     fn export(data: &str) -> AfbExportResponse {
         // build valid c-string from data
         let cstring = CString::new(data).expect("Invalid data string");
@@ -805,18 +810,21 @@ impl ConvertResponse<&str> for AfbParams {
 }
 
 impl ConvertResponse<String> for AfbParams {
+    #[track_caller]
     fn export(data: String) -> AfbExportResponse {
         Self::export(data.as_str())
     }
 }
 
 impl ConvertResponse<&String> for AfbParams {
+    #[track_caller]
     fn export(data: &String) -> AfbExportResponse {
         Self::export(data.as_str())
     }
 }
 
 impl ConvertResponse<&AfbError> for AfbParams {
+    #[track_caller]
     fn export(data: &AfbError) -> AfbExportResponse {
         let error = data.to_jsonc().unwrap();
         Self::export(error)
@@ -824,6 +832,7 @@ impl ConvertResponse<&AfbError> for AfbParams {
 }
 
 impl ConvertResponse<AfbError> for AfbParams {
+    #[track_caller]
     fn export(data: AfbError) -> AfbExportResponse {
         let error = data.to_jsonc().unwrap();
         Self::export(error)
@@ -832,6 +841,7 @@ impl ConvertResponse<AfbError> for AfbParams {
 
 // dummy converter when AfbParams is push reply
 impl ConvertResponse<AfbParams> for AfbParams {
+    #[track_caller]
     fn export(data: AfbParams) -> AfbExportResponse {
         AfbExportResponse::Response(data)
     }
@@ -839,6 +849,7 @@ impl ConvertResponse<AfbParams> for AfbParams {
 
 // proxy converter when AfbData is push reply
 impl ConvertResponse<AfbData> for AfbParams {
+    #[track_caller]
     fn export(data: AfbData) -> AfbExportResponse {
         let mut param = AfbParams::new();
         for idx in 0..data.count {
@@ -850,6 +861,7 @@ impl ConvertResponse<AfbData> for AfbParams {
 }
 // dummy converter to allow recursive call
 impl ConvertResponse<AfbNoData> for AfbParams {
+    #[track_caller]
     fn export(_data: AfbNoData) -> AfbExportResponse {
         AfbExportResponse::Response(AfbParams::new())
     }
