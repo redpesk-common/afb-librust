@@ -2221,6 +2221,7 @@ impl AfbEvent {
         self._apiv4
     }
 
+    #[track_caller]
     pub fn push<T>(&self, args: T) -> i32
     where
         AfbParams: ConvertResponse<T>,
@@ -2254,6 +2255,7 @@ impl AfbEvent {
         }
     }
 
+    #[track_caller]
     pub fn broadcast<T>(&self, args: T) -> i32
     where
         AfbParams: ConvertResponse<T>,
