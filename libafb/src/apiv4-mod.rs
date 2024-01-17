@@ -78,7 +78,15 @@ macro_rules! AfbBindingRegister {
                     AFB_OK
                 }
                 Err(error) => {
-                    afb_log_raw!(Notice, apiv4, "Binding initialization fail error={}", error);
+                    let dbg = error.get_dbg();
+                    afb_log_raw!(
+                        Notice,
+                        apiv4,
+                        "binding init fail {} file:{}:{}",
+                        error.get_info(),
+                        dbg.file,
+                        dbg.line
+                    );
                     AFB_ABORT
                 }
             }
@@ -619,7 +627,15 @@ pub extern "C" fn api_controls_cb(
                     match unsafe { (*ctrlbox).config(api_ref, binding_parse_config(apiv4, ctlarg)) }
                     {
                         Err(error) => {
-                            afb_log_msg!(Critical, apiv4, error.to_string());
+                            let dbg = error.get_dbg();
+                            afb_log_raw!(
+                                Critical,
+                                apiv4,
+                                "binding config fail:{} file:{}:{}",
+                                error.get_info(),
+                                dbg.file,
+                                dbg.line
+                            );
                             AFB_FAIL
                         }
                         Ok(()) => AFB_OK,
@@ -769,7 +785,15 @@ pub extern "C" fn api_controls_cb(
             Some(ctrlbox) => match unsafe { (*ctrlbox).start(api_ref) } {
                 Ok(()) => AFB_OK,
                 Err(error) => {
-                    afb_log_msg!(Critical, apiv4, error.to_string());
+                    let dbg = error.get_dbg();
+                    afb_log_raw!(
+                        Critical,
+                        apiv4,
+                        "binding start fail:{} file:{}:{}",
+                        error.get_info(),
+                        dbg.file,
+                        dbg.line
+                    );
                     AFB_FAIL
                 }
             },
@@ -780,7 +804,15 @@ pub extern "C" fn api_controls_cb(
             Some(ctrlbox) => match unsafe { (*ctrlbox).ready(api_ref) } {
                 Ok(()) => AFB_OK,
                 Err(error) => {
-                    afb_log_msg!(Critical, apiv4, error.to_string());
+                    let dbg = error.get_dbg();
+                    afb_log_raw!(
+                        Critical,
+                        apiv4,
+                        "binding class fail:{} file:{}:{}",
+                        error.get_info(),
+                        dbg.file,
+                        dbg.line
+                    );
                     AFB_FAIL
                 }
             },
@@ -2517,7 +2549,7 @@ pub extern "C" fn afb_async_api_callback(
 
     // extract verb+api object from libafb internals
     let subcall_ref = unsafe { &mut *(userdata as *mut AfbSubCall) };
-    let result=match subcall_ref.api_cb {
+    let result = match subcall_ref.api_cb {
         Some(callback) => unsafe { (*callback).api_callback(api_ref, &mut arguments) },
         _ => {
             afb_log_msg!(Critical, apiv4, "(hoops invalid RQT callback context");
