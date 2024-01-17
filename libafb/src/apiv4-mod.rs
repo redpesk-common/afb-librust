@@ -78,13 +78,7 @@ macro_rules! AfbBindingRegister {
                     AFB_OK
                 }
                 Err(error) => {
-                    let message = format!("Binding initialization fail error={}", error);
-                    AfbLogMsg::push_log(
-                        AfbLogLevel::Critical,
-                        apiv4,
-                        message,
-                        Some(error.get_dbg()),
-                    );
+                    afb_log_raw!(Notice, apiv4, "Binding initialization fail error={}", error);
                     AFB_ABORT
                 }
             }
