@@ -19,6 +19,34 @@ use self::demo_converter::MySimpleData;
 extern crate afbv4;
 use afbv4::prelude::*;
 
+struct ASyncCallData {
+    my_counter: u32,
+}
+
+// async response is s standard (AfbVerbRegister!) API/verb callback
+AfbCallRegister!(AsyncResponseCtrl, async_response_cb, ASyncCallData);
+fn async_response_cb(api: &AfbApi, params: &AfbData, ctx: &mut ASyncCallData) -> Result <(), AfbError> {
+    ctx.my_counter += 1;
+
+    // we expect 1st argument to be json compatible
+    match params.get::<JsoncObj>(0) {
+        Ok(argument) => {
+            afb_log_msg!(
+                Info,
+                api,
+                "async_response count={} params={}",
+                ctx.my_counter,
+                argument
+            );
+        }
+        Err(error) => {
+            afb_log_msg!(Error, api, "async_response error={}", error);
+            return Err(error);
+        }
+    };
+    Ok(())
+}
+
 // This rootv4 demonstrate how to test an external rootv4 that you load within the same afb-binder process and security context
 // It leverages test (Test Anything Protocol) that is compatible with redpesk testing report.
 struct TapUserData {
@@ -31,6 +59,9 @@ struct TapUserData {
 impl AfbApiControls for TapUserData {
     fn start(&mut self, api: &AfbApi) -> Result<(), AfbError> {
         afb_log_msg!(Notice, api, "starting TAP testing");
+
+        // testing subcall async
+        AfbSubCall::call_sync(api, "rust-api", "ping", AFB_NO_DATA)?;
 
         // ------ Simple verb -----------
         let test0 = AfbTapTest::new("builtin-info", "rust-api", "info")

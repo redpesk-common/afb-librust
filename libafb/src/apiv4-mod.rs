@@ -43,7 +43,7 @@ pub trait AfbRqtControl {
 }
 
 pub trait AfbSubcallControl {
-    fn api_callback(&mut self, api: &mut AfbApi, args: &AfbData) -> Result<(), AfbError>;
+    fn api_callback(&mut self, api: &AfbApi, args: &AfbData) -> Result<(), AfbError>;
 }
 
 pub use crate::AfbBindingRegister;
@@ -178,28 +178,6 @@ macro_rules! AfbSessionRegister {
     };
 }
 pub use crate::AfbVerbRegister;
-/// Register verb control handle.
-///   - $verb_name: created verb object class
-///   - $callback: user define verb callback
-///   - $userdata: an option data structure class attach the verb
-/// Examples
-/// ```
-///   # extern crate jsonc;
-///   # use afbv4::prelude::*;;
-///   struct OptionalData {
-///     // my verb private data
-///   }
-///   AfbVerbRegister!(VerbCtrl, verb_callback, OptionalData);
-///   fn verb_callback(request: &mut AfbRequest, _args: &mut AfbData, userdata: &mut OptionalData) {
-///      request.reply("my verb callback was called", 0);
-///   }
-///   // verb control should be use to create a new verb
-///   let my_verb = AfbVerb::new("verb-uid")
-///        .set_callback(Box::new(VerbCtrl{ /* private data initialization */}))
-///        .finalize();
-///   // Warning: finally verb_handler need to be added to an api or a group with .add_verb
-///   // .add_verb(my_verb)
-/// ```
 #[macro_export]
 macro_rules! AfbVerbRegister {
     ($verb_name: ident, $callback:ident, $userdata:ident) => {
@@ -225,6 +203,37 @@ macro_rules! AfbVerbRegister {
                 args: &afbv4::datav4::AfbData,
             ) -> Result<(), AfbError> {
                 $callback(request, args)
+            }
+        }
+    };
+}
+
+pub use crate::AfbCallRegister;
+#[macro_export]
+macro_rules! AfbCallRegister {
+    ($call_name: ident, $callback:ident, $userdata:ident) => {
+        #[allow(non_camel_case_types)]
+        type $call_name = $userdata;
+        impl afbv4::apiv4::AfbSubcallControl for $userdata {
+            fn api_callback(
+                &mut self,
+                api: &afbv4::apiv4::AfbApi,
+                args: &afbv4::datav4::AfbData,
+            ) -> Result<(), AfbError> {
+                $callback(api, args, self)
+            }
+        }
+    };
+    ($call_name: ident, $callback:ident) => {
+        #[allow(non_camel_case_types)]
+        struct $call_name;
+        impl afbv4::apiv4::AfbSubcallControl for $call_name {
+            fn api_callback(
+                &mut self,
+                api: &afbv4::apiv4::AfbApi,
+                args: &afbv4::datav4::AfbData,
+            ) -> Result<(), AfbError> {
+                $callback(api, args)
             }
         }
     };
