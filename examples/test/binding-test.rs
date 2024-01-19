@@ -32,7 +32,7 @@ fn async_response_cb(api: &AfbApi, params: &AfbData, ctx: &mut ASyncCallData) ->
     match params.get::<JsoncObj>(0) {
         Ok(argument) => {
             afb_log_msg!(
-                Info,
+                Notice,
                 api,
                 "async_response count={} params={}",
                 ctx.my_counter,
@@ -61,7 +61,7 @@ impl AfbApiControls for TapUserData {
         afb_log_msg!(Notice, api, "starting TAP testing");
 
         // testing subcall async
-        AfbSubCall::call_sync(api, "rust-api", "ping", AFB_NO_DATA)?;
+        AfbSubCall::call_async(api, "rust-api", "ping", AFB_NO_DATA, Box::new(ASyncCallData{my_counter:0}))?;
 
         // ------ Simple verb -----------
         let test0 = AfbTapTest::new("builtin-info", "rust-api", "info")
