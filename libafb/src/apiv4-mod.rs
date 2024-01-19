@@ -2593,6 +2593,7 @@ pub trait DoSubcall<H, C> {
 }
 
 impl DoSubcall<&AfbApi, Box<dyn AfbSubcallControl>> for AfbSubCall {
+    #[track_caller]
     fn subcall_async(
         api: &AfbApi,
         apiname: &str,
@@ -2623,6 +2624,7 @@ impl DoSubcall<&AfbApi, Box<dyn AfbSubcallControl>> for AfbSubCall {
         };
     }
 
+    #[track_caller]
     fn subcall_sync(
         api: &AfbApi,
         apiname: &str,
@@ -2663,6 +2665,7 @@ impl DoSubcall<&AfbApi, Box<dyn AfbSubcallControl>> for AfbSubCall {
 }
 
 impl DoSubcall<AfbApiV4, Box<dyn AfbSubcallControl>> for AfbSubCall {
+    #[track_caller]
     fn subcall_async(
         apiv4: AfbApiV4,
         apiname: &str,
@@ -2692,7 +2695,7 @@ impl DoSubcall<AfbApiV4, Box<dyn AfbSubcallControl>> for AfbSubCall {
             )
         };
     }
-
+    #[track_caller]
     fn subcall_sync(
         apiv4: AfbApiV4,
         apiname: &str,
@@ -2733,6 +2736,7 @@ impl DoSubcall<AfbApiV4, Box<dyn AfbSubcallControl>> for AfbSubCall {
 }
 
 impl<'a> DoSubcall<&AfbRequest<'a>, Box<dyn AfbRqtControl>> for AfbSubCall {
+    #[track_caller]
     fn subcall_async(
         rqt: &AfbRequest,
         apiname: &str,
@@ -2764,6 +2768,7 @@ impl<'a> DoSubcall<&AfbRequest<'a>, Box<dyn AfbRqtControl>> for AfbSubCall {
         };
     }
 
+    #[track_caller]
     fn subcall_sync(
         rqt: &AfbRequest,
         apiname: &str,
@@ -2809,6 +2814,7 @@ impl<'a> DoSubcall<&AfbRequest<'a>, Box<dyn AfbRqtControl>> for AfbSubCall {
 }
 
 impl DoSubcall<AfbRqtV4, Box<dyn AfbRqtControl>> for AfbSubCall {
+    #[track_caller]
     fn subcall_async(
         rqtv4: AfbRqtV4,
         apiname: &str,
@@ -2840,6 +2846,7 @@ impl DoSubcall<AfbRqtV4, Box<dyn AfbRqtControl>> for AfbSubCall {
         };
     }
 
+    #[track_caller]
     fn subcall_sync(
         rqtv4: AfbRqtV4,
         apiname: &str,
@@ -2883,6 +2890,7 @@ impl DoSubcall<AfbRqtV4, Box<dyn AfbRqtControl>> for AfbSubCall {
 }
 
 impl AfbSubCall {
+    #[track_caller]
     pub fn call_sync<H, T, C>(
         handle: H,
         apiname: &str,
@@ -2903,6 +2911,7 @@ impl AfbSubCall {
         AfbSubCall::subcall_sync(handle, apiname, verbname, &mut params)
     }
 
+    #[track_caller]
     pub fn call_async<H, T, C>(
         handle: H,
         apiname: &str,
