@@ -139,6 +139,7 @@ macro_rules! afb_log_msg {
         name: func_name!(),
         file: file!(),
         line: line!(),
+        column: column!(),
     };
     let message= format! ($format, $($args),*);
     AfbLogMsg::push_log (AfbLogLevel::$level, $handle, message, Some(&dbg_info))
@@ -148,6 +149,7 @@ macro_rules! afb_log_msg {
         name: func_name!(),
         file: file!(),
         line: line!(),
+        column: column!(),
     };
     AfbLogMsg::push_log (AfbLogLevel::$level, $handle, $format, Some(&dbg_info))
  }
@@ -196,7 +198,7 @@ pub use crate::afb_add_trace;
 #[macro_export]
 macro_rules! afb_add_trace {
     ($afb_error:ident) => {
-        $afb_error.add_trace(func_name!(), file!(), line!())
+        $afb_error.add_trace(func_name!(), file!(), line!(),  column!())
     };
 }
 
@@ -213,6 +215,7 @@ impl MakeError<&str> for AfbError {
                 name: func_name!(),
                 file: caller.file(),
                 line: caller.line(),
+                column: caller.column(),
             },
         }
     }
@@ -227,6 +230,7 @@ impl MakeError<String> for AfbError {
                 name: func_name!(),
                 file: caller.file(),
                 line: caller.line(),
+                column: caller.column(),
             },
         }
     }
@@ -236,6 +240,7 @@ pub struct DbgInfo {
     pub name: &'static str,
     pub file: &'static str,
     pub line: u32,
+    pub column: u32,
 }
 
 pub struct AfbError {
@@ -263,7 +268,7 @@ impl AfbError {
         &self.dbg_info
     }
 
-    pub fn add_trace(&self, name: &'static str, file: &'static str, line: u32) -> Self {
+    pub fn add_trace(&self, name: &'static str, file: &'static str, line: u32, column:u32) -> Self {
         AfbError {
             uid: self.uid.to_owned(),
             info: self.info.to_owned(),
@@ -271,6 +276,7 @@ impl AfbError {
                 name: name,
                 file: file,
                 line: line,
+                column: column,
             },
         }
     }
@@ -572,7 +578,7 @@ pub extern "C" fn api_timers_cb(
         Ok(()) => {}
         Err(error) => {
             let dbg= error.get_dbg();
-            afb_log_raw!(Notice, None, "{}:{} file:{}:{}",timer_ref._uid, error,dbg.file,dbg.line);
+            afb_log_raw!(Notice, None, "{}:{} file:{}:{}:{}",timer_ref._uid, error,dbg.file,dbg.line,dbg.column);
         },
     }
 
@@ -698,7 +704,7 @@ pub extern "C" fn api_schedjob_cb(signal: i32, userdata: *mut std::os::raw::c_vo
         Ok(()) => {}
         Err(error) => {
             let dbg= error.get_dbg();
-            afb_log_raw!(Notice, None, "{}:{} file:{}:{}", job_ref._uid, error,dbg.file,dbg.line);
+            afb_log_raw!(Notice, None, "{}:{} file:{}:{}:{}", job_ref._uid, error,dbg.file,dbg.line,dbg.column);
         },
     }
 }
@@ -1708,7 +1714,7 @@ pub extern "C" fn api_evtfd_cb(
         Ok(()) => {}
         Err(error) => {
             let dbg= error.get_dbg();
-            afb_log_raw!(Notice, None, "{}:{} file:{}:{}", evtfd_ref.uid, error,dbg.file,dbg.line);
+            afb_log_raw!(Notice, None, "{}:{} file:{}:{}:{}", evtfd_ref.uid, error,dbg.file,dbg.line,dbg.column);
         },
     }
 
