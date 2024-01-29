@@ -1218,7 +1218,9 @@ impl AfbApi {
     ///    .finalize();
     /// ```
     pub fn require_api(&mut self, value: &'static str) -> &mut Self {
-        self.require_apis.push(value);
+        if value != "" {
+            self.require_apis.push(value);
+        }
         self
     }
 
