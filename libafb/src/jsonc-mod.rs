@@ -50,6 +50,10 @@ pub enum Jobject {
     Unknown(&'static str),
 }
 
+pub fn to_static_str(value: String) -> &'static str {
+    Box::leak(value.into_boxed_str())
+}
+
 /// safe jsonc-c Rust object wrapper
 pub struct JsoncObj {
     /// internal jsonc-c native jsonc object
@@ -141,6 +145,18 @@ impl DoPutJso<String> for JsoncObj {
         }
     }
 }
+
+impl DoPutJso<&'static str> for JsoncObj {
+    #[track_caller]
+    fn put_jso(jso: *mut cglue::json_object) -> Result<&'static str, AfbError> {
+        if unsafe { cglue::json_object_get_type(jso) } != cglue::json_type_json_type_string {
+            afb_error!("jsonc-get-type", "jsonc object is not a string",)
+        } else {
+            Ok(to_static_str(JsoncObj::to_string(jso)))
+        }
+    }
+}
+
 
 impl DoPutJso<i64> for JsoncObj {
     #[track_caller]
@@ -659,6 +675,16 @@ impl JsoncObj {
     {
         match Self::get_jso(key, self.jso) {
             Err(error) => Err(error),
+            Ok(jso) => Self::put_jso(jso),
+        }
+    }
+
+    pub fn default<T>(&self, key: &str, default:T) -> Result<T, AfbError>
+    where
+        JsoncObj: DoPutJso<T>,
+    {
+        match Self::get_jso(key, self.jso) {
+            Err(_error) => Ok(default),
             Ok(jso) => Self::put_jso(jso),
         }
     }
