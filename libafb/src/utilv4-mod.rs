@@ -578,7 +578,7 @@ pub extern "C" fn api_timers_cb(
         Ok(()) => {}
         Err(error) => {
             let dbg= error.get_dbg();
-            afb_log_raw!(Notice, None, "{}:{} file:{}:{}:{}",timer_ref._uid, error,dbg.file,dbg.line,dbg.column);
+            afb_log_raw!(Notice, None, "{}:{} file: {}:{}:{}",timer_ref._uid, error,dbg.file,dbg.line,dbg.column);
         },
     }
 
@@ -704,7 +704,7 @@ pub extern "C" fn api_schedjob_cb(signal: i32, userdata: *mut std::os::raw::c_vo
         Ok(()) => {}
         Err(error) => {
             let dbg= error.get_dbg();
-            afb_log_raw!(Notice, None, "{}:{} file:{}:{}:{}", job_ref._uid, error,dbg.file,dbg.line,dbg.column);
+            afb_log_raw!(Notice, None, "{}:{} file: {}:{}:{}", job_ref._uid, error,dbg.file,dbg.line,dbg.column);
         },
     }
 }
@@ -1714,7 +1714,7 @@ pub extern "C" fn api_evtfd_cb(
         Ok(()) => {}
         Err(error) => {
             let dbg= error.get_dbg();
-            afb_log_raw!(Notice, None, "{}:{} file:{}:{}:{}", evtfd_ref.uid, error,dbg.file,dbg.line,dbg.column);
+            afb_log_raw!(Notice, None, "{}:{} file: {}:{}:{}", evtfd_ref.uid, error,dbg.file,dbg.line,dbg.column);
         },
     }
 

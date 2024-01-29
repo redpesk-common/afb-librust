@@ -82,7 +82,7 @@ macro_rules! AfbBindingRegister {
                     afb_log_raw!(
                         Notice,
                         apiv4,
-                        "binding init fail {} file:{}:{}:{}",
+                        "binding init fail {} file: {}:{}:{}",
                         error.get_info(),
                         dbg.file,
                         dbg.line,
@@ -641,7 +641,7 @@ pub extern "C" fn api_controls_cb(
                             afb_log_raw!(
                                 Critical,
                                 apiv4,
-                                "binding config fail:{} file:{}:{}:{}",
+                                "binding config fail:{} file: {}:{}:{}",
                                 error.get_info(),
                                 dbg.file,
                                 dbg.line,
@@ -800,7 +800,7 @@ pub extern "C" fn api_controls_cb(
                     afb_log_raw!(
                         Critical,
                         apiv4,
-                        "binding start fail:{} file:{}:{}:{}",
+                        "binding start fail:{} file: {}:{}:{}",
                         error.get_info(),
                         dbg.file,
                         dbg.line,
@@ -820,7 +820,7 @@ pub extern "C" fn api_controls_cb(
                     afb_log_raw!(
                         Critical,
                         apiv4,
-                        "binding class fail:{} file:{}:{}:{}",
+                        "binding class fail:{} file: {}:{}:{}",
                         error.get_info(),
                         dbg.file,
                         dbg.line,
@@ -1394,7 +1394,7 @@ pub extern "C" fn api_verbs_cb(rqtv4: cglue::afb_req_t, argc: u32, args: *const 
         Ok(()) => {}
         Err(error) => {
             let dbg = error.get_dbg();
-            afb_log_raw!(Notice, &request, "{} file:{}:{}:{}", error, dbg.file, dbg.line, dbg.column);
+            afb_log_raw!(Notice, &request, "{} file: {}:{}:{}", error, dbg.file, dbg.line, dbg.column);
             request.reply(error, -100);
         }
     }
@@ -2074,7 +2074,7 @@ pub extern "C" fn api_events_cb(
             afb_log_raw!(
                 Notice,
                 apiv4,
-                "{}:{} file:{}:{}:{}",
+                "{}:{} file: {}:{}:{}",
                 handler_ref._uid,
                 error,
                 dbg.file,
@@ -2535,7 +2535,7 @@ pub extern "C" fn afb_async_rqt_callback(
         Ok(()) => {}
         Err(error) => {
             let dbg = error.get_dbg();
-            afb_log_raw!(Notice, &request, "{} file:{}:{}:{}", error, dbg.file, dbg.line,dbg.column);
+            afb_log_raw!(Notice, &request, "{} file: {}:{}:{}", error, dbg.file, dbg.line,dbg.column);
             request.reply(error, -100);
         }
     }
@@ -2576,7 +2576,7 @@ pub extern "C" fn afb_async_api_callback(
         Ok(()) => {}
         Err(error) => {
             let dbg = error.get_dbg();
-            afb_log_raw!(Notice, apiv4, "{} file:{}:{}:{}", error, dbg.file, dbg.line,dbg.column);
+            afb_log_raw!(Notice, apiv4, "{} file: {}:{}:{}", error, dbg.file, dbg.line,dbg.column);
         }
     }
 }
