@@ -1390,6 +1390,10 @@ pub extern "C" fn api_verbs_cb(rqtv4: cglue::afb_req_t, argc: u32, args: *const 
         _ => panic!("verb={} no callback defined", verb_ref._uid),
     };
 
+    if verb_ref.verbosity > 0 {
+        unsafe { cglue::afb_req_wants_log_level(rqtv4, api_ref.verbosity) };
+    }
+
     match result {
         Ok(()) => {}
         Err(error) => {
