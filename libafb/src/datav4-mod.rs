@@ -93,8 +93,6 @@ macro_rules! AfbDataConverter {
                 let converter =
                     afbv4::datav4::AfbConverter::new(stringify!($uid)).and_then(|obj| {
                         obj.add_encoder(afbv4::datav4::AfbBuiltinType::Json, encode, decode)
-                        //Fulup tobe check with Jose
-                        //obj.add_encoder(afbv4::datav4::AfbBuiltinType::StringZ, encode, decode)
                     });
 
                 match converter {
@@ -280,6 +278,7 @@ extern "C" fn afb_encoding_cb(
 
     match result {
         Ok(encoded) => {
+            let len= encoded.len();
             let cbuffer = CString::new(encoded)
                 .expect("(hoops) invalid encoded string")
                 .into_raw();
@@ -288,7 +287,7 @@ extern "C" fn afb_encoding_cb(
                     dest,
                     AfbBuiltinType::get(&AfbBuiltinType::Json).typev4,
                     cbuffer as *const _ as *mut std::ffi::c_void,
-                    0,
+                    len+1,
                     Some(free_cstring_cb),
                     cbuffer as *const _ as *mut std::ffi::c_void,
                 )
@@ -925,7 +924,7 @@ impl AfbParams {
                 &data_handle as *const _ as *mut cglue::afb_data_t,
                 data.typev4,
                 data.buffer_ptr,
-                data.buffer_len,
+                0, // opaque buffer for Rust object
                 Some(free_box_cb),
                 data.buffer_ptr as *mut c_void,
             )
