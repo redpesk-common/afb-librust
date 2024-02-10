@@ -1731,6 +1731,8 @@ bitflags! {
         const OUT= cglue::afb_epoll_epoll_OUT;
         const HUP= cglue::afb_epoll_epoll_HUP;
         const ERR= cglue::afb_epoll_epoll_ERR;
+        const RUP= cglue::afb_epoll_epoll_RDH;
+        const ALL= 0xffff;
     }
 }
 
