@@ -70,22 +70,13 @@ fn start_timer_callback(
     userdata.ctx.event.subscribe(request).unwrap();
 
     // timer get require private instantiation of TimerUserData
-    match AfbTimer::new("demo_timer")
+    AfbTimer::new("demo_timer")
         .set_period(1000)
         .set_decount(10)
         .set_callback(Box::new(UserVcbData {
             ctx: userdata.ctx.clone(),
         }))
-        .start()
-    {
-        Err(error) => {
-            afb_log_msg!(Critical, request, &error);
-            request.reply(afb_add_trace!(error), -1);
-        }
-        Ok(_timer) => {
-            request.reply("demp_timer started", 0);
-        }
-    }
+        .start()?;
     Ok(())
 }
 
