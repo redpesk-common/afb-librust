@@ -1488,18 +1488,7 @@ impl AfbTapSuite {
             test.timeout = self.timeout;
         }
 
-        // add autorun verb as interface
         let api = unsafe { &mut *(self.tap_api as *mut AfbApi) };
-
-        let verb = AfbVerb::new(test.uid)
-            .set_info(test.info)
-            .set_callback(Box::new(TapTestData { test: test as *const _ as *mut AfbTapTest}))
-            .set_usage("no input")
-            .finalize()
-            .unwrap();
-
-        verb.register(api.get_apiv4(), AFB_NO_AUTH);
-        api.add_verb(verb);
 
         autostart.add_test(test);
         self
@@ -1586,12 +1575,17 @@ impl AfbTapSuite {
     }
     #[track_caller]
     pub fn finalize(&'static mut self) -> Result<(), AfbError> {
-        // create autostart test verb and register notification event
+        let api = unsafe { &mut *(self.tap_api as *mut AfbApi) };
         let vcbdata = TapGroupData {
             group: self.autostart,
         };
 
-        let api = unsafe { &mut *(self.tap_api as *mut AfbApi) };
+        // add auto start group verbs
+        let autostart_tap = unsafe { &mut *(self.autostart as *mut AfbTapGroup) };
+        let autostart_afb= unsafe { &mut *(autostart_tap.api_group as *mut AfbGroup) };
+        autostart_afb.register(api.get_apiv4(), AFB_NO_AUTH);
+        api.add_group(autostart_afb);
+
         let verb = AfbVerb::new(AUTOSTART);
         verb.set_callback(Box::new(vcbdata))
             .set_info("default tap autostart group")
