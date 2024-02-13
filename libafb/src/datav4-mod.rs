@@ -44,7 +44,6 @@ pub const AFB_ABORT: i32 = -1;
 pub struct ConverterBox(pub Option<&'static AfbConverter>);
 unsafe impl Sync for ConverterBox {}
 
-/// Predefined libafb type
 pub enum AfbBuiltinType {
     Opaque,
     StringZ,

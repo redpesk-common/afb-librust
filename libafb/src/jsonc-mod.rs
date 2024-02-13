@@ -54,9 +54,7 @@ pub fn to_static_str(value: String) -> &'static str {
     Box::leak(value.into_boxed_str())
 }
 
-/// safe jsonc-c Rust object wrapper
 pub struct JsoncObj {
-    /// internal jsonc-c native jsonc object
     jso: *mut cglue::json_object,
 }
 
@@ -76,7 +74,6 @@ pub extern "C" fn free_jsonc_cb(jso: *mut std::ffi::c_void) {
 
 #[doc(hidden)]
 impl Drop for JsoncObj {
-    /// decrease jsonc-c reference count
     fn drop(&mut self) {
         unsafe {
             cglue::json_object_put(self.jso);
@@ -86,7 +83,6 @@ impl Drop for JsoncObj {
 
 #[doc(hidden)]
 impl Clone for JsoncObj {
-    /// increase jsonc-c reference count
     fn clone(&self) -> Self {
         unsafe {
             let jsonc = JsoncObj {
@@ -98,14 +94,6 @@ impl Clone for JsoncObj {
 }
 
 impl fmt::Display for JsoncObj {
-    /// jsonc-c simple printing output
-    /// format {} => JSON_C_TO_STRING_NOSLASHESCAPE | JSON_C_TO_STRING_NOZERO
-    /// format {:#} => JSON_C_TO_STRING_PRETTY
-    /// Examples
-    /// ```
-    /// let jsonc= JsoncObj:parse ("'a':1, 'b':123.456, c:'toto'");
-    /// println!("jsonc={}", jsonc);
-    /// ```
     fn fmt(&self, format: &mut fmt::Formatter<'_>) -> fmt::Result {
         let cstring;
         unsafe {
@@ -250,7 +238,6 @@ impl DoPutJso<JsoncObj> for JsoncObj {
 }
 
 impl DoGetJso<&str> for JsoncObj {
-    /// private function return internal unsafe jsonc-c object
     #[track_caller]
     fn get_jso(
         key: &str,
@@ -277,7 +264,6 @@ impl DoGetJso<&str> for JsoncObj {
 }
 
 impl DoGetJso<usize> for JsoncObj {
-    /// private function return internal unsafe jsonc-c object
     #[track_caller]
     fn get_jso(
         idx: usize,
@@ -517,20 +503,7 @@ impl From<&String> for JsoncObj {
     }
 }
 
-/// implement a Rust safe version of jsonc-c
-/// Examples:
-/// ```
-/// // import jsonc-c methods and objects types
-/// pub mod jsonc;
-/// use JsoncObj::jsonc_mod::JsoncObj::{jsonc, Jtype, Jobject};
-/// ```
-///
 impl JsoncObj {
-    /// return an empty jsonc-c Rust safe object
-    /// Examples:
-    /// ```
-    /// let jsonc = JsoncObj::object();
-    /// ```
     #[track_caller]
     pub fn new() -> JsoncObj {
         unsafe {
@@ -541,14 +514,6 @@ impl JsoncObj {
             return jsonc;
         }
     }
-    /// return an empty jsonc-c Rust safe array
-    /// Examples:
-    /// ```
-    /// let jsonc = JsoncObj::array();
-    /// jsonc.insert(123).unwrap();
-    /// jsonc.insert(123.456).unwrap();
-    /// jsonc.insert("toto").unwrap();
-    /// ```
     #[track_caller]
     pub fn array() -> JsoncObj {
         unsafe {
@@ -560,13 +525,6 @@ impl JsoncObj {
         }
     }
 
-    /// return from args type a jsonc-c Rust safe object
-    /// Examples:
-    /// ```
-    /// let jint = JsoncObj::from(123);
-    /// let jfloat = JsoncObj::from(123.456);
-    /// let jstring = JsoncObj::from("toto");
-    /// ```
     #[track_caller]
     pub fn from<T>(args: T) -> JsoncObj
     where
@@ -583,14 +541,6 @@ impl JsoncObj {
         Self::put_jso(self.jso)
     }
 
-    /// add a Rust (int,float,...) to jsonc-c object
-    /// Examples:
-    /// ```
-    /// let jsonc = JsoncObj::new();
-    /// jsonc.add("slot1", 123).unwrap();
-    /// jsonc.add("slot2", 123.456).unwrap();
-    /// jsonc.add("slot3", "toto").unwrap();
-    /// ```
     #[track_caller]
     pub fn add<T>(&self, key: &str, value: T) -> Result<&Self, AfbError>
     where
@@ -608,7 +558,6 @@ impl JsoncObj {
         }
     }
 
-    /// return a Jobject rust enum depending on jsonc-c object type
     #[track_caller]
     pub fn get_jso_value(jso: *mut cglue::json_object) -> Jobject {
         let result;
@@ -638,7 +587,6 @@ impl JsoncObj {
         return result;
     }
 
-    /// return rust string from a jsonc-c object
     #[track_caller]
     pub fn to_string(jso: *mut cglue::json_object) -> String {
         let result;
@@ -651,23 +599,6 @@ impl JsoncObj {
         return result;
     }
 
-    /// return rust Jobject slot from a rust jsonc-c safe object
-    /// AfbData
-    /// * key wanted jsonc slot
-    /// # Examples
-    /// ```
-    /// let labels = ["slot1", "slot2", "slot3", "slot4"];
-    /// for key in 0..labels.len() {
-    /// match jsonc.get(labels[key]) {
-    ///    Jobject::int(value) => println!("slot={} int={}", key, value),
-    ///    Jobject::float(value) => println!("slot={} float={}", key, value),
-    ///    Jobject::string(value) => println!("slot={} string={}",key, value),
-    ///    Jobject::object(value) => println!("slot={} object={}",key, value),
-    ///    Jobject::array(value) => println!("slot={} array={}",key, value),
-    ///    _ => println!("Hoop: unknown Jtype"),
-    /// }
-    /// }
-    /// ```
     #[track_caller]
     pub fn get<T>(&self, key: &str) -> Result<T, AfbError>
     where
@@ -689,17 +620,6 @@ impl JsoncObj {
         }
     }
 
-    /// return rust Jobject slot from a rust jsonc-c safe object
-    /// AfbData
-    /// * key wanted jsonc slot
-    /// # Examples
-    /// ```rust
-    /// let jobject = JsoncObj::parse (["slot1", 1234, 4567.987, "true"]);
-    /// let value= jobject.index::<String>(0);
-    /// let value= jobject.index::<i64>(1);
-    /// let value= jobject.index::<f64>(2);
-    /// let value= jobject.index::<Bool>(3);
-    /// ```
     #[track_caller]
     pub fn index<T>(&self, index: usize) -> Result<T, AfbError>
     where
@@ -711,15 +631,6 @@ impl JsoncObj {
         }
     }
 
-    /// return jsonc-c object/array count
-    /// # Examples
-    /// ```
-    /// match jsonc.count() {
-    ///     Ok(count) => println! ("object count={}", count);
-    ///     Err(error) => println!(error);
-    /// }
-    ///
-    /// ```
     #[track_caller]
     pub fn count(&self) -> Result<usize, AfbError> {
         unsafe {
@@ -731,13 +642,6 @@ impl JsoncObj {
         }
     }
 
-    /// insert a Rust (int,float,...) to jsonc-c array
-    /// # Examples
-    /// ```
-    /// jsonc.insert("toto").unwrap();
-    /// jsonc.insert(123).unwrap();
-    /// jsonc.insert(123.456).unwrap();
-    /// ```
     #[track_caller]
     pub fn insert<T>(&self, value: T) -> Result<&Self, AfbError>
     where
@@ -755,16 +659,6 @@ impl JsoncObj {
         }
     }
 
-    /// Return an jsonc-c raw unsafe object
-    /// Does not increment reference count
-    /// Examples:
-    /// ```
-    /// // require bindgen cglue module to be imported
-    /// let jso = jsonc.into_raw();
-    /// unsafe {
-    ///     let len = cglue::json_object_object_len(jso);
-    /// }
-    /// ```
     #[track_caller]
     pub fn into_raw(&self) -> *mut cglue::json_object {
         unsafe { cglue::json_object_get(self.jso) };
@@ -786,15 +680,6 @@ impl JsoncObj {
         }
     }
 
-    /// Assert that jsonc object is from a given Jtype
-    /// # Examples
-    /// ```
-    ///if jsonc.is_type(Jtype::array) {
-    ///    println!("jsonc is an array");
-    ///} else {
-    ///   println!("jsonc is not an array");
-    /// }
-    /// ```
     #[track_caller]
     pub fn is_type(&self, jtype: Jtype) -> bool {
         unsafe {
@@ -823,29 +708,11 @@ impl JsoncObj {
         }
     }
 
-    /// Examples:
-    /// ```
-    /// match jsonc.get_type() {
-    ///    Jtype::array => println!("jsonc is array"),
-    ///    Jtype::object => println!("jsonc is object"),
-    ///    _ => println!("Hoop: unknown Jtype"),
-    /// }
-    /// ```
     #[track_caller]
     pub fn get_type(&self) -> Jtype {
         JsoncObj::get_jso_type(self.jso)
     }
 
-    /// expand as vector of entry(key,jsonc)
-    /// Examples
-    /// ```
-    /// # use jsonc::JsoncObj;
-    /// let jsonc= JsoncObj::parse("{'skipail':'IoT.bzh', 'location':'lorient'}").unwrap();
-    /// let jvec=jsonc.expand();
-    /// for entry in &jvec {
-    ///     println! ("key:{} value:{}", entry.key, entry.obj);
-    /// }
-    /// ```
     #[track_caller]
     pub fn expand(&self) -> Vec<Jentry> {
         // if not object return now
@@ -870,17 +737,6 @@ impl JsoncObj {
         jvec
     }
 
-    /// check if two jsonc object are equal
-    /// Example
-    /// ```
-    /// # use jsonc::JsoncObj;
-    /// let mut jsonc= JsoncObj::from(12);
-    /// let mut jtok= JsoncObj::from("12");
-    /// match jsonc.equal(jtok.clone()) {
-    ///     Ok(()) => println!("matches"),
-    ///     Err(error) => println!("{}", error)
-    /// }
-    /// ```
     #[track_caller]
     pub fn equal(&mut self, jsonc: JsoncObj) -> Result<(), AfbError> {
         if unsafe { cglue::json_object_get_type(self.jso) }
@@ -894,17 +750,6 @@ impl JsoncObj {
         }
     }
 
-    /// check if self contains jsonc
-    /// Example
-    /// ```
-    /// # use jsonc::JsoncObj;
-    /// let mut jsonc= JsoncObj::parse("{'skipail':'IoT.bzh', 'location':'lorient'}").unwrap();
-    /// let mut jtok= JsoncObj::parse("{'skipail':'IoT.bzh'}").unwrap();
-    /// match jsonc.contains(jtok.clone()) {
-    ///     Ok(()) => println!("matches"),
-    ///     Err(error) => println!("tokens:{} not found in jsonc:{}", jtok, jsonc)
-    /// }
-    /// ```
     #[track_caller]
     pub fn contains(&mut self, jtok: JsoncObj) -> Result<(), AfbError> {
         let jvec = jtok.expand();
@@ -924,13 +769,6 @@ impl JsoncObj {
         }
         Ok(())
     }
-    /// create a new Rust safe jsonc-c object from a string
-    /// # Examples
-    /// ```
-    /// let token = "{'a':1,'b':2}";
-    /// let jsonc = JsoncObj::parse(token);
-    /// let value= jsonc.get_int("a");
-    /// ```
     #[track_caller]
     pub fn parse(json_str: &str) -> Result<JsoncObj, AfbError> {
         unsafe {

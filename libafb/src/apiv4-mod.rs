@@ -47,18 +47,6 @@ pub trait AfbSubcallControl {
 }
 
 pub use crate::AfbBindingRegister;
-/// Register binding main entry callback to be called from afb_binder
-/// Examples
-/// ```
-/// # extern crate jsonc;
-/// # use afbv4::prelude::*;;
-/// AfbBindingRegister!(binding_init);
-/// pub fn binding_init(binding: AfbApiV4, jconf: JsoncObj) -> i32 {
-///    afb_log_msg!(Notice, binding, "-- binding-init binding config={}", jconf);
-///    // register verb,event,apis, ...
-///    AFB_OK // or AFB_FAIL to abort binding load
-/// }
-/// ```
 #[macro_export]
 macro_rules! AfbBindingRegister {
     ($callback:expr) => {
@@ -241,32 +229,6 @@ macro_rules! AfbCallRegister {
 }
 
 pub use crate::AfbEventRegister;
-/// Register event control handle. Similar to verb-ctrl but receive an event in place of a request
-///   - $event_name: created verb object class
-///   - $callback: user define verb callback
-///   - $userdata: an option data structure class attach the verb
-/// Examples
-/// ```
-///   # extern crate jsonc;
-///   # use afbv4::prelude::*;;
-/// struct OptionalData {
-///     // my private data
-///     counter: u32,
-/// }
-/// AfbEventRegister!(EventCtrl, event_callback, OptionalData);
-/// fn event_callback(event: &AfbEventMsg, args: &mut AfbData, userdata: &mut OptionalData) {
-///     userdata.counter += 1;
-///     afb_log_msg!(Notice,&event,"--evt name={} counter={} api={}", event.get_name(),userdata.counter,event.get_api().get_uid());
-/// }
-/// // event handler is use to create an event handler for a given pattern
-/// let event_handler = AfbEvtHandler::new("my_handler_uid")
-/// .set_pattern("helloworld-event/timerCount")
-/// .set_callback(Box::new(EventCtrl{counter: 0}))
-/// .finalize();
-///
-/// // Warning: finally event_handler need to be added to an api or a group with .add_evt_handler
-/// // .add_evt_handler(event_handler)
-/// ```
 #[macro_export]
 macro_rules! AfbEventRegister {
     ($event_name:ident, $callback:ident, $userdata:ident) => {
@@ -356,22 +318,6 @@ pub extern "C" fn free_session_cb(context: *mut std::ffi::c_void) {
     drop(cbox);
 }
 
-/// Api introspection callback for http://localhost:1234/devtools/
-///
-///  * internal callback responding to api/info request. RustAfb build info verb automatically
-///  * to remove automatic introspection use ```api.add_info_cb(false)```
-/// Examples
-/// ```no_run
-///   # extern crate jsonc;
-///   # use afbv4::prelude::*;;
-///   let api= AfbApi::new("rust-api")
-///     .set_name("rust-api")
-///     .set_permission(AfbPermission::new("acl:rust"))
-///     // .... add_verb, group, ...
-///     .add_info_cb(false) // default=true
-///     .finalize()
-///     ;
-/// ```
 #[no_mangle]
 pub extern "C" fn api_info_cb(
     rqtv4: cglue::afb_req_t,
@@ -421,22 +367,6 @@ pub extern "C" fn api_info_cb(
     request.reply(jinfo, 0);
 }
 
-/// Api introspection callback for my-api-uid/ping
-///
-///  * internal callback responding to api/ping request. RustAfb build info verb automatically
-///  * to remove automatic introspection use ```api.add_ping_cb(false)```
-/// Examples
-/// ```no_run
-///   # extern crate jsonc;
-///   # use afbv4::prelude::*;;
-///   let api= AfbApi::new("rust-api")
-///     .set_name("rust-api")
-///     .set_permission(AfbPermission::new("acl:rust"))
-///      // .... add verb, group, ...
-///     .add_ping_cb(false) // default=true
-///     .finalize()
-///     ;
-/// ```
 #[no_mangle]
 pub extern "C" fn api_ping_cb(
     rqtv4: cglue::afb_req_t,
@@ -459,27 +389,7 @@ pub extern "C" fn api_ping_cb(
     request.reply(jpong, 0);
 }
 
-/// AfbApiControls trait might optionally implemented API control callbacks.
 pub trait AfbApiControls {
-    /// Called at binding load time, before api is ready.
-    ///
-    /// When defined config method receives binding configuration as a json-c object.
-    /// At this level the API is not ready, when having external dependencies this is
-    /// as a database this is typically the place to declare them.
-    /// Examples:
-    /// ```
-    /// # extern crate jsonc;
-    /// # use afbv4::prelude::*;;
-    /// struct ApiUserData{}
-    /// impl AfbApiControls for ApiUserData {
-    ///   fn config(&mut self, api: &mut AfbApi, config: JsoncObj) -> Result<(),AfbError> {
-    ///     let _api_data = self; // self matches api_data
-    ///     afb_log_msg!(Notice,api,"--api-config api={} config={}",api.get_uid(),config);
-    ///     Ok(()) // returning -1 will abort binder process
-    ///   }
-    ///   fn as_any(&mut self) -> &mut dyn Any {self}
-    /// }
-    /// ```
     fn config(&mut self, api: &AfbApi, config: JsoncObj) -> Result<(), AfbError> {
         afb_log_msg!(
             Notice,
@@ -492,38 +402,6 @@ pub trait AfbApiControls {
         Ok(())
     }
 
-    /// Called at when API is ready.
-    ///
-    /// When defined start method is used to create event, timers, request subcall, ... or anything that require a working API
-    /// This is also the place from where you may launch automatic test. Nevertheless note that as an API cannot call itself
-    /// in loopback mode. For test it is mandatory to register a dedicated testing API within your binding before shaking your primary API.
-    /// Example:
-    /// ```
-    /// # extern crate jsonc;
-    /// # use afbv4::prelude::*;;
-    /// struct EvtUserData {
-    ///   counter: u32,
-    /// }
-    /// AfbEventRegister!(EventCtrl, event_callback, EvtUserData);
-    /// fn event_callback(event: &mut AfbEventMsg, args: &mut AfbData, userdata: &mut EvtUserData) {
-    ///    afb_log_msg!(Notice,&event,"--callback evt={} name={} counter={}",event.get_uid(), event.get_name(),userdata.counter);
-    /// };
-    /// pub struct ApiUserData {
-    ///   my_event: &'static AfbEvent,
-    /// }
-    /// impl AfbApiControls for ApiUserData {
-    ///   fn start(&mut self, api: &mut AfbApi) ->  Result<(),AfbError> {
-    ///     let api_data = self; // self matches api_data
-    ///     let event_handler = AfbEvtHandler::new("handler-1")
-    ///       .set_pattern("helloworld-event/timerCount")
-    ///       .set_callback(Box::new(EventCtrl{counter: 0}))
-    ///       .finalize();
-    ///     // store event_handler into api_data
-    ///     Ok(())
-    ///   }
-    ///   fn as_any(&mut self) -> &mut dyn Any {self}
-    /// }
-    /// ```
     fn start(&mut self, api: &AfbApi) -> Result<(), AfbError> {
         afb_log_msg!(Debug, api, "api init uid:{}", api._uid);
         Ok(())
@@ -535,50 +413,15 @@ pub trait AfbApiControls {
         Ok(())
     }
 
-    /// Called at unattended event is received.
-    ///
-    /// Usually uses default trait implementation. Default prints a log message when ever an attended event it received.
     fn orphan(&mut self, api: &AfbApi, signal: &str) {
         afb_log_msg!(Info, api, "orphan event api:{} event: {}", api._uid, signal);
     }
 
-    /// Called at binding exit.
-    ///
-    /// This method usually keep default trait implementation. It simply print a log message.
     fn exit(&mut self, api: &AfbApi, code: i32) -> i32 {
         afb_log_msg!(Debug, api, "api exit: uid:{} code:{}", api._uid, code);
         return code;
     }
 
-    /// Mandatory for api userdata downcasting
-    ///
-    /// This method is fully generic. Nevertheless Rust does not allow its automatic implementation from trait default values.
-    /// Example
-    /// ```
-    /// # extern crate jsonc;
-    /// # use afbv4::prelude::*;;
-    /// pub struct ApiUserData {
-    ///   my_event: &'static AfbEvent,
-    ///   my_timer: &'static mut dyn AfbTimerRef,
-    /// }
-    /// // as_any is returns a full object with a variable size and not a pointer on Self.
-    /// impl AfbApiControls for ApiUserData {
-    ///   fn as_any(&mut self) -> &mut dyn Any {
-    ///     self
-    ///   }
-    /// }
-    /// AfbVerbRegister!(SubscribeCtrl, subscribe_callback);
-    /// fn subscribe_callback(request: &mut AfbRequest, _args: &mut AfbData) {
-    ///   let apidata = request
-    ///     .get_apidata()
-    ///     .downcast_ref::<ApiUserData>()
-    ///     .expect("invalid api-data");
-    ///   match apidata.my_event.subscribe(request) {
-    ///     Err(error) => request.reply(afb_add_trace!(error), 405),
-    ///     Ok(_event) => request.reply(AFB_NO_DATA, 0),
-    ///   }
-    /// }
-    /// ```
     fn as_any(&mut self) -> &mut dyn Any;
 }
 
@@ -611,11 +454,6 @@ pub fn afb_binding_get_config(
     binding_parse_config(apiv4, ctlarg)
 }
 
-/// Rust/C callback hidden from Rust developers
-///
-/// This function is called by libafb framework each time a API control event pops up.
-/// It acts as a proxy between C and Rust. During Api pre_init phase it registers the API+verbs.
-/// Then if custom api control callbacks exit it call them.
 #[no_mangle]
 pub extern "C" fn api_controls_cb(
     apiv4: cglue::afb_api_t,
@@ -857,32 +695,6 @@ pub extern "C" fn api_controls_cb(
     return status;
 }
 
-/// Rust AfbAPi internal object structure
-///
-/// User should use setters before finalizing and then only getters
-/// Examples
-/// ```
-/// # extern crate jsonc;
-/// # use afbv4::prelude::*;;
-/// AfbVerbRegister!(VerbCtrl, verb_callback);
-/// fn verb_callback(request: &mut AfbRequest, _args: &mut AfbData) {
-///    request.reply("my verb callback was called", 0);
-/// }
-/// let verb1= AfbVerb::new("verb1")
-///    .set_callback(Box::new(VerbCtrl {}))
-///    .set_permission(AfbPermission::new("acl:verb1"))
-///    .finalize();
-/// let verb2= AfbVerb::new("verb2")
-///    .set_callback(Box::new(VerbCtrl {}))
-///    .set_permission(AfbPermission::new("acl:verb2"))
-///    .finalize();
-/// let api= AfbApi::new("my-api")
-///   .set_permission(AfbPermission::new("acl:rust"))
-///   .add_verb(verb1)
-///   .add_verb(verb2)
-///   //.finalize()
-///   ;
-/// ```
 pub struct AfbApi {
     _uid: &'static str,
     _count: usize,
@@ -907,13 +719,6 @@ pub struct AfbApi {
 }
 
 impl AfbApi {
-    /// create a new api handle
-    ///
-    /// - uid: static str
-    ///
-    /// note:
-    ///  - when not overloaded by 'name' uid is used as api name.
-    ///  - until not finalize the api is not created within libafm framework
     pub fn new(uid: &'static str) -> &'static mut Self {
         let api_box = Box::new(AfbApi {
             _uid: uid,
@@ -940,287 +745,81 @@ impl AfbApi {
         Box::leak(api_box)
     }
 
-    /// overload api name
-    ///
-    /// - value: static str
-    /// - when not overloaded 'uid' is used for api name.
     pub fn set_name(&mut self, value: &'static str) -> &mut Self {
         self.name = value;
         self
     }
 
-    /// add information metadata to api
-    ///
-    /// - value: static str
     pub fn set_info(&mut self, value: &'static str) -> &mut Self {
         self.info = value;
         self
     }
 
-    /// attach api to a given class
-    ///
-    /// Class it used to handle API dependencies. A given api may depend from a specific API
-    /// or from a class API that group many api. For example your may depend on "redis" api
-    /// or you may choose to depend on class i.e: database class that group redis,mysql,...
-    /// - value: static str
     pub fn set_class(&mut self, value: &'static str) -> &mut Self {
         self.class = value;
         self
     }
 
-    /// set if introspection 'info' api should be implemented or not.
-    ///
-    /// by default api/info introspection verb is automatically implemented
-    ///  use ```.add_info_cb(false)``` to remove info introspection verb from api
     pub fn add_info_cb(&mut self, value: bool) -> &mut Self {
         self.do_info = value;
         self
     }
 
-    /// set if monitoring 'ping' api should be implemented or not.
-    ///
-    /// by default api/ping monotoring verb is automatically implemented
-    ///  use ```.add_info_cb(false)``` to remove ping monitoring verb from api
     pub fn add_ping_cb(&mut self, value: bool) -> &mut Self {
         self.do_ping = value;
         self
     }
 
-    /// set if api is sealed at finalize time or not.
-    ///
-    /// by default api is sealed during finalization.
-    /// use ```.seal(false)``` to keep api open after finalization
     pub fn seal(&mut self, value: bool) -> &mut Self {
         self.do_seal = value;
         self
     }
 
-    /// Declare api version.
-    ///
-    /// Version metadata is used only for api/info introspection
     pub fn set_version(&mut self, value: &'static str) -> &mut Self {
         self.version = value;
         self
     }
 
-    /// Add one or many permission to the API.
-    ///
-    /// Internally LibAfb permission apply only to verbs. In order to simplify developper live
-    /// libafb-rust allow to define permission at API or even group level. Those API are added
-    /// to verb permission with a logical 'and'. In following example 'acl:rust' permission is added to both 'verb_basic' and 'verb_typed'
-    /// Examples
-    /// ```no_run
-    ///  # extern crate jsonc;
-    ///  # use afbv4::prelude::*;;
-    ///  AfbVerbRegister!(VerbCtrl, verb_cb);
-    ///  fn verb_cb(request: &mut AfbRequest, _args: &mut AfbData) {
-    ///    request.reply ("verb callback called",0);
-    ///  }
-    ///  let verb= AfbVerb::new("my-verb")
-    ///    .set_callback(Box::new(VerbCtrl{}))
-    ///    .set_permission(AfbPermission::new("acl:user"))
-    ///    .finalize();
-    ///  let api= AfbApi::new("rust-api")
-    ///   .set_name ("toto")
-    ///   .set_info ("toto")
-    ///   .set_permission(AfbPermission::new("acl:rust"))
-    ///   .add_verb(verb)
-    ///   .finalize();
-    /// ```
     pub fn set_permission(&mut self, value: &'static AfbPermission) -> &mut Self {
         self.permission = value;
         self
     }
 
-    /// Allow api verbs run concurently.
-    ///
-    /// Internally libafb is both asynchronous and multi-threaded. Threads pool size is set at afb_binder level.
-    /// Nevertheless it is possible to force an API independly of afb-binder threads pool size.
-    /// Default is 'true', except for debuging purpose Rust binding should keep concurency==true.
     pub fn set_concurrency(&mut self, value: bool) -> &mut Self {
         self.do_concurrency = value;
         self
     }
 
-    /// Allow to force request verbosity
-    ///
-    /// Global verbosity is set at afb-binding level with --verbose option. Nevertheless it is possible
-    /// to force verbosity per request. Libafb-rust support the verbosity overloading at api, group and verb level.
-    /// When defined it global verbosity is lower then speficied verbosity, then request verbosity is overloaded.
-    /// When negative, request verbosity is overloaded independantly of global verbosity level.
     pub fn set_verbosity(&mut self, value: i32) -> &mut Self {
         self.verbosity = value;
         self
     }
 
-    /// Add a verb to API
-    ///
-    /// Verb should be defined with AfbVerb::new() before behing added to an API
-    /// Examples
-    /// ```
-    ///  # extern crate jsonc;
-    ///  # use afbv4::prelude::*;;
-    ///  AfbVerbRegister!(VerbCtrl, verb_cb);
-    ///  fn verb_cb(request: &mut AfbRequest, _args: &mut AfbData) {
-    ///    request.reply ("verb callback called",0);
-    ///  }
-    /// let verb= AfbVerb::new("my-verb")
-    ///    .set_callback(Box::new(VerbCtrl {}))
-    ///    .set_permission(AfbPermission::new("acl:user"))
-    ///    .finalize();
-    /// let api= AfbApi::new("rust-api")
-    ///    .set_name("rust-api")
-    ///    .set_info("My first Rust API")
-    ///    .set_permission(AfbPermission::new("acl:rust"))
-    ///    .add_verb(verb)
-    ///    ;// ... .finalize();
-    /// ```
     pub fn add_verb(&mut self, verb: &AfbVerb) -> &mut Self {
         self.verbs.push(verb);
         self
     }
 
-    /// Add a event to API
-    ///
-    /// event should be defined with AfbEvent::new() before behing added to an API
-    /// Examples
-    /// ```no_run
-    ///  # extern crate jsonc;
-    ///  # use afbv4::prelude::*;;
-    /// // create event
-    /// let event= AfbEvent::new("my-event");
-    ///
-    /// // register event in api
-    /// let api= AfbApi::new("rust-api")
-    ///    .add_event(event)
-    ///    .finalize();
-    ///
-    /// // send event params
-    /// event.push("params data(s)");
-    /// ```
     pub fn add_event(&mut self, event: &'static AfbEvent) -> &mut Self {
         self.events.push(event);
         self
     }
 
-    /// Add a group of verb to API
-    ///
-    /// Group should be defined with AfbGroup::new() before behing added to an API.
-    /// Groups allow to set a common api prefix and permission to a given set of verbs
-    /// Examples
-    /// ```
-    ///  # extern crate jsonc;
-    ///  # use afbv4::prelude::*;;
-    ///  AfbVerbRegister!(VerbCtrl, verb_cb);
-    ///  fn verb_cb(request: &mut AfbRequest, _args: &mut AfbData) {
-    ///    request.reply ("verb callback called",0);
-    ///  }
-    /// let verb1= AfbVerb::new("verb1")
-    ///    .set_callback(Box::new(VerbCtrl {}))
-    ///    .set_permission(AfbPermission::new("acl:verb1"))
-    ///    .finalize();
-    /// let verb2= AfbVerb::new("verb2")
-    ///    .set_callback(Box::new(VerbCtrl {}))
-    ///    .set_permission(AfbPermission::new("acl:verb2"))
-    ///    .finalize();
-    /// let group=AfbGroup::new("my-group")
-    ///    .set_prefix("group-prefix")
-    ///    .set_permission(AfbPermission::new("acl:my-group"))
-    ///    .add_verb(verb1)
-    ///    .add_verb(verb2)
-    ///    .finalize();
-    /// let api= AfbApi::new("rust-api")
-    ///    .set_name("rust-api")
-    ///    .set_info("My first Rust API")
-    ///    .set_permission(AfbPermission::new("acl:rust"))
-    ///    .add_group(group)
-    ///    ; // ... .finalize();
-    /// ```
     pub fn add_group(&mut self, group: &AfbGroup) -> &mut Self {
         self.groups.push(group);
         self
     }
 
-    /// Add a callback to event reception
-    ///
-    /// Event are attached to a given API, except for broadcasted evthandlers, a subcription
-    /// is mandatory before receving them. Event callback handler are attached to a given
-    /// event name/pattern. Note that they is no permission attached to event reception.
-    /// If a session can subscribe to a given event, then it is automatically allowed to receive it.
-    /// Examples:
-    /// ```
-    ///  # extern crate jsonc;
-    ///  # use afbv4::prelude::*;;
-    ///  AfbEventRegister!(EventCtrl, event_get_callback);
-    ///  fn event_get_callback(event: &mut AfbEventMsg, args: &mut AfbData) {
-    ///     afb_log_msg!(Notice,&event,"--callback evt={} name={}",event.get_uid(), event.get_name());
-    ///  }
-    ///  let event_handler = AfbEvtHandler::new("handler-1")
-    ///    .set_pattern("helloworld-event/timerCount")
-    ///    .set_callback(Box::new(EventCtrl{}))
-    ///    .finalize();
-    ///  let api= AfbApi::new("rust-api")
-    ///    .set_name("rust-api")
-    ///    .add_evt_handler(event_handler)
-    ///    ; // ... .finalize();
-    /// ```
     pub fn add_evt_handler(&mut self, handler: &AfbEvtHandler) -> &mut Self {
         self.evthandlers.push(handler);
         self
     }
 
-    /// Define a set of control callback for the api
-    ///
-    /// For every major evthandlers (init, start, stop) of API; when defined LibAfb activates user callback .
-    /// Api control callback are defined within AfbApiControls trait. Outside of 'as_any' API control
-    /// trait provides a default callback implementation for every API control. Check AfbApiControls trait
-    /// for further information
-    ///
-    /// Examples:
-    /// ```
-    ///  # extern crate jsonc;
-    ///  # use afbv4::prelude::*;;
-    ///  pub struct ApiUserData {
-    ///     /* my api data event_handle, timer_handle, ... */
-    ///  }
-    ///  impl AfbApiControls for ApiUserData {
-    ///    fn config(&mut self, api: &mut AfbApi, config: JsoncObj) -> i32 {
-    ///        let _api_data = self; // self matches api_data
-    ///        afb_log_msg!(Notice, api,"--api-config api={} config={}", api.get_uid(), config);
-    ///        AFB_OK // returning -1 will abort binder process
-    ///    }
-    ///    fn start(&mut self, api: &mut AfbApi) -> i32 {
-    ///        let api_data = self; // self matches api_data
-    ///        // this is where you create event or subcall some other micro-service api
-    ///        AFB_OK
-    ///    }
-    ///    fn as_any(&mut self) -> &mut dyn Any {self}
-    ///  }
-    ///  let api= AfbApi::new("rust-api")
-    ///    .set_name("rust-api")
-    ///    .set_callback(Box::new(ApiUserData{}))
-    ///    ; // ... .finalize();
-    /// ```
     pub fn set_callback(&mut self, ctrlbox: Box<dyn AfbApiControls>) -> &mut Self {
         self.ctrlbox = Some(Box::leak(ctrlbox));
         self
     }
 
-    /// Require an other microservice api before starting
-    ///
-    /// In order to garantie a correct order of microservice start. Each Api may declare dependencies
-    /// Dependencies a symply declare from API name. The fact they are local or remote is handle by afb-binder
-    /// Note: that micro-service startup ordering may also use require_class dependencies.
-    /// Examples:
-    /// ```no_run
-    ///  # extern crate jsonc;
-    ///  # use afbv4::prelude::*;;
-    ///  let api= AfbApi::new("rust-api")
-    ///    .set_name("rust-api")
-    ///    .require_api("api-1")
-    ///    .require_api("api-2")
-    ///    .finalize();
-    /// ```
     pub fn require_api(&mut self, value: &'static str) -> &mut Self {
         if value != "" {
             self.require_apis.push(value);
@@ -1228,21 +827,6 @@ impl AfbApi {
         self
     }
 
-    /// Require an other microservice api class before starting
-    ///
-    /// Api class are typically used to express dependencies on a generic micro-service.
-    /// Typically: database, audio, canbus, ... any time you have common api with different
-    /// low level implementation, class is a good candidate to order microservice starting order.
-    /// Examples:
-    /// ```no_run
-    ///  # extern crate jsonc;
-    ///  # use afbv4::prelude::*;;
-    ///  let api= AfbApi::new("rust-api")
-    ///    .set_name("rust-api")
-    ///    .require_class("audio")
-    ///    .require_class("canbus")
-    ///    .finalize();
-    /// ```
     pub fn require_class(&mut self, value: &'static str) -> &mut Self {
         self.require_classes.push(value);
         self
@@ -1257,17 +841,6 @@ impl AfbApi {
         self._apiv4.set(apiv4);
     }
 
-    /// Finalize an API and effectivly register API withing C/LibAFB framework
-    ///
-    /// Before finalization the API does not exist within C/LibAfb framework.
-    /// This fonction do call the cglue::afb_create_api. Note that if the API
-    /// if empty by default the framework will create an API with pîng verb.
-    /// Examples:
-    /// ```no_run
-    ///  # extern crate jsonc;
-    ///  # use afbv4::prelude::*;;
-    ///  let api= AfbApi::new("rust-api").finalize();
-    /// ```
     pub fn finalize(&mut self) -> Result<&AfbApi, AfbError> {
         let api_name = CString::new(self.name).expect("invalid api name");
         let api_info = CString::new(self.info).expect("invalid api info");
@@ -1332,13 +905,6 @@ impl AfbApi {
 }
 
 impl fmt::Display for AfbApi {
-    /// afb api simple printing output
-    /// format {} => print uid,name,info
-    /// format {:#name} => print only name
-    /// Examples
-    /// ```text
-    /// println!("api={}", api);
-    /// ```
     fn fmt(&self, format: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             format,
@@ -1348,10 +914,6 @@ impl fmt::Display for AfbApi {
     }
 }
 
-/// Rust/C callback hidden from Rust developper
-///
-/// This function is call by libafb framework each time a registered rust API/VERB is requested.
-/// It acts as a proxy between C and Rust and prepare Rust context before calling user defined callback.
 #[no_mangle]
 pub extern "C" fn api_verbs_cb(rqtv4: cglue::afb_req_t, argc: u32, args: *const cglue::afb_data_t) {
     // extract verb+api object from libafb internals
@@ -1404,19 +966,6 @@ pub extern "C" fn api_verbs_cb(rqtv4: cglue::afb_req_t, argc: u32, args: *const 
     }
 }
 
-/// Rust AfbVerb internal object structure
-///
-/// User should use setters before finalizing and then only getters
-/// Examples
-/// ```no_run
-/// # extern crate jsonc;
-/// # use afbv4::prelude::*;;
-/// let verb1= AfbVerb::new("verb1")
-///    .set_info("my first rust verb")
-///    .set_callback(Box::new(VerbCtrl {}))
-///    .set_permission(AfbPermission::new("acl:verb1"))
-///    .finalize();
-/// ```
 pub struct AfbVerb {
     _uid: &'static str,
     _count: usize,
@@ -1431,15 +980,6 @@ pub struct AfbVerb {
 }
 
 impl AfbVerb {
-    /// create a new verb handle
-    ///
-    /// - uid: static str
-    ///
-    /// note:
-    ///  - when not overloaded by 'name' uid is used as verb name.
-    ///  - verb are register automatically at api.finalyse() time
-    ///    if API is not frozen(default) verb manual registration
-    ///    remains posible with .register() method.
     pub fn new(uid: &'static str) -> &'static mut Self {
         let verb_box = Box::new(AfbVerb {
             _uid: uid,
@@ -1455,66 +995,26 @@ impl AfbVerb {
         });
         Box::leak(verb_box)
     }
-    /// overload verb name
-    ///
-    /// - value: static str
-    /// - when not overloaded 'uid' is used for api name.
     pub fn set_name(&mut self, value: &'static str) -> &mut Self {
         self.name = value;
         self
     }
 
-    /// add information metadata to verb
-    ///
-    /// - value: static str
     pub fn set_info(&mut self, value: &'static str) -> &mut Self {
         self.info = value;
         self
     }
 
-    /// Add one or many permission to the verb.
-    ///
-    /// This method should be called only once per verb. If parent permissions are defined at API or group level
-    /// they are added. Final verb permission is ```AfbAuthAnyOf!(ApiPerm, GroupPerm, VerbPerm)```
-    /// Examples
-    /// ```no_run
-    ///  # extern crate jsonc;
-    ///  # use afbv4::prelude::*;;
-    ///  AfbVerbRegister!(VerbCtrl, verb_cb);
-    ///  fn verb_cb(request: &mut AfbRequest, _args: &mut AfbData) {
-    ///    request.reply ("verb callback called",0);
-    ///  }
-    ///  let verb= AfbVerb::new("my-verb")
-    ///    .set_callback(Box::new(VerbCtrl{}))
-    ///    .set_permission(AfbPermission::new("acl:user"))
-    ///    .finalize();
-    /// ```
     pub fn set_permission(&mut self, value: &'static AfbPermission) -> &mut Self {
         self.permission = value;
         self
     }
 
-    /// Add metadata information for debugging tool.
-    ///
-    /// String place here will appear within input area of web debug tool
     pub fn set_usage(&mut self, value: &'static str) -> &mut Self {
         self.usage = Some(value);
         self
     }
 
-    /// Add metadata information for debugging tool
-    ///
-    /// Example should be provided as json string. This method may be called multiple time when manu example are require
-    /// This method return an AfbError in case of wrong json data.
-    /// Examples
-    /// ```no_run
-    /// AfbVerb::new(mod_name)
-    ///    .set_callback(Box::new(VerbCtrl {}))
-    ///    .set_usage("{skipail': 'String', 'location':'string', 'zip': Integer}")
-    ///    .set_sample("{'skipail': 'IoT.bzh', 'location':'Lorient', 'zip':56100}").expect("invalid json sample")
-    ///    .set_sample("{'skipail': 'IoT.bzh', 'info':'missing location+zip'}").expect("invalid json sample")
-    ///    .finalize()
-    /// ```
     #[track_caller]
     pub fn set_sample(&mut self, value: &'static str) -> Result<&mut Self, AfbError> {
         let jparse = JsoncObj::parse(value);
@@ -1527,17 +1027,6 @@ impl AfbVerb {
         }
     }
 
-    /// Add metadata information for debugging tool
-    ///
-    /// Example should be provided as json string. This method may be called multiple time when manu example are require
-    /// This method return an AfbError in case of wrong json data.
-    /// Examples
-    /// ```no_run
-    /// AfbVerb::new(mod_name)
-    ///    .set_callback(Box::new(VerbCtrl {}))
-    ///    .set_action("['reset': 'subscribe', 'unsubscribe']").expect("a valid json array")
-    ///    .finalize()
-    /// ```
     #[track_caller]
     pub fn set_action(&mut self, value: &'static str) -> Result<&mut Self, AfbError> {
         let jparse = JsoncObj::parse(value);
@@ -1554,54 +1043,16 @@ impl AfbVerb {
         }
     }
 
-    /// Allow to force request verbosity
-    ///
-    /// Global verbosity is set at afb-binding level with --verbose option. Nevertheless it is possible
-    /// to force verbosity per request. Libafb-rust support the verbosity overloading at api, group and verb level.
-    /// When defined it global verbosity is lower then speficied verbosity, then request verbosity is overloaded.
-    /// When negative, request verbosity is overloaded independantly of global verbosity level.
     pub fn set_verbosity(&mut self, value: i32) -> &mut Self {
         self.verbosity = value;
         self
     }
 
-    /// Define a set of control callback for the verb
-    ///
-    /// Verb MUST have a callback, if not defined verb registration will fail. Technically callback is implemented
-    /// as AfbRqtControl trait. Nevertheless ```AfbVerbRegister!()``` is the magic want that hide this backmagic.
-    /// Optionnaly callback may have a vcbdata. Note that even when multiple verbs share the same vcbdata type
-    /// the instance of it remains private to each individual verb.
-    /// Examples:
-    /// ```
-    /// AfbVerbRegister!(VerbCtrl, callback);
-    /// fn callback(request: &mut AfbRequest, args: &mut AfbData) {
-    ///     match args.get::<JsoncObj>(0) {
-    ///         Ok(argument) => {
-    ///             afb_log_msg!(Info,&request,"Got valid jsonc object argument={}",argument);
-    ///             request.reply("done", 0);
-    ///         },
-    ///         Err(error) => {
-    ///             afb_log_msg!(Error, &request, "hoop invalid json argument {}", error);
-    ///             JsoncObj::from("invalid json input argument");
-    ///             request.reply(afb_add_trace!(error), 405);
-    ///         };
-    ///     };
-    /// };
-    ///
-    /// AfbVerb::new("my-verb")
-    ///   .set_callback(Box::new(VerbCtrl{}))
-    ///   .finalize()
-    /// ```
     pub fn set_callback(&mut self, ctrlbox: Box<dyn AfbRqtControl>) -> &mut Self {
         self.ctrlbox = Some(Box::leak(ctrlbox));
         self
     }
 
-    /// Manually register a verb within an API.
-    ///
-    /// This method is called automatically at API finalization and user should normally not use it.
-    ///  * apiv4: is the internal libafb/C apihandle
-    ///  * inherited_auth: is the internal libafb/C permission handle as inherited from Api and/or group.
     pub fn register(&self, apiv4: cglue::afb_api_t, inherited_auth: *const AfbAuthV4) -> i32 {
         let verb_name = CString::new(self.name).expect("invalid verb name");
         let verb_info = CString::new(self.info).expect("invalid verb info");
@@ -1622,11 +1073,6 @@ impl AfbVerb {
         }
     }
 
-    /// Freeze VERB definition and register it within libafb framework
-    ///
-    /// After using this method VERB object is not modifiable anymore and can only
-    /// be requested through AfbVerbRef getter. Verb definition should be freeze before
-    /// being added to an API or a group.
     pub fn finalize(&mut self) -> Result<&Self, AfbError> {
         Ok(self)
     }
@@ -1652,12 +1098,6 @@ impl AfbVerb {
 }
 
 impl fmt::Display for AfbVerb {
-    /// verb simple printing output
-    /// format {} => print uid,name,info
-    /// Examples
-    /// ```no_run
-    /// println!("verb={}", verb);
-    /// ```
     fn fmt(&self, format: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             format,
@@ -1667,8 +1107,6 @@ impl fmt::Display for AfbVerb {
     }
 }
 
-/// AfbRequest is created automatically each time an API/Verb is invoqued
-/// its main perpose is to carry internal request as well as a pointer to corresponding Verb+Api.
 pub struct AfbRequest<'a> {
     _rqtv4: cglue::afb_req_t,
     api: &'a AfbApi,
@@ -1685,7 +1123,6 @@ pub trait AfbRqtSession {
 }
 
 impl<'a> AfbRequest<'a> {
-    /// new request is only created internal by the framework. User should never call this function.
     pub fn new(rqtv4: cglue::afb_req_t, api: &'a AfbApi, verb: &'a AfbVerb) -> Self {
         AfbRequest {
             _rqtv4: unsafe { cglue::afb_req_addref(rqtv4) },
@@ -1739,8 +1176,6 @@ impl<'a> AfbRequest<'a> {
         }
     }
 
-    /// internal function that allow to transfert Rust request object livecycle to libafb/C framework
-    /// it should never be called by user.
     pub fn from_raw(rqtv4: AfbRqtV4) -> Self {
         // extract api_ref from libafb
         let api_ref = unsafe {
@@ -1760,72 +1195,26 @@ impl<'a> AfbRequest<'a> {
         }
     }
 
-    /// Debug function return the hexa value of request pointer.
-    ///
-    /// It is moslty usefull to track requests
-    /// during debugging session, when multiple asynchronous call are inbricated.
     pub fn get_uid(&'a self) -> String {
         format!("rqt:{:p}", self)
     }
 
-    /// Return a reference on request corresponding verb handle
-    ///
-    /// Verb handle may then be use to retreive its uid and/or its vcbdata
     pub fn get_verb(&'a self) -> &'a AfbVerb {
         self.verb
     }
 
-    /// Return a reference on request corresponding API
-    ///
-    /// Api handle may be use to retreive api name or api userdata.
     pub fn get_api(&'a self) -> &'a AfbApi {
         self.api
     }
 
-    /// Return internal libAfb/C request handle
-    ///
-    /// Normally reserve to internal usage.
     pub fn get_rqtv4(&'a self) -> cglue::afb_req_t {
         self._rqtv4
     }
 
-    /// Return api userdata as dyn Any
-    ///
-    /// Return a dyn Any pointer compatible with downcast. This is mandatory to remap
-    /// api userdata without using unsafe code.
-    /// Example
-    /// ```no_run
-    ///   # extern crate jsonc;
-    ///   # use afbv4::prelude::*;;
-    /// let apidata = request
-    ///     .get_apidata()
-    ///     .downcast_mut::<ApiUserData>()
-    ///     .expect("invalid api-data");
-    ///     match apidata.my_event.subscribe(request) {
-    ///        Err(_error) => {},
-    ///        Ok(event) => {event.push("delay response should arrive in 3s");},
-    ///     }
-    /// ```
     pub fn get_apidata(&self) -> &mut dyn Any {
         self.get_api().getctrlbox().as_any()
     }
 
-    /// Set LOA (Level Of Assurance) for active session
-    ///
-    /// LOA typically represent the level of trust we have in current session. It is typically used
-    /// to check an level of autotication; but it may also be used to force an api order as Open before read.
-    /// LOA level is typically express from 0=anonymous to 7=ultra-trust. But number is free until u32::max/2
-    /// Examples
-    /// ```no_run
-    ///   # extern crate jsonc;
-    ///   # use afbv4::prelude::*;;
-    /// fn set_loa_cb(request: &AfbRequest, _args: &AfbData) {
-    /// match request.set_loa(1) {
-    ///    Err(error) => request.reply (afb_add_trace!(error), -1),
-    ///    Ok(loa) => request.reply(format!("LOA set to {}", loa), 0)
-    ///  }
-    ///}
-    /// ```
     pub fn set_loa(&self, loa: u32) -> Result<u32, AfbError> {
         let status = unsafe { cglue::afb_req_session_set_LOA(self._rqtv4, loa) };
         if status < 0 {
@@ -1841,34 +1230,11 @@ impl<'a> AfbRequest<'a> {
         }
     }
 
-    /// Return a jsonc object representing session/client metadata
-    ///
-    /// Rust version of [afb_req_get_client_info](https://docs.redpesk.bzh/docs/en/master/developer-guides/reference-v4/func-afb-req.html#function-afb_req_get_client_info)
     pub fn get_client_info(&self) -> JsoncObj {
         let jso = unsafe { cglue::afb_req_get_client_info(self._rqtv4) as *mut std::ffi::c_void };
         JsoncObj::from(jso)
     }
 
-    /// Increment request reference count
-    ///
-    /// By default request is deleted when verb callback returns. When using asynchronous function request should leave longer than API initial callback
-    /// Examples
-    /// ```no_run
-    ///   # extern crate jsonc;
-    ///   # use afbv4::prelude::*;;
-    ///     match AfbSchedJob::new("demo-job-post-verb-cb")
-    ///        .set_exec_watchdog(10) // limit exec time to 10s;
-    ///        .set_callback(Box::new(UserPostData {
-    ///            rqt: request.add_ref(),
-    ///            jsonc: jquery.clone(),
-    ///        }))
-    ///        .post(3000)
-    ///    {
-    ///        // exec job in ~3s
-    ///        Err(error) => {request.reply(afb_add_trace!(error), -1);},
-    ///        Ok(job) => {afb_log_msg!(Info, request, "Job posted uid:{} jobid={}", job.get_uid(), job.get_jobid());},
-    ///    }
-    /// ```
     pub fn add_ref(&self) -> AfbRqtV4 {
         unsafe {
             cglue::afb_req_addref(self._rqtv4);
@@ -1876,28 +1242,6 @@ impl<'a> AfbRequest<'a> {
         self._rqtv4
     }
 
-    /// Reply to an API call.
-    ///
-    /// Reply is generally done at the end of an api/verb callback. nevertheless when using add_ref it is possible to delay the response
-    /// Reply takes two parameters,
-    ///  * data (AfbData)
-    ///  * status (i32)
-    /// In order to make developper live easier request.reply provde polymorphisme that access any afb-builtin type as well as the one
-    /// register with AfbDataConverter!
-    /// Example:
-    /// ```no_run
-    ///   # extern crate jsonc;
-    ///   # use afbv4::prelude::*;;
-    ///   let reply = || -> Result<(), AfbError> {
-    ///        let mut response = AfbParams::new();
-    ///        response.push(JsoncObj::parse("{'label':'value'}"))?;
-    ///        response.push(1234)?;
-    ///        response.push(45.76)?;
-    ///        response.push("skipail IoT.bzh")?;
-    ///        request.reply(response, 0);
-    ///        Ok(())
-    ///    };
-    /// ```
     pub fn reply<T>(&self, args: T, status: i32)
     where
         AfbParams: ConvertResponse<T>,
@@ -1923,7 +1267,6 @@ impl<'a> AfbRequest<'a> {
 
 #[doc(hidden)]
 impl<'a> Drop for AfbRequest<'a> {
-    /// decrease libafb request reference count anf free uid
     fn drop(&mut self) {
         unsafe {
             cglue::afb_req_unref(self._rqtv4);
@@ -1932,12 +1275,6 @@ impl<'a> Drop for AfbRequest<'a> {
 }
 
 impl<'a> fmt::Display for AfbRequest<'a> {
-    /// afb simple printing output
-    /// format {} => print uid,api,verb
-    /// Examples
-    /// ```compile_fail
-    /// println!("request={}", request);
-    /// ```
     fn fmt(&self, format: &mut fmt::Formatter<'_>) -> fmt::Result {
         #[allow(invalid_reference_casting)]
         unsafe {
@@ -1953,9 +1290,6 @@ impl<'a> fmt::Display for AfbRequest<'a> {
     }
 }
 
-/// Event object as receive by its handler when suscribed
-///
-/// As one handler may receive multiple event with pattern match. The UID and NAME are no equal.
 pub struct AfbEventMsg<'a> {
     _uid: String,
     name: &'a str,
@@ -1964,9 +1298,6 @@ pub struct AfbEventMsg<'a> {
 }
 
 impl<'a> AfbEventMsg<'a> {
-    /// create a new event handler
-    ///
-    ///
     pub fn new(uid: String, name: &'a str, api: &'a AfbApi, handler: &'a AfbEvtHandler) -> Self {
         AfbEventMsg {
             _uid: uid,
@@ -1998,12 +1329,6 @@ impl<'a> AfbEventMsg<'a> {
 }
 
 impl fmt::Display for AfbEventMsg<'_> {
-    /// event simple printing output
-    /// format {} => print uid,name,info
-    /// Examples
-    /// ```
-    /// println!("event={}", event);
-    /// ```
     fn fmt(&self, format: &mut fmt::Formatter<'_>) -> fmt::Result {
         #[allow(invalid_reference_casting)]
         unsafe {
@@ -2157,12 +1482,6 @@ impl AfbEvtHandler {
 }
 
 impl fmt::Display for AfbEvtHandler {
-    /// event simple printing output
-    /// format {} => print uid,name,info
-    /// Examples
-    /// ```compile_fail
-    /// println!("event={}", event);
-    /// ```
     fn fmt(&self, format: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             format,

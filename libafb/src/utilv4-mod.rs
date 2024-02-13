@@ -714,12 +714,6 @@ impl AfbTimer {
 }
 
 impl fmt::Display for AfbTimer {
-    /// timer simple printing output
-    /// format {} => print uid,name,info
-    /// Examples
-    /// ```compile_fail
-    /// println!("timer={}", timer);
-    /// ```
     fn fmt(&self, format: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(format, "uid:{} info:{}", self._uid, self.info)
     }
@@ -851,12 +845,6 @@ impl AfbSchedJob {
 }
 
 impl fmt::Display for AfbSchedJob {
-    /// AfbSchedjob simple printing output
-    /// format {} => print uid,name,info
-    /// Examples
-    /// ```compile_fail
-    /// println!("schedjob={}", timer);
-    /// ```
     fn fmt(&self, format: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(format, "uid:{} info:{}", self._uid, self.info)
     }
@@ -866,7 +854,6 @@ pub const AFB_AUTH_DFLT_V4: *mut AfbAuthV4 = 0 as *mut AfbAuthV4;
 pub type AfbAuthV4 = cglue::afb_auth;
 pub struct AfbPermisionV4 {}
 impl AfbPermisionV4 {
-    /// translate 'rust' permissions into 'libafb' permissions
     pub fn new(permission: &'static AfbPermission, inherited: *const AfbAuthV4) -> *mut AfbAuthV4 {
         let auth = match permission {
             AfbPermission::None() => AFB_AUTH_DFLT_V4,
@@ -1292,7 +1279,6 @@ impl AfbTapTest {
         Ok(())
     }
 
-    /// update test response and release semaphore
     pub fn done(&mut self, response: AfbTapResponse) {
         self.response = Some(response);
         let semaphore = Arc::clone(&self.semaphore);
@@ -1413,7 +1399,6 @@ impl AfbTapGroup {
         Ok(())
     }
 
-    /// wait for group test to be done then print report
     pub fn get_report(&self) -> JsoncObj {
         let jsonc = JsoncObj::array();
         let count = self.tests.len();
@@ -1487,8 +1472,6 @@ impl AfbTapSuite {
         if test.timeout == 0 {
             test.timeout = self.timeout;
         }
-
-        let api = unsafe { &mut *(self.tap_api as *mut AfbApi) };
 
         autostart.add_test(test);
         self
@@ -1660,7 +1643,6 @@ struct TapSuiteAutoRun {
     suite: *mut AfbTapSuite,
 }
 
-/// autostart is launched as job to complete API initialisation before effectively starting test suite
 impl AfbJobControl for TapSuiteAutoRun {
     fn job_callback(&mut self, job: &AfbSchedJob, _signal: i32) -> Result<(), AfbError> {
         let suite = unsafe { &mut *(self.suite as *mut AfbTapSuite) };
