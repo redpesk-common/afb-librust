@@ -1916,6 +1916,7 @@ pub fn afb_error_info(errcode: i32) -> &'static str {
         -3 => "Api not found",
         -4 => "Verb not found",
         -99 => "Invalid data type",
+        -100 => "subcall application error",
         _ => "Unknown",
     }
 }
