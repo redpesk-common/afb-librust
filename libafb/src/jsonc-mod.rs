@@ -620,6 +620,16 @@ impl JsoncObj {
         }
     }
 
+    pub fn optional<T>(&self, key: &str) -> Result<Option<T>, AfbError>
+    where
+        JsoncObj: DoPutJso<T>,
+    {
+        match Self::get_jso(key, self.jso) {
+            Err(_error) => Ok(None),
+            Ok(jso) => Ok(Some(Self::put_jso(jso)?)),
+        }
+    }
+
     #[track_caller]
     pub fn index<T>(&self, index: usize) -> Result<T, AfbError>
     where
