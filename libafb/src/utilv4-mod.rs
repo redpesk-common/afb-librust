@@ -165,8 +165,10 @@ macro_rules! afb_log_msg {
         line: line!(),
         column: column!(),
     };
-    let message= format! ($format, $($args),*);
-    AfbLogMsg::push_log (AfbLogLevel::$level, $handle, message, Some(&dbg_info))
+    if AfbLogMsg::verbosity_satisfied(AfbLogLevel::$level, $handle) {
+        let message= format! ($format, $($args),*);
+        AfbLogMsg::push_log (AfbLogLevel::$level, $handle, message, Some(&dbg_info))
+    }
  };
  ( $level:tt, $handle:expr,$format:expr) => {
     let dbg_info = DbgInfo {
@@ -175,7 +177,9 @@ macro_rules! afb_log_msg {
         line: line!(),
         column: column!(),
     };
+    if AfbLogMsg::verbosity_satisfied(AfbLogLevel::$level, $handle) {
     AfbLogMsg::push_log (AfbLogLevel::$level, $handle, $format, Some(&dbg_info))
+    }
  }
 }
 
@@ -331,7 +335,6 @@ impl fmt::Debug for AfbError {
 }
 
 pub struct AfbLogMsg {}
-
 pub trait DoSendLog<T> {
     fn print_log(
         level: i32,
@@ -341,6 +344,7 @@ pub trait DoSendLog<T> {
         funcname: *const Cchar,
         format: *const Cchar,
     );
+    fn get_verbosity(handle: T) -> i32;
 }
 
 impl<'a> DoSendLog<&AfbEventMsg<'a>> for AfbLogMsg {
@@ -363,6 +367,11 @@ impl<'a> DoSendLog<&AfbEventMsg<'a>> for AfbLogMsg {
             )
         }
     }
+
+    fn get_verbosity(event: &AfbEventMsg) -> i32 {
+        let handle = event.get_handler();
+        handle.get_verbosity()
+    }
 }
 
 impl<'a> DoSendLog<&AfbTimer> for AfbLogMsg {
@@ -376,6 +385,10 @@ impl<'a> DoSendLog<&AfbTimer> for AfbLogMsg {
     ) {
         unsafe { cglue::afb_verbose(level, file, line as i32, funcname, format) }
     }
+
+    fn get_verbosity(timer: &AfbTimer) -> i32 {
+        timer.get_verbosity()
+    }
 }
 
 impl<'a> DoSendLog<&AfbSchedJob> for AfbLogMsg {
@@ -388,6 +401,10 @@ impl<'a> DoSendLog<&AfbSchedJob> for AfbLogMsg {
         format: *const Cchar,
     ) {
         unsafe { cglue::afb_verbose(level, file, line as i32, funcname, format) }
+    }
+
+    fn get_verbosity(job: &AfbSchedJob) -> i32 {
+        job.get_verbosity()
     }
 }
 
@@ -411,6 +428,11 @@ impl<'a> DoSendLog<&AfbRequest<'a>> for AfbLogMsg {
             )
         }
     }
+
+    fn get_verbosity(rqt: &AfbRequest) -> i32 {
+        let verb = rqt.get_verb();
+        verb.get_verbosity()
+    }
 }
 
 impl<'a> DoSendLog<&AfbApi> for AfbLogMsg {
@@ -433,27 +455,9 @@ impl<'a> DoSendLog<&AfbApi> for AfbLogMsg {
             )
         }
     }
-}
 
-impl DoSendLog<&AfbEvent> for AfbLogMsg {
-    fn print_log(
-        level: i32,
-        event: &AfbEvent,
-        file: *const Cchar,
-        line: u32,
-        funcname: *const Cchar,
-        format: *const Cchar,
-    ) {
-        unsafe {
-            cglue::afb_api_verbose(
-                (*event).get_apiv4(),
-                level,
-                file,
-                line as i32,
-                funcname,
-                format,
-            )
-        }
+    fn get_verbosity(api: &AfbApi) -> i32 {
+        api.get_verbosity()
     }
 }
 
@@ -468,6 +472,10 @@ impl DoSendLog<Option<u32>> for AfbLogMsg {
     ) {
         unsafe { cglue::afb_verbose(level, file, line as i32, funcname, format) }
     }
+
+    fn get_verbosity(_unused: Option<u32>) -> i32 {
+        255 // Fulup TBD should match binder -vvv
+    }
 }
 
 impl DoSendLog<AfbRqtV4> for AfbLogMsg {
@@ -481,6 +489,26 @@ impl DoSendLog<AfbRqtV4> for AfbLogMsg {
     ) {
         unsafe { cglue::afb_req_verbose(rqtv4, level, file, line as i32, funcname, format) }
     }
+    fn get_verbosity(_rqt: AfbRqtV4) -> i32 {
+        255 // Fulup TBD
+    }
+}
+
+impl DoSendLog<AfbEvent> for AfbLogMsg {
+    fn print_log(
+        level: i32,
+        event: AfbEvent,
+        file: *const Cchar,
+        line: u32,
+        funcname: *const Cchar,
+        format: *const Cchar,
+    ) {
+        let apiv4= event.get_apiv4();
+        unsafe { cglue::afb_api_verbose(apiv4, level, file, line as i32, funcname, format) }
+    }
+    fn get_verbosity(event: AfbEvent) -> i32 {
+        event.get_verbosity()
+    }
 }
 
 impl DoSendLog<AfbApiV4> for AfbLogMsg {
@@ -493,6 +521,9 @@ impl DoSendLog<AfbApiV4> for AfbLogMsg {
         format: *const Cchar,
     ) {
         unsafe { cglue::afb_api_verbose(apiv4, level, file, line as i32, funcname, format) }
+    }
+    fn get_verbosity(_unused: AfbApiV4) -> i32 {
+        255 // Fulup TBD should match binder -vvv
     }
 }
 
@@ -542,6 +573,15 @@ impl AfbLogMsg {
             _ => AfbLogLevel::Unknown,
         };
         level as i32
+    }
+
+    pub fn verbosity_satisfied<H>(level: AfbLogLevel, handle: H) -> bool
+    where
+        AfbLogMsg: DoSendLog<H>,
+    {
+        let log_level = AfbLogMsg::get_level(level);
+        let verbosity = Self::get_verbosity(handle);
+        log_level >= verbosity
     }
 
     pub fn push_log<H, T>(level: AfbLogLevel, handle: H, format: T, info: Option<&DbgInfo>)
@@ -632,6 +672,7 @@ pub struct AfbTimer {
     decount: u32,
     period: u32,
     autounref: i32,
+    verbosity: i32,
 }
 
 impl AfbTimer {
@@ -642,10 +683,20 @@ impl AfbTimer {
             callback: None,
             decount: 0,
             period: 0,
+            verbosity: 255, // Fulup TBD should inherit from API
             _timerv4: 0 as cglue::afb_timer_t,
             autounref: 0,
         });
         Box::leak(timer_box)
+    }
+
+    pub fn set_verbosity(&mut self, value: i32) -> &mut Self {
+        self.verbosity = value;
+        self
+    }
+
+    pub fn get_verbosity(&self) -> i32 {
+        self.verbosity
     }
 
     pub fn set_info(&mut self, value: &'static str) -> &mut Self {
@@ -756,6 +807,7 @@ pub struct AfbSchedJob {
     _jobv4: i32,
     info: &'static str,
     watchdog: i32,
+    verbosity: i32,
     callback: Option<*mut dyn AfbJobControl>,
 }
 
@@ -766,9 +818,19 @@ impl AfbSchedJob {
             _jobv4: 0,
             info: "",
             watchdog: 0,
+            verbosity: 255,
             callback: None,
         });
         Box::leak(job_box)
+    }
+
+    pub fn set_verbosity(&mut self, value: i32) -> &mut Self {
+        self.verbosity = value;
+        self
+    }
+
+    pub fn get_verbosity(&self) -> i32 {
+        self.verbosity
     }
 
     pub fn set_exec_watchdog(&mut self, exec_watchdog: i32) -> &mut Self {
@@ -1565,7 +1627,7 @@ impl AfbTapSuite {
 
         // add auto start group verbs
         let autostart_tap = unsafe { &mut *(self.autostart as *mut AfbTapGroup) };
-        let autostart_afb= unsafe { &mut *(autostart_tap.api_group as *mut AfbGroup) };
+        let autostart_afb = unsafe { &mut *(autostart_tap.api_group as *mut AfbGroup) };
         autostart_afb.register(api.get_apiv4(), AFB_NO_AUTH);
         api.add_group(autostart_afb);
 

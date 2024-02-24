@@ -512,7 +512,6 @@ pub extern "C" fn api_controls_cb(
                     }
                 }
             }
-
             let api_auth = AfbPermisionV4::new(api_ref.permission, AFB_AUTH_DFLT_V4);
 
             // pre_init config ok, let's loop on api verb array registration
@@ -559,6 +558,12 @@ pub extern "C" fn api_controls_cb(
             if status >= 0 {
                 for slot in &api_ref.evthandlers {
                     let event_ref = unsafe { &mut *(*slot as *mut AfbEvtHandler) };
+                    // use api verbosity is higger than verb one
+                    if event_ref.verbosity < 0 {
+                        event_ref.verbosity = event_ref.verbosity * -1;
+                    } else if api_ref.verbosity > event_ref.verbosity {
+                        event_ref.verbosity = api_ref.verbosity;
+                    }
                     status = event_ref.register(apiv4);
                     if status < 0 {
                         afb_log_msg!(
@@ -575,6 +580,12 @@ pub extern "C" fn api_controls_cb(
             if status >= 0 {
                 for slot in &api_ref.events {
                     let event_ref = unsafe { &mut *(*slot as *mut AfbEvent) };
+                    // use api verbosity is higger than verb one
+                    if event_ref.verbosity < 0 {
+                        event_ref.verbosity = event_ref.verbosity * -1;
+                    } else if api_ref.verbosity > event_ref.verbosity {
+                        event_ref.verbosity = api_ref.verbosity;
+                    }
                     status = event_ref.register(apiv4);
                     if status < 0 {
                         afb_log_msg!(
@@ -790,9 +801,14 @@ impl AfbApi {
         self
     }
 
+
     pub fn set_verbosity(&mut self, value: i32) -> &mut Self {
         self.verbosity = value;
         self
+    }
+
+    pub fn get_verbosity(&self) -> i32 {
+        self.verbosity
     }
 
     pub fn add_verb(&mut self, verb: &AfbVerb) -> &mut Self {
@@ -940,10 +956,6 @@ pub extern "C" fn api_verbs_cb(rqtv4: cglue::afb_req_t, argc: u32, args: *const 
 
     let mut request = AfbRequest::new(rqtv4, api_ref, verb_ref);
 
-    if verb_ref.verbosity > 0 {
-        unsafe { cglue::afb_req_wants_log_level(rqtv4, verb_ref.verbosity) };
-    }
-
     // call verb calback
     let result = match verb_ref.ctrlbox {
         Some(verb_control) => unsafe {
@@ -952,15 +964,19 @@ pub extern "C" fn api_verbs_cb(rqtv4: cglue::afb_req_t, argc: u32, args: *const 
         _ => panic!("verb={} no callback defined", verb_ref._uid),
     };
 
-    if verb_ref.verbosity > 0 {
-        unsafe { cglue::afb_req_wants_log_level(rqtv4, api_ref.verbosity) };
-    }
-
     match result {
         Ok(()) => {}
         Err(error) => {
             let dbg = error.get_dbg();
-            afb_log_raw!(Notice, &request, "{} file: {}:{}:{}", error, dbg.file, dbg.line, dbg.column);
+            afb_log_raw!(
+                Notice,
+                &request,
+                "{} file: {}:{}:{}",
+                error,
+                dbg.file,
+                dbg.line,
+                dbg.column
+            );
             request.reply(error, -100);
         }
     }
@@ -1046,6 +1062,10 @@ impl AfbVerb {
     pub fn set_verbosity(&mut self, value: i32) -> &mut Self {
         self.verbosity = value;
         self
+    }
+
+    pub fn get_verbosity(&self) -> i32 {
+        self.verbosity
     }
 
     pub fn set_callback(&mut self, ctrlbox: Box<dyn AfbRqtControl>) -> &mut Self {
@@ -1307,6 +1327,10 @@ impl<'a> AfbEventMsg<'a> {
         }
     }
 
+    pub fn get_verbosity(&self) -> i32 {
+        self.handler.get_verbosity()
+    }
+
     pub fn get_uid(&'a self) -> &'a str {
         self._uid.as_str()
     }
@@ -1421,6 +1445,7 @@ pub trait AfbEventControl {
 pub struct AfbEvtHandler {
     _uid: &'static str,
     _count: usize,
+    verbosity: i32,
     ctrlbox: Option<*mut dyn AfbEventControl>,
     pattern: &'static str,
     info: &'static str,
@@ -1431,6 +1456,7 @@ impl AfbEvtHandler {
         let event_box = Box::new(AfbEvtHandler {
             _uid: uid,
             _count: 0,
+            verbosity: 0,
             ctrlbox: None,
             pattern: uid,
             info: "",
@@ -1446,6 +1472,15 @@ impl AfbEvtHandler {
     pub fn set_info(&mut self, value: &'static str) -> &mut Self {
         self.info = value;
         self
+    }
+
+    pub fn set_verbosity(&mut self, value: i32) -> &mut Self {
+        self.verbosity = value;
+        self
+    }
+
+    pub fn get_verbosity(&self) -> i32 {
+        self.verbosity
     }
 
     pub fn set_callback(&mut self, ctrlbox: Box<dyn AfbEventControl>) -> &mut Self {
@@ -1511,6 +1546,7 @@ pub struct AfbEvent {
     _uid: &'static str,
     _evtv4: AfbEvtV4,
     _apiv4: AfbApiV4,
+    verbosity: i32,
 }
 
 impl AfbEvent {
@@ -1519,8 +1555,13 @@ impl AfbEvent {
             _uid: uid,
             _evtv4: 0 as AfbEvtV4,
             _apiv4: 0 as AfbApiV4,
+            verbosity: 0,
         });
         Box::leak(evt_box)
+    }
+
+    pub fn get_verbosity(&self) -> i32 {
+        self.verbosity
     }
 
     pub fn register<T>(&mut self, api: T) -> i32
@@ -1858,7 +1899,15 @@ pub extern "C" fn afb_async_rqt_callback(
         Ok(()) => {}
         Err(error) => {
             let dbg = error.get_dbg();
-            afb_log_raw!(Notice, &request, "{} file: {}:{}:{}", error, dbg.file, dbg.line,dbg.column);
+            afb_log_raw!(
+                Notice,
+                &request,
+                "{} file: {}:{}:{}",
+                error,
+                dbg.file,
+                dbg.line,
+                dbg.column
+            );
             request.reply(error, -100);
         }
     }
@@ -1899,7 +1948,15 @@ pub extern "C" fn afb_async_api_callback(
         Ok(()) => {}
         Err(error) => {
             let dbg = error.get_dbg();
-            afb_log_raw!(Notice, apiv4, "{} file: {}:{}:{}", error, dbg.file, dbg.line,dbg.column);
+            afb_log_raw!(
+                Notice,
+                apiv4,
+                "{} file: {}:{}:{}",
+                error,
+                dbg.file,
+                dbg.line,
+                dbg.column
+            );
         }
     }
 }
