@@ -494,10 +494,10 @@ impl DoSendLog<AfbRqtV4> for AfbLogMsg {
     }
 }
 
-impl DoSendLog<AfbEvent> for AfbLogMsg {
+impl DoSendLog<&AfbEvent> for AfbLogMsg {
     fn print_log(
         level: i32,
-        event: AfbEvent,
+        event: &AfbEvent,
         file: *const Cchar,
         line: u32,
         funcname: *const Cchar,
@@ -506,7 +506,7 @@ impl DoSendLog<AfbEvent> for AfbLogMsg {
         let apiv4= event.get_apiv4();
         unsafe { cglue::afb_api_verbose(apiv4, level, file, line as i32, funcname, format) }
     }
-    fn get_verbosity(event: AfbEvent) -> i32 {
+    fn get_verbosity(event: &AfbEvent) -> i32 {
         event.get_verbosity()
     }
 }
