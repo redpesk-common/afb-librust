@@ -581,7 +581,7 @@ impl AfbLogMsg {
     {
         let log_level = AfbLogMsg::get_level(level);
         let verbosity = Self::get_verbosity(handle);
-        log_level >= verbosity
+        verbosity >= log_level
     }
 
     pub fn push_log<H, T>(level: AfbLogLevel, handle: H, format: T, info: Option<&DbgInfo>)

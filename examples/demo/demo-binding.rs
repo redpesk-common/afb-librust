@@ -88,12 +88,14 @@ impl AfbApiControls for ApiUserData {
 pub fn binding_init(rootv4: AfbApiV4, jconf: JsoncObj) -> Result <&'static AfbApi, AfbError> {
     afb_log_msg!(Notice, rootv4, "-- binding-init binding config={}", jconf);
 
+    let verbosity= jconf.default::<i32>("verbosity", 1)?;
     // create a new api
     let api= AfbApi::new("rust-api")
         .set_name("rust-api")
         .set_info("My first Rust API")
         .set_permission(AfbPermission::new("acl:rust"))
         .set_callback(Box::new(ApiUserData {_any_data: "skipail"}))
+        .set_verbosity(verbosity)
         .add_verb(verb_probe::register(rootv4)?)
         .add_verb(verb_basic::register(rootv4)?)
         .add_verb(verb_typed::register(rootv4)?)

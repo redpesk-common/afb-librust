@@ -13,12 +13,14 @@
     {
         "uid": "rust-demo-binding",
         "path": "-${CARGO_TARGET_DIR}/debug/examples/libafb_demo.so",
-        "info": "RUST sample API binding (Rust)"
+        "info": "RUST sample API binding (Rust)",
+        "verbosity": 9
     },
     {
         "uid": "tap-test-binding",
         "path": "${CARGO_TARGET_DIR}/debug/examples/libafb_test.so",
         "info": "Rust testing sample binding API",
+        "verbosity": 9
     }
   ],
 
