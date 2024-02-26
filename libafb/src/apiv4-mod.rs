@@ -742,7 +742,7 @@ impl AfbApi {
             info: "",
             class: "",
             version: "",
-            verbosity: 0,
+            verbosity: AfbLogLevel::Notice as i32,
             permission: AfbPermission::new(0),
             do_concurrency: true,
             ctrlbox: None,
