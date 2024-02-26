@@ -184,6 +184,7 @@ pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
 
     let job_post = AfbSchedJob::new("demo-job-post-verb-cb")
         .set_exec_watchdog(10) // limit exec time to 10s;
+        .set_group(1)
         .set_callback(Box::new(JobPostCtx {
             data_set: job_data_set.clone(),
         }))

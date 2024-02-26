@@ -806,6 +806,7 @@ pub struct AfbSchedJob {
     _uid: &'static str,
     _jobv4: i32,
     info: &'static str,
+    group: usize,
     watchdog: i32,
     verbosity: i32,
     callback: Option<*mut dyn AfbJobControl>,
@@ -817,6 +818,7 @@ impl AfbSchedJob {
             _uid: uid,
             _jobv4: 0,
             info: "",
+            group: 0,
             watchdog: 0,
             verbosity: 255,
             callback: None,
@@ -840,6 +842,11 @@ impl AfbSchedJob {
 
     pub fn set_info(&mut self, info: &'static str) -> &mut Self {
         self.info = info;
+        self
+    }
+
+    pub fn set_group(&mut self, group: usize) -> &mut Self {
+        self.group = group;
         self
     }
 
