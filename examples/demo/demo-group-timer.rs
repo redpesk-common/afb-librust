@@ -43,7 +43,11 @@ struct UserVcbData {
 
 // Callback is called for each tick until decount>0
 AfbTimerRegister!(TimerCtrl, timer_callback, UserVcbData);
-fn timer_callback(timer: &AfbTimer, decount: u32, userdata: &mut UserVcbData) -> Result<(), AfbError>{
+fn timer_callback(
+    timer: &AfbTimer,
+    decount: u32,
+    userdata: &mut UserVcbData,
+) -> Result<(), AfbError> {
     // check request introspection
     let timer_uid = timer.get_uid();
     let count = userdata.ctx.incr_counter();
@@ -80,32 +84,40 @@ fn start_timer_callback(
     Ok(())
 }
 
-struct UserPostData {
+struct JobPostData {
     rqt: AfbRqtV4,
     jsonc: JsoncObj,
     count: u32,
 }
 
 struct JobPostCtx {
-    data_set: Rc<RefCell<UserPostData>>,
+    data_set: Rc<RefCell<JobPostData>>,
 }
 // this callback starts from AfbSchedJob::new. If signal!=0 then callback overpass its watchdog timeout
 AfbJobRegister!(DelayCtrl, jobpost_callback, JobPostCtx);
-fn jobpost_callback(job: &AfbSchedJob, signal: i32, userdata: &mut JobPostCtx) -> Result<(),AfbError>{
+fn jobpost_callback(
+    job: &AfbSchedJob,
+    args: &AfbData,
+    signal: i32,
+    userdata: &mut JobPostCtx,
+) -> Result<(), AfbError> {
     let data_set = match userdata.data_set.try_borrow() {
         Err(_) => {
             return afb_error!("jobpost_callback", "fail to access data_set");
         }
         Ok(value) => value,
     };
+
+    let argument= args.get::<u32>(0) ?;
     let request = AfbRequest::from_raw(data_set.rqt);
     afb_log_msg!(
         Info,
         job,
-        "{}: jobpost callback signal={} count={}",
+        "{}: jobpost callback signal={} count={} argument={}",
         job.get_uid(),
         signal,
-        data_set.count
+        data_set.count,
+        argument
     );
     let mut response = AfbParams::new();
     response.push(data_set.count)?;
@@ -118,7 +130,7 @@ fn jobpost_callback(job: &AfbSchedJob, signal: i32, userdata: &mut JobPostCtx) -
 struct UserPostVerb {
     event: &'static AfbEvent,
     job_post: &'static AfbSchedJob,
-    data_set: Rc<RefCell<UserPostData>>,
+    data_set: Rc<RefCell<JobPostData>>,
 }
 AfbVerbRegister!(JobPostVerb, jobpost_verb, UserPostVerb);
 fn jobpost_verb(
@@ -141,7 +153,7 @@ fn jobpost_verb(
     data_set.rqt = request.add_ref();
     data_set.jsonc = jquery.clone();
     data_set.count = data_set.count + 1;
-    let _jobid = userdata.job_post.post(3000)?;
+    let _jobid = userdata.job_post.post(3000, 123456)?;
 
     match userdata.event.subscribe(request) {
         Err(_error) => {}
@@ -176,7 +188,7 @@ pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
         .finalize()?;
 
     // create an empty jobpost data set that should be fill with job_verb
-    let job_data_set = Rc::new(RefCell::new(UserPostData {
+    let job_data_set = Rc::new(RefCell::new(JobPostData {
         rqt: 0 as AfbRqtV4,
         jsonc: JsoncObj::new(),
         count: 0,
