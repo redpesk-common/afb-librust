@@ -581,6 +581,7 @@ impl AfbLogMsg {
     {
         let log_level = AfbLogMsg::get_level(level);
         let verbosity = Self::get_verbosity(handle);
+        println! ("*** verbosity_satisfied verbosity:{} log_level:{}", verbosity, log_level);
         verbosity >= log_level
     }
 
