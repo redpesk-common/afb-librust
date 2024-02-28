@@ -23,6 +23,7 @@
 use crate::prelude::*;
 
 use bitflags::bitflags;
+use std::any::TypeId;
 use std::collections::HashMap;
 use std::ffi::CString;
 use std::fmt;
@@ -778,14 +779,27 @@ struct SchedJobV4 {
 }
 
 pub struct AfbSchedData {
-    raw: *mut std::ffi::c_void
+    raw: *mut std::ffi::c_void,
+    typeid: TypeId,
 }
 
 impl AfbSchedData {
-    pub fn get<T>(&self) -> Box<T>
+    pub fn get<T>(&self) -> Result<Box<T>, AfbError>
+    where
+        T: 'static,
     {
-        let boxe= unsafe {Box::from_raw(self.raw as *mut T)};
-        boxe
+        if self.typeid != TypeId::of::<T>() {
+            return afb_error!(
+                "schedjob_cb",
+                "job:(post|callback) incompatible context types",
+            );
+        }
+        let boxe: Box<T> = unsafe { Box::from_raw(self.raw as *mut T) };
+        Ok(boxe)
+    }
+
+    pub fn get_type(&self) -> String {
+        format!("{:?}", self.typeid)
     }
 }
 
@@ -888,12 +902,17 @@ impl AfbSchedJob {
     }
 
     #[track_caller]
-    pub fn post<T>(&self, delay_ms: i64, args: Box<T>) -> Result<i32, AfbError> {
+    pub fn post<T>(&self, delay_ms: i64, args: Box<T>) -> Result<i32, AfbError>
+    where
+        T: 'static,
+    {
+        let typeid = TypeId::of::<T>();
         let handle = Box::into_raw(Box::new(SchedJobV4 {
             job: self as *const AfbSchedJob,
             args: AfbSchedData {
                 raw: Box::into_raw(args) as *mut std::ffi::c_void,
-            }
+                typeid,
+            },
         }));
 
         match self.callback {

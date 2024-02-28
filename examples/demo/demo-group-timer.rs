@@ -94,14 +94,15 @@ struct JobPostData {
 AfbJobRegister!(JobPostCb, jobpost_callback);
 fn jobpost_callback(job: &AfbSchedJob, args: &AfbSchedData, signal: i32) -> Result<(), AfbError> {
     // retrieve job post arguments
-    let context = args.get::<JobPostData>();
+    let context = args.get::<JobPostData>()?;
     let request = AfbRequest::from_raw(context.rqt);
     afb_log_msg!(
         Info,
         job,
-        "{}: jobpost callback signal={} count={}",
+        "{}: jobpost callback signal={} jsonc:{} count={}",
         job.get_uid(),
         signal,
+        context.jsonc,
         context.count
     );
     let mut response = AfbParams::new();

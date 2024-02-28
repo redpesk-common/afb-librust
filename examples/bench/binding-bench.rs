@@ -102,18 +102,18 @@ struct UserTimerData {
 }
 
 AfbTimerRegister!(TimerHandlerCtrl, timer_callback, UserTimerData);
-fn timer_callback(timer: &AfbTimer, decount: u32, userdata: &mut UserTimerData) {
+fn timer_callback(timer: &AfbTimer, decount: u32, userdata: &mut UserTimerData) -> Result <(), AfbError> {
     match AfbSubCall::call_sync(userdata.apiv4, "rust-api", "verb_probe", AFB_NO_DATA) {
         Err(error) => {
             afb_log_msg!(Error, userdata.apiv4, &afb_add_trace!(error));
             timer.unref();
-            return;
+            return Ok(());
         }
         Ok(result) => {
             if result.get_status() != AFB_OK {
                 afb_log_msg!(Error, userdata.apiv4, "status != AFB_OK");
                 timer.unref();
-                return;
+                return Ok(());
             }
         }
     };
@@ -127,6 +127,7 @@ fn timer_callback(timer: &AfbTimer, decount: u32, userdata: &mut UserTimerData) 
         );
         afb_log_msg!(Notice, userdata.apiv4, msg.as_str());
     }
+    Ok(())
 }
 
 // call API without any argument
