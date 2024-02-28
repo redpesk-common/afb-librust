@@ -134,7 +134,7 @@ macro_rules! AfbJobRegister {
             fn job_callback(
                 &mut self,
                 job: &afbv4::utilv4::AfbSchedJob,
-                args: &AfbData,
+                args: &AfbSchedData,
                 signal: i32,
             ) -> Result<(), AfbError> {
                 $callback(job, args, signal, self)
@@ -148,7 +148,7 @@ macro_rules! AfbJobRegister {
             fn job_callback(
                 &mut self,
                 job: &afbv4::utilv4::AfbSchedJob,
-                args: &AfbData,
+                args: &AfbSchedData,
                 signal: i32,
             ) -> Result<(), AfbError> {
                 $callback(job, args, signal)
@@ -772,37 +772,33 @@ impl fmt::Display for AfbTimer {
     }
 }
 
-#[repr(C)]
-#[derive(Copy, Clone)]
 struct SchedJobV4 {
     job: *const AfbSchedJob,
-    argc: u32,
-    args: *const *mut cglue::afb_data_x4,
+    args: AfbSchedData,
+}
+
+pub struct AfbSchedData {
+    raw: *mut std::ffi::c_void
+}
+
+impl AfbSchedData {
+    pub fn get<T>(&self) -> Box<T>
+    {
+        let boxe= unsafe {Box::from_raw(self.raw as *mut T)};
+        boxe
+    }
 }
 
 #[no_mangle]
 pub extern "C" fn api_schedjob_cb(signal: i32, userdata: *mut std::os::raw::c_void) {
-    let handle= unsafe {Box::from_raw(userdata as *mut SchedJobV4) };
+    let handle = unsafe { Box::from_raw(userdata as *mut SchedJobV4) };
     let job_ref = unsafe { &mut *(handle.job as *mut AfbSchedJob) };
+    let args_ref = handle.args;
 
-    // rebuild afb-arguments params
-    let arguments = AfbData::new(
-        unsafe {
-            std::slice::from_raw_parts(
-                handle.args as *const cglue::afb_data_t,
-                handle.argc as usize,
-            )
-        },
-        handle.argc,
-        0,
-    );
     let result = match job_ref.callback {
-        Some(control) => unsafe { (*control).job_callback(job_ref, &arguments, signal) },
+        Some(control) => unsafe { (*control).job_callback(job_ref, &args_ref, signal) },
         _ => panic!("schedjob={} no callback defined", job_ref._uid),
     };
-
-    // free memory box
-    arguments.unref();
 
     match result {
         Ok(()) => {}
@@ -826,7 +822,7 @@ pub trait AfbJobControl {
     fn job_callback(
         &mut self,
         jobs: &AfbSchedJob,
-        args: &AfbData,
+        args: &AfbSchedData,
         signal: i32,
     ) -> Result<(), AfbError>;
 }
@@ -892,23 +888,12 @@ impl AfbSchedJob {
     }
 
     #[track_caller]
-    pub fn post<T>(&self, delay_ms: i64, args: T) -> Result<i32, AfbError>
-    where
-        AfbParams: ConvertResponse<T>,
-    {
-        let response = AfbParams::convert(args);
-        let params = match response {
-            Err(error) => {
-                afb_log_msg!(Critical, None, &error);
-                return afb_error!(self._uid, "Job_post arguments conversion fail");
-            }
-            Ok(data) => data,
-        };
-
+    pub fn post<T>(&self, delay_ms: i64, args: Box<T>) -> Result<i32, AfbError> {
         let handle = Box::into_raw(Box::new(SchedJobV4 {
             job: self as *const AfbSchedJob,
-            argc: params.arguments.len() as u32,
-            args: params.arguments.as_slice().as_ptr(),
+            args: AfbSchedData {
+                raw: Box::into_raw(args) as *mut std::ffi::c_void,
+            }
         }));
 
         match self.callback {
@@ -1097,7 +1082,7 @@ impl AfbJobControl for TapCtxData {
     fn job_callback(
         &mut self,
         job: &AfbSchedJob,
-        _args: &AfbData,
+        _args: &AfbSchedData,
         signal: i32,
     ) -> Result<(), AfbError> {
         let test = unsafe { &mut *(self.test as *mut AfbTapTest) };
@@ -1385,7 +1370,7 @@ impl AfbTapTest {
         match AfbSchedJob::new(self.uid)
             .set_exec_watchdog(timeout as i32)
             .set_callback(Box::new(TapCtxData { test: self }))
-            .post(self.delay as i64, AFB_NO_DATA)
+            .post(self.delay as i64, Box::new(0))
         {
             Err(_error) => {
                 let response = AfbTapResponse {
@@ -1702,7 +1687,7 @@ impl AfbTapSuite {
         if self.autorun {
             match AfbSchedJob::new(self.uid)
                 .set_callback(Box::new(TapSuiteAutoRun { suite: self }))
-                .post(0, AFB_NO_DATA)
+                .post(0, Box::new(0))
             {
                 Err(error) => Err(error),
                 Ok(_job) => Ok(()),
@@ -1767,7 +1752,7 @@ impl AfbJobControl for TapSuiteAutoRun {
     fn job_callback(
         &mut self,
         job: &AfbSchedJob,
-        _args: &AfbData,
+        _args: &AfbSchedData,
         _signal: i32,
     ) -> Result<(), AfbError> {
         let suite = unsafe { &mut *(self.suite as *mut AfbTapSuite) };

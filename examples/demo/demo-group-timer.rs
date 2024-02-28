@@ -8,7 +8,7 @@
 
 // import libafb dependencies
 use afbv4::prelude::*;
-use std::cell::{Cell, RefCell};
+use std::cell::Cell;
 use std::rc::Rc;
 
 //lib afb support two class of timers
@@ -90,38 +90,23 @@ struct JobPostData {
     count: u32,
 }
 
-struct JobPostCtx {
-    data_set: Rc<RefCell<JobPostData>>,
-}
 // this callback starts from AfbSchedJob::new. If signal!=0 then callback overpass its watchdog timeout
-AfbJobRegister!(DelayCtrl, jobpost_callback, JobPostCtx);
-fn jobpost_callback(
-    job: &AfbSchedJob,
-    args: &AfbData,
-    signal: i32,
-    userdata: &mut JobPostCtx,
-) -> Result<(), AfbError> {
-    let data_set = match userdata.data_set.try_borrow() {
-        Err(_) => {
-            return afb_error!("jobpost_callback", "fail to access data_set");
-        }
-        Ok(value) => value,
-    };
-
-    let argument= args.get::<u32>(0) ?;
-    let request = AfbRequest::from_raw(data_set.rqt);
+AfbJobRegister!(JobPostCb, jobpost_callback);
+fn jobpost_callback(job: &AfbSchedJob, args: &AfbSchedData, signal: i32) -> Result<(), AfbError> {
+    // retrieve job post arguments
+    let context = args.get::<JobPostData>();
+    let request = AfbRequest::from_raw(context.rqt);
     afb_log_msg!(
         Info,
         job,
-        "{}: jobpost callback signal={} count={} argument={}",
+        "{}: jobpost callback signal={} count={}",
         job.get_uid(),
         signal,
-        data_set.count,
-        argument
+        context.count
     );
     let mut response = AfbParams::new();
-    response.push(data_set.count)?;
-    response.push(&data_set.jsonc)?;
+    response.push(context.count)?;
+    response.push(&context.jsonc)?;
     request.reply(response, signal);
     Ok(())
 }
@@ -130,13 +115,13 @@ fn jobpost_callback(
 struct UserPostVerb {
     event: &'static AfbEvent,
     job_post: &'static AfbSchedJob,
-    data_set: Rc<RefCell<JobPostData>>,
+    count: u32,
 }
 AfbVerbRegister!(JobPostVerb, jobpost_verb, UserPostVerb);
 fn jobpost_verb(
     request: &AfbRequest,
     args: &AfbData,
-    userdata: &mut UserPostVerb,
+    ctx: &mut UserPostVerb,
 ) -> Result<(), AfbError> {
     // extract jquery from 1st argument
     let jquery = match args.get::<JsoncObj>(0) {
@@ -144,23 +129,23 @@ fn jobpost_verb(
         Err(error) => error.to_jsonc()?,
     };
 
-    let mut data_set = match userdata.data_set.try_borrow_mut() {
-        Err(_) => return afb_error!("jobpost_verb", "fail to access data_set"),
-        Ok(value) => value,
+    // increase count
+    ctx.count = ctx.count + 1;
+
+    let job_ctx = JobPostData {
+        rqt: request.add_ref(),
+        jsonc: jquery.clone(),
+        count: ctx.count,
     };
 
-    // update job post data_set and post job
-    data_set.rqt = request.add_ref();
-    data_set.jsonc = jquery.clone();
-    data_set.count = data_set.count + 1;
-    let _jobid = userdata.job_post.post(3000, 123456)?;
+    let _jobid = ctx.job_post.post(3000, Box::new(job_ctx))?;
 
-    match userdata.event.subscribe(request) {
+    match ctx.event.subscribe(request) {
         Err(_error) => {}
         Ok(event) => {
             event.push(format!(
                 "job-post response should arrive in 3s count={}",
-                data_set.count
+                ctx.count
             ));
         }
     }
@@ -187,26 +172,17 @@ pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
         .set_usage("no input")
         .finalize()?;
 
-    // create an empty jobpost data set that should be fill with job_verb
-    let job_data_set = Rc::new(RefCell::new(JobPostData {
-        rqt: 0 as AfbRqtV4,
-        jsonc: JsoncObj::new(),
-        count: 0,
-    }));
-
     let job_post = AfbSchedJob::new("demo-job-post-verb-cb")
         .set_exec_watchdog(10) // limit exec time to 10s;
         .set_group(1)
-        .set_callback(Box::new(JobPostCtx {
-            data_set: job_data_set.clone(),
-        }))
+        .set_callback(Box::new(JobPostCb {}))
         .finalize();
 
     let job_verb = AfbVerb::new("job-post")
         .set_callback(Box::new(UserPostVerb {
             event,
             job_post,
-            data_set: job_data_set.clone(),
+            count: 0,
         }))
         .set_info("return response in 3s")
         .set_usage("no input")
