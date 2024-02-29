@@ -204,7 +204,7 @@ impl AfbApiControls for TapUserData {
         let event4 = AfbTapTest::new("event-push-no-listener", "rust-api", "event_group/push")
             .set_info("push should not have any subscriber/session")
             .add_arg("{'info': 'some data event'}")?
-            .set_status(-100) // no more session
+            .set_status(0) // no more session
             .finalize()?;
 
         let event_group = AfbTapGroup::new("check-event")

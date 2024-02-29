@@ -92,7 +92,7 @@ struct JobPostData {
 
 // this callback starts from AfbSchedJob::new. If signal!=0 then callback overpass its watchdog timeout
 AfbJobRegister!(JobPostCb, jobpost_callback);
-fn jobpost_callback(job: &AfbSchedJob, args: &AfbSchedData, signal: i32) -> Result<(), AfbError> {
+fn jobpost_callback(job: &AfbSchedJob, signal: i32, args: &AfbSchedData, ) -> Result<(), AfbError> {
     // retrieve job post arguments
     let context = args.get::<JobPostData>()?;
     let request = AfbRequest::from_raw(context.rqt);
@@ -139,7 +139,7 @@ fn jobpost_verb(
         count: ctx.count,
     };
 
-    let _jobid = ctx.job_post.post(3000, Box::new(job_ctx))?;
+    let _jobid = ctx.job_post.post(3000, job_ctx)?;
 
     match ctx.event.subscribe(request) {
         Err(_error) => {}

@@ -417,27 +417,63 @@ Delay timers are simpler and run only once. They take two params
 At delay the callback is activated with signal==0. Is ever callback runs longer that watchdog callback is activated again with a signal value!=0.
 
 ```rust
-// delay userdata is used to keep track of the request
-struct DelayCtxData {rqt: AfbRqtV4}
+// Job verb data is valid during all verb live cycle
+struct JobVerbContext {
+    job_handle: &'static AfbSchedJob
+}
+
+// Job Context is frozen for all jobpost handle live cycle
+struct JobPostContext {
+    event: &'static AfbEvent,
+}
+// JobData is valid only for one post transaction
+struct JobPostAnyData {
+    rqt: AfbRqtV4
+    text: String,
+    number: u32,
+}
 
 // this callback starts from AfbSchedJob::new. If signal!=0 then callback overpass its watchdog timeout
-AfbJobRegister!(DelayCtrl, jobpost_callback, DelayCtxData);
-fn jobpost_callback(job: &AfbSchedJob, signal: i32, userdata: &mut DelayCtxData) {
-    let mut request = AfbRequest::from_raw(userdata.rqt);
+AfbJobRegister!(DelayCtrl, jobpost_callback, JobPostContext);
+fn jobpost_callback(job: &AfbSchedJob, signal: i32, data: &AfbSchedData, ctx: &mut JobPostContext) {
+
+    // use data attach to job handle
+    ctx.event.push ("job post started");
+
+    // retrieve data attach to current post
+    let userdata=args.get::<JobPostAnyData>()?;
+
+    // retrieve and respond to request (data+status)
+    let mut request = userdata.rqt;
     request.reply(userdata.jsonc.clone(), 300);
 }
 
 // post a job at 3s with a clone of the received json query
-AfbVerbRegister!(JobPostVerb, jobpost_verb);
+AfbVerbRegister!(JobPostVerb, jobpost_verb, ctx: JobVerbData);
 fn jobpost_verb(request: &AfbRequest, args: &mut AfbData) {
 
-    match AfbSchedJob::new("demo-delay")
-        .set_exec_watchdog(10) // limit exec time to 1s;
-        .set_callback(Box::new(DelayCtxData {rqt: request.add_ref()}))
-        .post(3000) // respond to request in 3s
-    {
-        Err(error) => request.reply(afb_add_trace!(error), -1),
-        _ => {}
-    }
+    let data= JobPostAnyData {
+        text: "demo-string".to_string(),
+        number: 123456,
+        rqt: request.add_ref(),
+    };
+
+
 }
+
+let event = AfbEvent::new("demo-job-event");
+
+// create a new job handle
+let job_handle= AfbSchedJob::new("demo-job-delay")
+        .set_exec_watchdog(10) // limit exec time to 1s;
+        .set_callback(Box::new(JobPostContext {event}))
+        .finalize();
+
+let job_verb = AfbSchedJob::new("demo-job-post")
+        .set_exec_watchdog(10) // limit exec time to 10s;
+        .set_group(1)
+        .set_callback(Box::new(JobVerbContext {job_handle}))
+        .finalize();
+
+// register verb within api
 ```
