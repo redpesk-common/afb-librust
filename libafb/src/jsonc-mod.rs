@@ -54,12 +54,12 @@ pub fn to_static_str(value: String) -> &'static str {
     Box::leak(value.into_boxed_str())
 }
 
-// convert an hexadecimal string "0x1,0x2,...0xN" into an &[u8] slice
-pub fn hexa_to_byte(input: &str, buffer: &mut [u8]) -> Result<(), AfbError> {
-    if input.len() != 3*buffer.len() -1 {
-        return afb_error!("string-ecode-hexa", "invalid len {}!=2*{}", input.len(), buffer.len())
+// convert an hexadecimal string "01:02:...:xx" into an &[u8] slice
+pub fn hexa_to_byte<'a>(input: &str, buffer: &'a mut [u8]) -> Result<usize, AfbError> {
+    let mut idx=0;
+    if input.len() > 3*buffer.len() -1 {
+        return afb_error!("string-decode-hexa", "invalid len {}>3*{} (syntaxe: '01:ff:...", input.len(), buffer.len())
     } else {
-        let mut idx=0;
         for hexa in input.split(':') {
             match u8::from_str_radix(hexa, 16) {
                 Ok(value) => buffer[idx]=value,
@@ -68,7 +68,7 @@ pub fn hexa_to_byte(input: &str, buffer: &mut [u8]) -> Result<(), AfbError> {
             idx=idx+1;
         }
     }
-    Ok(())
+    Ok(idx)
 }
 
 pub struct JsoncObj {

@@ -327,13 +327,13 @@ impl AfbError {
 
 impl fmt::Display for AfbError {
     fn fmt(&self, format: &mut fmt::Formatter) -> fmt::Result {
-        write!(format, "uid:{} info:{}", self.uid, self.info)
+        write!(format, "{}:{}", self.uid, self.info)
     }
 }
 
 impl fmt::Debug for AfbError {
     fn fmt(&self, format: &mut fmt::Formatter) -> fmt::Result {
-        write!(format, "uid:{} info:{}", self.uid, self.info)
+        write!(format, "{}:{}", self.uid, self.info)
     }
 }
 
