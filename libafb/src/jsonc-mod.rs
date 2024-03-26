@@ -60,12 +60,12 @@ pub fn to_static_str(value: String) -> &'static str {
 pub fn hexa_to_byte<'a>(input: &str, buffer: &'a mut [u8]) -> Result<usize, AfbError> {
     let mut idx=0;
     if input.len() > 3*buffer.len() -1 {
-        return afb_error!("string-decode-hexa", "invalid len {}>3*{} (syntaxe: '01:ff:...", input.len(), buffer.len())
+        return afb_error!("string-decode-hexa", "invalid len {}>3*{} (syntax: '01:ff:...'", input.len(), buffer.len())
     } else {
         for hexa in input.split(':') {
             match u8::from_str_radix(hexa, 16) {
                 Ok(value) => buffer[idx]=value,
-                Err(_) => return afb_error!("string-ecode-hexa", "invalid haxa encoding")
+                Err(_) => return afb_error!("string-ecode-hexa", "invalid hexa encoding syntax: '01:ff:...'")
             }
             idx=idx+1;
         }
