@@ -106,7 +106,7 @@ fn jobpost_callback(job: &AfbSchedJob, signal: i32, args: &AfbSchedData, ) -> Re
         context.count
     );
     let mut response = AfbParams::new();
-    response.push(context.count)?;
+
     response.push(&context.jsonc)?;
     request.reply(response, signal);
     Ok(())

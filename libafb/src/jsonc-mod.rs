@@ -50,11 +50,13 @@ pub enum Jobject {
     Unknown(&'static str),
 }
 
+#[track_caller]
 pub fn to_static_str(value: String) -> &'static str {
     Box::leak(value.into_boxed_str())
 }
 
 // convert an hexadecimal string "01:02:...:xx" into an &[u8] slice
+#[track_caller]
 pub fn hexa_to_byte<'a>(input: &str, buffer: &'a mut [u8]) -> Result<usize, AfbError> {
     let mut idx=0;
     if input.len() > 3*buffer.len() -1 {
