@@ -627,6 +627,7 @@ impl JsoncObj {
         }
     }
 
+    #[track_caller]
     pub fn default<T>(&self, key: &str, default:T) -> Result<T, AfbError>
     where
         JsoncObj: DoPutJso<T>,
@@ -637,6 +638,7 @@ impl JsoncObj {
         }
     }
 
+    #[track_caller]
     pub fn optional<T>(&self, key: &str) -> Result<Option<T>, AfbError>
     where
         JsoncObj: DoPutJso<T>,
