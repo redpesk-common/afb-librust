@@ -106,6 +106,18 @@ fn insert_array() {
     }
 }
 
+#[test]
+fn expend_to_vec() {
+    let token = "{'a':1,'b':'abc'}";
+    let jvalue = JsoncObj::parse(token).unwrap();
+    let entries= jvalue.expand();
+    for idx in 0 .. entries.len() {
+        let entry= &entries[idx];
+        println! ("key={}, value:{}", entry.key, entry.obj);
+
+    }
+}
+
 // ------------------------------------------------
 // testing object type
 // -------------------------------------------------
