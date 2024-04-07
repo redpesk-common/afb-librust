@@ -50,7 +50,7 @@ struct UserContext {
 }
 
 fn sensor_cb(request: &AfbRequest, args: &AfbRqtData, ctx: &AfbCtxData) -> Result<(), AfbError> {
-    let ctx = ctx.get::<UserContext>()?.ctx.clone();
+    let ctx = ctx.get_ref::<UserContext>()?.ctx.clone();
 
     let action = match args.get::<JsoncObj>(0) {
         Err(error) => {
@@ -94,7 +94,7 @@ fn sensor_cb(request: &AfbRequest, args: &AfbRqtData, ctx: &AfbCtxData) -> Resul
 }
 
 fn timer_callback(_timer: &AfbTimer, _decount: u32, ctx: &AfbCtxData) -> Result<(), AfbError> {
-    let context = ctx.get::<UserContext>()?;
+    let context = ctx.get_ref::<UserContext>()?;
 
     let count = context.ctx.incr_counter();
     let _listener = context.ctx.event.push(count);

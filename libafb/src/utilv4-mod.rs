@@ -1005,7 +1005,7 @@ fn tap_job_callback(
     _args: &AfbCtxData,
     ctx: &AfbCtxData,
 ) -> Result<(), AfbError> {
-    let context = ctx.get::<TapJobData>()?;
+    let context = ctx.get_ref::<TapJobData>()?;
 
     let test = unsafe { &mut *(context.test as *mut AfbTapTest) };
     let suite = test.get_suite();
@@ -1867,7 +1867,7 @@ fn tap_suite_callback(
     _args: &AfbCtxData,
     ctx: &AfbCtxData,
 ) -> Result<(), AfbError> {
-    let context = ctx.get::<TapSuiteAutoRun>()?;
+    let context = ctx.get_ref::<TapSuiteAutoRun>()?;
     let suite = unsafe { &mut *(context.suite as *mut AfbTapSuite) };
     let autostart = unsafe { &mut *(suite.autostart) };
 
@@ -1904,7 +1904,7 @@ fn tap_test_callback(
     _args: &AfbRqtData,
     ctx: &AfbCtxData,
 ) -> Result<(), AfbError> {
-    let context = ctx.get::<TapTestData>()?;
+    let context = ctx.get_ref::<TapTestData>()?;
 
     // bypass Rust limitation that refuses to understand static object pointers
     let test = unsafe { &mut (*context.test) };
@@ -1933,7 +1933,7 @@ fn tap_group_callback(
     _args: &AfbRqtData,
     ctx: &AfbCtxData,
 ) -> Result<(), AfbError> {
-    let context = ctx.get::<TapGroupData>()?;
+    let context = ctx.get_ref::<TapGroupData>()?;
     // bypass Rust limitation that refuses to understand static object pointers
     let group = unsafe { &mut (*context.group) };
     let suite = unsafe { &mut (*group.suite) };

@@ -198,7 +198,7 @@ impl AfbCtxData {
         }
     }
 
-    pub fn get<T>(&self) -> Result<&mut T, AfbError>
+    pub fn get_ref<T>(&self) -> Result<&T, AfbError>
     where
         T: 'static,
     {
@@ -211,6 +211,21 @@ impl AfbCtxData {
         let value: &mut T = unsafe { &mut *(self.raw as *mut T )};
         Ok(value)
     }
+
+    pub fn get_mut<T>(&self) -> Result<&mut T, AfbError>
+    where
+        T: 'static,
+    {
+        if self.typeid != TypeId::of::<T>() {
+            return afb_error!(
+                "schedjob_cb",
+                "job:(post|callback) incompatible context types",
+            );
+        }
+        let value: &mut T = unsafe { &mut *(self.raw as *mut T )};
+        Ok(value)
+    }
+
     pub fn get_type(&self) -> String {
         format!("{:?}", self.typeid)
     }

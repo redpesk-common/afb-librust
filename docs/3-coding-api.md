@@ -141,7 +141,7 @@ fn simple_callback(request: &AfbRequest, args: &mut AfbRqtData, ctx: AfbCtxData)
     let arg0 = args.get::<&MySimpleType>(0)?;
 
     // get use context data
-    let usrdata= ctx.get::<MySimpleContext>()?;
+    let usrdata= ctx.get_ref::<MySimpleContext>()?;
     let usrdata.x += 1;
 
     // we have a valid simple input data
@@ -195,7 +195,7 @@ Explicit response to a request is done with ```request.reply(data, status)```. W
 // async response callback uses standard (AfbVerbRegister!) callback
 fn async_response_cb(request: &AfbRequest, params: &mut AfbRqtData, ctx: AfbCtxData) -> Result<(),AfbError> {
     let jquery = match params.get::<JsoncObj>(0) ?;
-    let usrdata= ctx.get::<MyCtxType>()?;
+    let usrdata= ctx.get_ref::<MyCtxType>()?;
 
     // do something
     request.reply("async callback done", 0);
@@ -248,7 +248,7 @@ Receiving events is very similar to a standard api/verb request callback. Receiv
 ```rust
 // event callback is similar to verb callback expect for AfbEventRegister!
 fn event_get_callback(event: &AfbEventMsg, args: &mut AfbRqtData, ctx: &AfbCtxData) -> Result<(),AfbError> {
-    let userdata = ctx.get::<EvtUserData>()?;
+    let userdata = ctx.get_ref::<EvtUserData>()?;
     userdata.counter += 1;
     afb_log_msg!(Notice,&event,"evt={} name={} counter={}",event.get_uid(),event.get_name(), userdata.counter);
     let argument= match args.get::<JsoncObj>(0)?;
@@ -366,7 +366,7 @@ struct TimerUserData {
 
 // Callback is called for each tick until decount>0
 fn timer_callback(timer: &AfbTimer, decount: i32, ctx: &mut AfbCtxData) -> Result<(),AfbError> {
-    let usedata= ctx.get::<TimerUserData>()?;
+    let usedata= ctx.get_ref::<TimerUserData>()?;
     userdata.counter += 1;
 
     afb_log_msg!(Notice,timer,"timer={} counter={} decount={}", timer.get_uid(),userdata.counter,decount);

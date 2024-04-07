@@ -51,7 +51,7 @@ struct SessionUserData {
 
 
 fn subscribe_callback(request: &AfbRequest, _args: &AfbRqtData, ctx: &AfbCtxData)  -> Result <(), AfbError> {
-    let userdata = ctx.get::<EvtUserData>()?;
+    let userdata = ctx.get_ref::<EvtUserData>()?;
 
     let _session= SessionUserData::set(request, SessionUserData{count:0})?;
     userdata.ctx.event.subscribe(request) ?;
@@ -60,7 +60,7 @@ fn subscribe_callback(request: &AfbRequest, _args: &AfbRqtData, ctx: &AfbCtxData
 }
 
 fn unsubscribe_callback(request: &AfbRequest, _args: &AfbRqtData, ctx: &AfbCtxData)  -> Result <(), AfbError> {
-    let userdata = ctx.get::<EvtUserData>()?;
+    let userdata = ctx.get_ref::<EvtUserData>()?;
     SessionUserData::unref(request) ?;
 
     userdata.ctx.event.unsubscribe(request)?;
@@ -69,7 +69,7 @@ fn unsubscribe_callback(request: &AfbRequest, _args: &AfbRqtData, ctx: &AfbCtxDa
 }
 
 fn push_callback(request: &AfbRequest, _args: &AfbRqtData, ctx: &AfbCtxData)  -> Result <(), AfbError> {
-    let userdata = ctx.get::<EvtUserData>()?;
+    let userdata = ctx.get_ref::<EvtUserData>()?;
     let session = SessionUserData::get(request)?;
     session.count += 1;
 
@@ -82,7 +82,7 @@ fn push_callback(request: &AfbRequest, _args: &AfbRqtData, ctx: &AfbCtxData)  ->
 }
 
 fn event_get_callback(event: &AfbEventMsg, args: &AfbRqtData, ctx: &AfbCtxData) -> Result<(),AfbError> {
-    let userdata = ctx.get::<EvtUserData>()?;
+    let userdata = ctx.get_ref::<EvtUserData>()?;
 
     // check request introspection
     let evt_uid = event.get_uid();

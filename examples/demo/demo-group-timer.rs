@@ -45,7 +45,7 @@ struct UserVcbData {
 fn timer_callback(timer: &AfbTimer, decount: u32, ctx: &AfbCtxData) -> Result<(), AfbError> {
     // check request introspection
     let timer_uid = timer.get_uid();
-    let context = ctx.get::<UserVcbData>()?;
+    let context = ctx.get_ref::<UserVcbData>()?;
     let count = context.ctx.incr_counter();
 
     afb_log_msg!(
@@ -66,7 +66,7 @@ fn start_timer_callback(
     ctx: &AfbCtxData,
 ) -> Result<(), AfbError> {
     // subscribe client to event
-    let context = ctx.get::<UserVcbData>()?;
+    let context = ctx.get_ref::<UserVcbData>()?;
     context.ctx.event.subscribe(request).unwrap();
 
     // timer get require private instantiation of TimerUserData
@@ -97,7 +97,7 @@ fn jobpost_callback(
     _ctx: &AfbCtxData,
 ) -> Result<(), AfbError> {
     // retrieve job post arguments
-    let params = args.get::<JobPostData>()?;
+    let params = args.get_ref::<JobPostData>()?;
     let request = AfbRequest::from_raw(params.rqt);
     afb_log_msg!(
         Info,
@@ -127,7 +127,7 @@ fn jobpost_verb(
     ctx: &AfbCtxData,
 ) -> Result<(), AfbError> {
     // extract jquery from 1st argument
-    let context= ctx.get::<UserPostVerb>()?;
+    let context= ctx.get_mut::<UserPostVerb>()?;
     let jquery = match args.get::<JsoncObj>(0) {
         Ok(argument) => argument,
         Err(error) => error.to_jsonc()?,

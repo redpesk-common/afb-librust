@@ -15,7 +15,7 @@ struct MyCtxCb {
 }
 
 fn verb_cb (request: &AfbRequest, args: &AfbRqtData, ctx: &AfbCtxData) -> Result<(), AfbError> {
-    let context = ctx.get::<MyCtxCb>()?;
+    let context = ctx.get_mut::<MyCtxCb>()?;
     let jquery = args.get::<JsoncObj>(0)?;
 
     context.count += 1;

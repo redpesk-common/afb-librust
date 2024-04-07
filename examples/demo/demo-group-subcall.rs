@@ -17,7 +17,7 @@ struct AsyncResponseCtx {
 }
 
 fn async_response_verb(request: &AfbRequest, params: &AfbRqtData, ctx: &AfbCtxData) -> Result <(), AfbError> {
-    let context = ctx.get::<AsyncResponseCtx>()?;
+    let context = ctx.get_mut::<AsyncResponseCtx>()?;
     context.my_counter += 1;
 
     // we expect 1st argument to be json compatible

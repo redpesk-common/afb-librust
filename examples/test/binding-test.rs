@@ -25,7 +25,7 @@ struct ASyncCallData {
 
 // async response is s standard (AfbVerbRegister!) API/verb callback
 fn async_response_cb(api: &AfbApi, params: &AfbRqtData, ctx: &AfbCtxData) -> Result <(), AfbError> {
-    let ctx= ctx.get::<ASyncCallData>()?;
+    let ctx= ctx.get_mut::<ASyncCallData>()?;
     ctx.my_counter += 1;
 
     // we expect 1st argument to be json compatible
