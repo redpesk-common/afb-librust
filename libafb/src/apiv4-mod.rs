@@ -25,6 +25,7 @@ use std::any::Any;
 use std::boxed::Box;
 use std::cell::Cell;
 use std::ffi::{CStr, CString};
+
 use std::fmt;
 // libafb dependencies
 use crate::prelude::*;
@@ -38,13 +39,24 @@ pub const NULLPTR: *mut std::ffi::c_void = 0 as *mut std::ffi::c_void;
 // maximum argument return from call sync functions
 const MAX_CALL_ARGS: u32 = 10;
 
-pub trait AfbRqtControl {
-    fn verb_callback(&mut self, request: &AfbRequest, args: &AfbData) -> Result<(), AfbError>;
+pub trait AfbApiSubCallControl {
+    fn api_callback(&mut self, api: &AfbApi, args: &AfbRqtData) -> Result<(), AfbError>;
 }
 
-pub trait AfbSubcallControl {
-    fn api_callback(&mut self, api: &AfbApi, args: &AfbData) -> Result<(), AfbError>;
+pub type RqtCallback =
+    fn(rqt: &AfbRequest, args: &AfbRqtData, ctx: &AfbCtxData) -> Result<(), AfbError>;
+
+#[track_caller]
+fn rqt_default_cb(rqt: &AfbRequest, _args: &AfbRqtData, _ctx: &AfbCtxData) -> Result<(), AfbError> {
+    afb_error!(
+        "afb-default-cb",
+        "uid:{} no verb callback defined",
+        rqt.get_verb().get_uid()
+    )
 }
+
+pub type ApiCallback =
+    fn(api: &AfbApi, args: &AfbRqtData, ctx: &AfbCtxData) -> Result<(), AfbError>;
 
 pub use crate::AfbBindingRegister;
 #[macro_export]
@@ -162,98 +174,6 @@ macro_rules! AfbSessionRegister {
 
             fn unref(request: &AfbRequest) -> Result<(), afbv4::utilv4::AfbError> {
                 request.drop_session()
-            }
-        }
-    };
-}
-pub use crate::AfbVerbRegister;
-#[macro_export]
-macro_rules! AfbVerbRegister {
-    ($verb_name: ident, $callback:ident, $userdata:ident) => {
-        #[allow(non_camel_case_types)]
-        type $verb_name = $userdata;
-        impl afbv4::apiv4::AfbRqtControl for $userdata {
-            fn verb_callback(
-                &mut self,
-                request: &afbv4::apiv4::AfbRequest,
-                args: &afbv4::datav4::AfbData,
-            ) -> Result<(), AfbError> {
-                $callback(request, args, self)
-            }
-        }
-    };
-    ($verb_name: ident, $callback:ident) => {
-        #[allow(non_camel_case_types)]
-        struct $verb_name;
-        impl afbv4::apiv4::AfbRqtControl for $verb_name {
-            fn verb_callback(
-                &mut self,
-                request: &afbv4::apiv4::AfbRequest,
-                args: &afbv4::datav4::AfbData,
-            ) -> Result<(), AfbError> {
-                $callback(request, args)
-            }
-        }
-    };
-}
-
-pub use crate::AfbCallRegister;
-#[macro_export]
-macro_rules! AfbCallRegister {
-    ($call_name: ident, $callback:ident, $userdata:ident) => {
-        #[allow(non_camel_case_types)]
-        type $call_name = $userdata;
-        impl afbv4::apiv4::AfbSubcallControl for $userdata {
-            fn api_callback(
-                &mut self,
-                api: &afbv4::apiv4::AfbApi,
-                args: &afbv4::datav4::AfbData,
-            ) -> Result<(), AfbError> {
-                $callback(api, args, self)
-            }
-        }
-    };
-    ($call_name: ident, $callback:ident) => {
-        #[allow(non_camel_case_types)]
-        struct $call_name;
-        impl afbv4::apiv4::AfbSubcallControl for $call_name {
-            fn api_callback(
-                &mut self,
-                api: &afbv4::apiv4::AfbApi,
-                args: &afbv4::datav4::AfbData,
-            ) -> Result<(), AfbError> {
-                $callback(api, args)
-            }
-        }
-    };
-}
-
-pub use crate::AfbEventRegister;
-#[macro_export]
-macro_rules! AfbEventRegister {
-    ($event_name:ident, $callback:ident, $userdata:ident) => {
-        #[allow(non_camel_case_types)]
-        type $event_name = $userdata;
-        impl afbv4::apiv4::AfbEventControl for $userdata {
-            fn event_callback(
-                &mut self,
-                event: &afbv4::apiv4::AfbEventMsg,
-                args: &afbv4::datav4::AfbData,
-            ) -> Result<(), AfbError> {
-                $callback(event, args, self)
-            }
-        }
-    };
-    ($event_name: ident, $callback:ident) => {
-        #[allow(non_camel_case_types)]
-        struct $event_name;
-        impl afbv4::apiv4::AfbEventControl for $event_name {
-            fn event_callback(
-                &mut self,
-                event: &afbv4::apiv4::AfbEventMsg,
-                args: &afbv4::datav4::AfbData,
-            ) -> Result<(), AfbError> {
-                $callback(event, args)
             }
         }
     };
@@ -801,7 +721,6 @@ impl AfbApi {
         self
     }
 
-
     pub fn set_verbosity(&mut self, value: i32) -> &mut Self {
         self.verbosity = value;
         self
@@ -948,22 +867,14 @@ pub extern "C" fn api_verbs_cb(rqtv4: cglue::afb_req_t, argc: u32, args: *const 
     verb_ref._count += 1;
 
     // move const **array in something Rust may understand
-    let mut arguments = AfbData::new(
+    let arguments = AfbRqtData::new(
         unsafe { std::slice::from_raw_parts(args as *const cglue::afb_data_t, argc as usize) },
         argc,
         0,
     );
 
-    let mut request = AfbRequest::new(rqtv4, api_ref, verb_ref);
-
-    // call verb calback
-    let result = match verb_ref.ctrlbox {
-        Some(verb_control) => unsafe {
-            (*verb_control).verb_callback(&mut request, &mut arguments)
-        },
-        _ => panic!("verb={} no callback defined", verb_ref._uid),
-    };
-
+    let request = AfbRequest::new(rqtv4, api_ref, verb_ref);
+    let result = (verb_ref.callback)(&request, &arguments, &verb_ref.context);
     match result {
         Ok(()) => {}
         Err(error) => {
@@ -985,7 +896,6 @@ pub extern "C" fn api_verbs_cb(rqtv4: cglue::afb_req_t, argc: u32, args: *const 
 pub struct AfbVerb {
     _uid: &'static str,
     _count: usize,
-    ctrlbox: Option<*mut dyn AfbRqtControl>,
     name: &'static str,
     info: &'static str,
     permission: &'static AfbPermission,
@@ -993,6 +903,8 @@ pub struct AfbVerb {
     usage: Option<&'static str>,
     samples: JsoncObj,
     actions: JsoncObj,
+    callback: RqtCallback,
+    context: AfbCtxData,
 }
 
 impl AfbVerb {
@@ -1000,7 +912,6 @@ impl AfbVerb {
         let verb_box = Box::new(AfbVerb {
             _uid: uid,
             _count: 0,
-            ctrlbox: None,
             name: uid,
             info: "",
             verbosity: 0,
@@ -1008,6 +919,8 @@ impl AfbVerb {
             usage: None,
             samples: JsoncObj::array(),
             actions: JsoncObj::array(),
+            callback: rqt_default_cb,
+            context: AfbCtxData::new(AFB_NO_DATA),
         });
         Box::leak(verb_box)
     }
@@ -1068,8 +981,16 @@ impl AfbVerb {
         self.verbosity
     }
 
-    pub fn set_callback(&mut self, ctrlbox: Box<dyn AfbRqtControl>) -> &mut Self {
-        self.ctrlbox = Some(Box::leak(ctrlbox));
+    pub fn set_callback(&mut self, callback: RqtCallback) -> &mut Self {
+        self.callback = callback;
+        self
+    }
+
+    pub fn set_context<T>(&mut self, ctx: T) -> &mut Self
+    where
+        T: 'static,
+    {
+        self.context = AfbCtxData::new(ctx);
         self
     }
 
@@ -1403,23 +1324,17 @@ pub extern "C" fn api_events_cb(
         "{}|{:04X}|{:04X}",
         api_ref._uid, api_ref._count, handler_ref._count
     );
-    let mut event = AfbEventMsg::new(uid, name, api_ref, handler_ref);
+    let event = AfbEventMsg::new(uid, name, api_ref, handler_ref);
 
     // move const **array in something Rust may understand
-    let mut arguments = AfbData::new(
+    let mut arguments = AfbRqtData::new(
         unsafe { std::slice::from_raw_parts(args as *const cglue::afb_data_t, argc as usize) },
         argc,
         0,
     );
 
     // call event calback
-    let result = match handler_ref.ctrlbox {
-        Some(event_control) => unsafe {
-            (*event_control).event_callback(&mut event, &mut arguments)
-        },
-        _ => panic!("event={} no callback defined", handler_ref._uid),
-    };
-
+    let result = (handler_ref.callback)(&event, &mut arguments, &handler_ref.context);
     match result {
         Ok(()) => {}
         Err(error) => {
@@ -1438,17 +1353,30 @@ pub extern "C" fn api_events_cb(
     }
 }
 
-pub trait AfbEventControl {
-    fn event_callback(&mut self, event: &AfbEventMsg, args: &AfbData) -> Result<(), AfbError>;
+pub type EvtCallback =
+    fn(evt: &AfbEventMsg, args: &AfbRqtData, ctx: &AfbCtxData) -> Result<(), AfbError>;
+
+#[track_caller]
+fn evt_default_cb(
+    evt: &AfbEventMsg,
+    _args: &AfbRqtData,
+    _ctx: &AfbCtxData,
+) -> Result<(), AfbError> {
+    afb_error!(
+        "afb-default-cb",
+        "uid:{} no event callback defined",
+        evt.get_uid()
+    )
 }
 
 pub struct AfbEvtHandler {
     _uid: &'static str,
     _count: usize,
     verbosity: i32,
-    ctrlbox: Option<*mut dyn AfbEventControl>,
     pattern: &'static str,
     info: &'static str,
+    callback: EvtCallback,
+    context: AfbCtxData,
 }
 
 impl AfbEvtHandler {
@@ -1457,9 +1385,10 @@ impl AfbEvtHandler {
             _uid: uid,
             _count: 0,
             verbosity: 0,
-            ctrlbox: None,
             pattern: uid,
             info: "",
+            callback: evt_default_cb,
+            context: AfbCtxData::new(AFB_NO_DATA),
         });
         Box::leak(event_box)
     }
@@ -1483,8 +1412,16 @@ impl AfbEvtHandler {
         self.verbosity
     }
 
-    pub fn set_callback(&mut self, ctrlbox: Box<dyn AfbEventControl>) -> &mut Self {
-        self.ctrlbox = Some(Box::leak(ctrlbox));
+    pub fn set_callback(&mut self, callback: EvtCallback) -> &mut Self {
+        self.callback = callback;
+        self
+    }
+
+    pub fn set_context<T>(&mut self, ctx: T) -> &mut Self
+    where
+        T: 'static,
+    {
+        self.context = AfbCtxData::new(ctx);
         self
     }
 
@@ -1854,11 +1791,6 @@ impl AfbGroup {
     }
 }
 
-pub struct AfbSubCall {
-    verb_cb: Option<*mut dyn AfbRqtControl>,
-    api_cb: Option<*mut dyn AfbSubcallControl>,
-}
-
 #[no_mangle]
 //fn afb_async_rqt_callback(userdata: *mut std::os::raw::c_void, status: i32, argc: u32, args: *mut cglue::afb_data_t, rqtv4: cglue::afb_req_t)
 pub extern "C" fn afb_async_rqt_callback(
@@ -1880,20 +1812,17 @@ pub extern "C" fn afb_async_rqt_callback(
     let verb_ref = unsafe { &mut *(verb_ctx as *mut AfbVerb) };
 
     // move const **array in something Rust may understand
-    let mut arguments = AfbData::new(
+    let arguments = AfbRqtData::new(
         unsafe { std::slice::from_raw_parts(args as *const cglue::afb_data_t, argc as usize) },
         argc,
         status,
     );
     // remap request on a valid Rust object
-    let mut request = AfbRequest::new(rqtv4, api_ref, verb_ref);
+    let request = AfbRequest::new(rqtv4, api_ref, verb_ref);
 
     // extract verb+api object from libafb internals
     let subcall_ref = unsafe { &mut *(userdata as *mut AfbSubCall) };
-    let result = match subcall_ref.verb_cb {
-        Some(callback) => unsafe { (*callback).verb_callback(&mut request, &mut arguments) },
-        _ => panic!("verb={} no callback defined", verb_ref._uid),
-    };
+    let result = (subcall_ref.rqt_cb.unwrap())(&request, &arguments, &subcall_ref.context);
 
     match result {
         Ok(()) => {}
@@ -1929,7 +1858,7 @@ pub extern "C" fn afb_async_api_callback(
     };
 
     // move const **array in something Rust may understand
-    let mut arguments = AfbData::new(
+    let mut arguments = AfbRqtData::new(
         unsafe { std::slice::from_raw_parts(args as *const cglue::afb_data_t, argc as usize) },
         argc,
         status,
@@ -1937,13 +1866,7 @@ pub extern "C" fn afb_async_api_callback(
 
     // extract verb+api object from libafb internals
     let subcall_ref = unsafe { &mut *(userdata as *mut AfbSubCall) };
-    let result = match subcall_ref.api_cb {
-        Some(callback) => unsafe { (*callback).api_callback(api_ref, &mut arguments) },
-        _ => {
-            afb_log_msg!(Critical, apiv4, "(hoops invalid RQT callback context");
-            return;
-        }
-    };
+    let result = (subcall_ref.api_cb.unwrap())(api_ref, &mut arguments, &subcall_ref.context);
     match result {
         Ok(()) => {}
         Err(error) => {
@@ -1978,67 +1901,105 @@ pub fn afb_error_info(errcode: i32) -> &'static str {
     }
 }
 
-pub trait DoSubcall<H, C> {
-    fn subcall_async(handle: H, apiname: &str, verbname: &str, params: &AfbParams, callback: C);
+pub trait DoSubcallAsync<H, K, C> {
+    fn subcall_async(
+        handle: H,
+        apiname: CString,
+        verbname: CString,
+        params: &AfbParams,
+        callback: K,
+        context: C,
+    );
+}
 
+pub trait DoSubcallSync<H> {
     fn subcall_sync(
         handle: H,
-        apiname: &str,
-        verbname: &str,
+        apiname: CString,
+        verbname: CString,
         params: &AfbParams,
-    ) -> Result<AfbData, AfbError>;
+    ) -> Result<AfbRqtData, AfbError>;
 }
 
-impl DoSubcall<&AfbApi, Box<dyn AfbSubcallControl>> for AfbSubCall {
+impl<C: 'static> DoSubcallAsync<&AfbApi, ApiCallback, C> for AfbSubCall {
     #[track_caller]
     fn subcall_async(
         api: &AfbApi,
-        apiname: &str,
-        verbname: &str,
+        apiname: CString,
+        verbname: CString,
         params: &AfbParams,
-        callback: Box<dyn AfbSubcallControl>,
+        callback: ApiCallback,
+        context: C,
     ) {
-        let apistr = CString::new(apiname).expect("Invalid apiname");
-        let verbstr = CString::new(verbname).expect("Invalid verbname");
-
-        // lock callback box into memory until AFB returns from subcall
-        let cbbox = AfbSubCall {
-            api_cb: Some(Box::leak(callback)),
-            verb_cb: None,
-        };
-        let cbbox = Box::new(cbbox);
-
-        unsafe {
-            cglue::afb_api_call(
-                (*api).get_apiv4(),
-                apistr.into_raw(),
-                verbstr.into_raw(),
-                params.arguments.len() as u32,
-                params.arguments.as_slice().as_ptr(),
-                Some(afb_async_api_callback),
-                Box::leak(cbbox) as *const _ as *mut std::ffi::c_void,
-            )
-        };
+        AfbSubCall::subcall_async(
+            api.get_apiv4(),
+            apiname,
+            verbname,
+            &params,
+            callback,
+            context,
+        )
     }
-
+}
+impl DoSubcallSync<&AfbApi> for AfbSubCall {
     #[track_caller]
     fn subcall_sync(
         api: &AfbApi,
-        apiname: &str,
-        verbname: &str,
+        apiname: CString,
+        verbname: CString,
         params: &AfbParams,
-    ) -> Result<AfbData, AfbError> {
+    ) -> Result<AfbRqtData, AfbError> {
+        AfbSubCall::subcall_sync(api.get_apiv4(), apiname, verbname, params)
+    }
+}
+
+impl<C: 'static> DoSubcallAsync<AfbApiV4, ApiCallback, C> for AfbSubCall {
+    #[track_caller]
+    fn subcall_async(
+        apiv4: AfbApiV4,
+        apiname: CString,
+        verbname: CString,
+        params: &AfbParams,
+        callback: ApiCallback,
+        context: C,
+    ) {
+        let cbhandle = Box::into_raw(Box::new(AfbSubCall {
+            api_cb: Some(callback),
+            rqt_cb: None,
+            context: AfbCtxData::new(context),
+        }));
+
+        unsafe {
+            cglue::afb_api_call(
+                apiv4,
+                apiname.into_raw(),
+                verbname.into_raw(),
+                params.arguments.len() as u32,
+                params.arguments.as_slice().as_ptr(),
+                Some(afb_async_api_callback),
+                cbhandle as *mut std::ffi::c_void,
+            )
+        };
+    }
+}
+
+impl DoSubcallSync<AfbApiV4> for AfbSubCall {
+    #[track_caller]
+    fn subcall_sync(
+        apiv4: AfbApiV4,
+        apiname: CString,
+        verbname: CString,
+        params: &AfbParams,
+    ) -> Result<AfbRqtData, AfbError> {
         let mut status = 0 as i32;
         let mut nreplies = MAX_CALL_ARGS;
         let replies = [0 as cglue::afb_data_t; MAX_CALL_ARGS as usize];
-        let apistr = CString::new(apiname).expect("Invalid apiname");
-        let verbstr = CString::new(verbname).expect("Invalid verbname");
 
         let rc = unsafe {
             cglue::afb_api_call_sync(
-                (*api).get_apiv4(),
-                apistr.into_raw(),
-                verbstr.into_raw(),
+                apiv4,
+                apiname.into_raw(),
+                verbname.into_raw(),
                 params.arguments.len() as u32,
                 params.arguments.as_slice().as_ptr(),
                 &mut status,
@@ -2047,221 +2008,97 @@ impl DoSubcall<&AfbApi, Box<dyn AfbSubcallControl>> for AfbSubCall {
             )
         };
         if rc < 0 || nreplies > MAX_CALL_ARGS || status < 0 {
-            return afb_error!(
+            return Err(AfbError::new(
                 "api-subcall",
-                "api:{} verb:{} rc={} info={}",
-                apiname,
-                verbname,
-                rc,
-                afb_error_info(status)
-            );
-        }
-        let datas = AfbData::new(&replies, nreplies, status);
-        Ok(datas)
-    }
-}
-
-impl DoSubcall<AfbApiV4, Box<dyn AfbSubcallControl>> for AfbSubCall {
-    #[track_caller]
-    fn subcall_async(
-        apiv4: AfbApiV4,
-        apiname: &str,
-        verbname: &str,
-        params: &AfbParams,
-        callback: Box<dyn AfbSubcallControl>,
-    ) {
-        let apistr = CString::new(apiname).expect("Invalid apiname");
-        let verbstr = CString::new(verbname).expect("Invalid verbname");
-
-        // lock callback box into memory until AFB returns from subcall
-        let cbbox = AfbSubCall {
-            api_cb: Some(Box::leak(callback)),
-            verb_cb: None,
-        };
-        let cbbox = Box::new(cbbox);
-
-        unsafe {
-            cglue::afb_api_call(
-                apiv4,
-                apistr.into_raw(),
-                verbstr.into_raw(),
-                params.arguments.len() as u32,
-                params.arguments.as_slice().as_ptr(),
-                Some(afb_async_api_callback),
-                Box::leak(cbbox) as *const _ as *mut std::ffi::c_void,
-            )
-        };
-    }
-    #[track_caller]
-    fn subcall_sync(
-        apiv4: AfbApiV4,
-        apiname: &str,
-        verbname: &str,
-        params: &AfbParams,
-    ) -> Result<AfbData, AfbError> {
-        let mut status = 0 as i32;
-        let mut nreplies = MAX_CALL_ARGS;
-        let replies = [0 as cglue::afb_data_t; MAX_CALL_ARGS as usize];
-        let apistr = CString::new(apiname).expect("Invalid apiname");
-        let verbstr = CString::new(verbname).expect("Invalid verbname");
-
-        let rc = unsafe {
-            cglue::afb_api_call_sync(
-                apiv4,
-                apistr.into_raw(),
-                verbstr.into_raw(),
-                params.arguments.len() as u32,
-                params.arguments.as_slice().as_ptr(),
-                &mut status,
-                &mut nreplies,
-                replies.as_ref() as *const _ as *mut cglue::afb_data_t,
-            )
-        };
-        if rc < 0 || nreplies > MAX_CALL_ARGS || status < 0 {
-            return afb_error!(
-                "api-subcall",
-                "api:{} verb:{} status={} info={}",
-                apiname,
-                verbname,
                 status,
-                afb_error_info(status)
-            );
+                format!("info={}", afb_error_info(status)),
+            ));
         }
-        let datas = AfbData::new(&replies, nreplies, status);
+        let datas = AfbRqtData::new(&replies, nreplies, status);
         Ok(datas)
     }
 }
 
-impl<'a> DoSubcall<&AfbRequest<'a>, Box<dyn AfbRqtControl>> for AfbSubCall {
+impl<'a, C: 'static> DoSubcallAsync<&AfbRequest<'a>, RqtCallback, C> for AfbSubCall {
     #[track_caller]
     fn subcall_async(
         rqt: &AfbRequest,
-        apiname: &str,
-        verbname: &str,
+        apiname: CString,
+        verbname: CString,
         params: &AfbParams,
-        callback: Box<dyn AfbRqtControl>,
+        callback: RqtCallback,
+        context: C,
     ) {
-        let apistr = CString::new(apiname).expect("Invalid apiname");
-        let verbstr = CString::new(verbname).expect("Invalid verbname");
-
-        // lock callback box into memory until AFB returns from subcall
-        let cbbox = AfbSubCall {
-            verb_cb: Some(Box::leak(callback)),
-            api_cb: None,
-        };
-        let cbbox = Box::new(cbbox);
-
-        unsafe {
-            cglue::afb_req_subcall(
-                (*rqt).get_rqtv4(),
-                apistr.into_raw(),
-                verbstr.into_raw(),
-                params.arguments.len() as u32,
-                params.arguments.as_slice().as_ptr(),
-                cglue::afb_req_subcall_flags_afb_req_subcall_catch_events as i32,
-                Some(afb_async_rqt_callback),
-                Box::leak(cbbox) as *const _ as *mut std::ffi::c_void,
-            )
-        };
-    }
-
-    #[track_caller]
-    fn subcall_sync(
-        rqt: &AfbRequest,
-        apiname: &str,
-        verbname: &str,
-        params: &AfbParams,
-    ) -> Result<AfbData, AfbError> {
-        let mut status = 0 as i32;
-        let mut nreplies = MAX_CALL_ARGS;
-        let replies = [0 as cglue::afb_data_t; MAX_CALL_ARGS as usize];
-        let apistr = CString::new(apiname).expect("Invalid apiname");
-        let verbstr = CString::new(verbname).expect("Invalid verbname");
-
-        let rc = unsafe {
-            // err= afb_req_subcall_sync (glue->rqt.afb, apiname, verbname, (int)index, params, afb_req_subcall_catch_events, &status, &nreplies, replies);
-            cglue::afb_req_subcall_sync(
-                (*rqt).get_rqtv4(),
-                apistr.into_raw(),
-                verbstr.into_raw(),
-                params.arguments.len() as u32,
-                params.arguments.as_slice().as_ptr(),
-                (cglue::afb_req_subcall_flags_afb_req_subcall_catch_events
-                    | cglue::afb_req_subcall_flags_afb_req_subcall_api_session)
-                    as i32,
-                &mut status,
-                &mut nreplies,
-                replies.as_ref() as *const _ as *mut cglue::afb_data_t,
-            )
-        };
-        if rc < 0 || status < 0 {
-            return afb_error!(
-                "api-subcall",
-                "api:{} verb:{} status={} info={}",
-                apiname,
-                verbname,
-                status,
-                afb_error_info(status)
-            );
-        }
-        // move const **array in something Rust may understand
-        let datas = AfbData::new(&replies, nreplies, status);
-        Ok(datas)
+        AfbSubCall::subcall_async(
+            (*rqt).get_rqtv4(),
+            apiname,
+            verbname,
+            params,
+            callback,
+            context,
+        )
     }
 }
 
-impl DoSubcall<AfbRqtV4, Box<dyn AfbRqtControl>> for AfbSubCall {
+impl<'a> DoSubcallSync<&AfbRequest<'a>> for AfbSubCall {
+    #[track_caller]
+    fn subcall_sync(
+        rqt: &AfbRequest,
+        apiname: CString,
+        verbname: CString,
+        params: &AfbParams,
+    ) -> Result<AfbRqtData, AfbError> {
+        AfbSubCall::subcall_sync(rqt.get_rqtv4(), apiname, verbname, params)
+    }
+}
+
+impl<C: 'static> DoSubcallAsync<AfbRqtV4, RqtCallback, C> for AfbSubCall {
     #[track_caller]
     fn subcall_async(
         rqtv4: AfbRqtV4,
-        apiname: &str,
-        verbname: &str,
+        apiname: CString,
+        verbname: CString,
         params: &AfbParams,
-        callback: Box<dyn AfbRqtControl>,
+        callback: RqtCallback,
+        context: C,
     ) {
-        let apistr = CString::new(apiname).expect("Invalid apiname");
-        let verbstr = CString::new(verbname).expect("Invalid verbname");
-
-        // lock callback box into memory until AFB returns from subcall
-        let cbbox = AfbSubCall {
-            verb_cb: Some(Box::leak(callback)),
+        let cbhandle = Box::into_raw(Box::new(AfbSubCall {
             api_cb: None,
-        };
-        let cbbox = Box::new(cbbox);
-
+            rqt_cb: Some(callback),
+            context: AfbCtxData::new(context),
+        }));
         unsafe {
             cglue::afb_req_subcall(
                 rqtv4,
-                apistr.into_raw(),
-                verbstr.into_raw(),
+                apiname.into_raw(),
+                verbname.into_raw(),
                 params.arguments.len() as u32,
                 params.arguments.as_slice().as_ptr(),
                 cglue::afb_req_subcall_flags_afb_req_subcall_catch_events as i32,
                 Some(afb_async_rqt_callback),
-                Box::leak(cbbox) as *const _ as *mut std::ffi::c_void,
+                cbhandle as *mut std::ffi::c_void,
             )
         };
     }
-
+}
+impl DoSubcallSync<AfbRqtV4> for AfbSubCall {
     #[track_caller]
     fn subcall_sync(
         rqtv4: AfbRqtV4,
-        apiname: &str,
-        verbname: &str,
+        apiname: CString,
+        verbname: CString,
         params: &AfbParams,
-    ) -> Result<AfbData, AfbError> {
+    ) -> Result<AfbRqtData, AfbError> {
         let mut status = 0 as i32;
         let mut nreplies = MAX_CALL_ARGS;
         let replies = [0 as cglue::afb_data_t; MAX_CALL_ARGS as usize];
-        let apistr = CString::new(apiname).expect("Invalid apiname");
-        let verbstr = CString::new(verbname).expect("Invalid verbname");
 
         let rc = unsafe {
             // err= afb_req_subcall_sync (glue->rqt.afb, apiname, verbname, (int)index, params, afb_req_subcall_catch_events, &status, &nreplies, replies);
             cglue::afb_req_subcall_sync(
                 rqtv4,
-                apistr.into_raw(),
-                verbstr.into_raw(),
+                apiname.into_raw(),
+                verbname.into_raw(),
                 params.arguments.len() as u32,
                 params.arguments.as_slice().as_ptr(),
                 cglue::afb_req_subcall_flags_afb_req_subcall_catch_events as i32,
@@ -2271,70 +2108,77 @@ impl DoSubcall<AfbRqtV4, Box<dyn AfbRqtControl>> for AfbSubCall {
             )
         };
         if rc < 0 || status < 0 {
-            return afb_error!(
+            return Err(AfbError::new(
                 "api-subcall",
-                "api:{} verb:{} status={} info={}",
-                apiname,
-                verbname,
                 status,
-                afb_error_info(status)
-            );
+                format!("info={}", afb_error_info(status)),
+            ));
         }
         // move const **array in something Rust may understand
-        let datas = AfbData::new(&replies, nreplies, status);
+        let datas = AfbRqtData::new(&replies, nreplies, status);
         Ok(datas)
     }
+}
+
+pub struct AfbSubCall {
+    context: AfbCtxData,
+    api_cb: Option<ApiCallback>,
+    rqt_cb: Option<RqtCallback>,
 }
 
 impl AfbSubCall {
     #[track_caller]
-    pub fn call_sync<H, T, C>(
+    pub fn call_sync<H, T>(
         handle: H,
         apiname: &str,
         verbname: &str,
         args: T,
-    ) -> Result<AfbData, AfbError>
+    ) -> Result<AfbRqtData, AfbError>
     where
         AfbParams: ConvertResponse<T>,
-        AfbSubCall: DoSubcall<H, C>,
+        AfbSubCall: DoSubcallSync<H>,
     {
         let response = AfbParams::convert(args);
-        let mut params = match response {
+        let params = match response {
             Err(error) => {
                 return Err(error);
             }
             Ok(data) => data,
         };
-        AfbSubCall::subcall_sync(handle, apiname, verbname, &mut params)
+
+        let apistr = CString::new(apiname).expect("Invalid apiname");
+        let verbstr = CString::new(verbname).expect("Invalid verbname");
+        AfbSubCall::subcall_sync(handle, apistr, verbstr, &params)
     }
 
     #[track_caller]
-    pub fn call_async<H, T, C>(
+    pub fn call_async<H, T, K, C>(
         handle: H,
         apiname: &str,
         verbname: &str,
         args: T,
-        cbhandle: C,
+        callback: K,
+        context: C,
     ) -> Result<(), AfbError>
     where
         AfbParams: ConvertResponse<T>,
-        AfbSubCall: DoSubcall<H, C>,
+        AfbSubCall: DoSubcallAsync<H, K, C>,
     {
         let response = AfbParams::convert(args);
-        let mut params = match response {
+        let params = match response {
             Err(error) => {
                 return Err(error);
             }
             Ok(data) => data,
         };
 
-        // store cbhandle trait as a leaked box
+        let apistr = CString::new(apiname).expect("Invalid apiname");
+        let verbstr = CString::new(verbname).expect("Invalid verbname");
+
+        //let handle = 0 as *mut cglue::afb_api_x4;
+
         Ok(AfbSubCall::subcall_async(
-            handle,
-            apiname,
-            verbname,
-            &mut params,
-            cbhandle,
+            handle, apistr, verbstr, &params, callback, context,
         ))
     }
 }

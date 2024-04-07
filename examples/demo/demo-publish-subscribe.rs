@@ -22,12 +22,12 @@ enum Action {
 
 /// Contain data handle to simulate a sensor. Note that count is protected with a Cell in order to be
 /// Seen as mutable from both timer and verb callback context.
-struct UserCtxData {
+struct UserData {
     event: &'static AfbEvent,
     counter: Cell<u32>,
 }
 
-impl UserCtxData {
+impl UserData {
     fn incr_counter(&self) -> u32 {
         self.counter.set(self.counter.get() + 1);
         self.counter.get()
@@ -44,17 +44,13 @@ impl UserCtxData {
 }
 
 /// verb data hold timer data context reference protected with a reference count.
-struct UserVcbData {
-    ctx: Arc<UserCtxData>,
+struct UserContext {
+    _debug: &'static str,
+    ctx: Arc<UserData>,
 }
 
-AfbVerbRegister!(PubSubCtrl, sensor_cb, UserVcbData);
-fn sensor_cb(
-    request: &AfbRequest,
-    args: &AfbData,
-    userdata: &mut UserVcbData,
-) -> Result<(), AfbError> {
-    let ctx = userdata.ctx.clone();
+fn sensor_cb(request: &AfbRequest, args: &AfbRqtData, ctx: &AfbCtxData) -> Result<(), AfbError> {
+    let ctx = ctx.get::<UserContext>()?.ctx.clone();
 
     let action = match args.get::<JsoncObj>(0) {
         Err(error) => {
@@ -69,13 +65,7 @@ fn sensor_cb(
                 "UNSUBSCRIBE" => Action::UNSUBSCRIBE,
                 "READ" => Action::READ,
                 "RESET" => Action::RESET,
-                _ => {
-                    let error= AfbError::new(
-                        "invalid-action",
-                        "expect: SUBSCRIBE|UNSUBSCRIBE|READ|RESET"
-                    );
-                    return Err(afb_add_trace!(error))
-                }
+                _ => return afb_error!("invalid-action", "expect: SUBSCRIBE|UNSUBSCRIBE|READ|RESET")
             },
         },
     };
@@ -103,16 +93,11 @@ fn sensor_cb(
     Ok(())
 }
 
-struct UserTimerData {
-    ctx: Arc<UserCtxData>,
-}
+fn timer_callback(_timer: &AfbTimer, _decount: u32, ctx: &AfbCtxData) -> Result<(), AfbError> {
+    let context = ctx.get::<UserContext>()?;
 
-AfbTimerRegister!(TimerCtrl, timer_callback, UserTimerData);
-fn timer_callback(_timer: &AfbTimer, _decount: u32, userdata: &mut UserTimerData) -> Result<(), AfbError>{
-    let ctx = userdata.ctx.clone();
-
-    let count = ctx.incr_counter();
-    let _listener = ctx.event.push(count);
+    let count = context.ctx.incr_counter();
+    let _listener = context.ctx.event.push(count);
     Ok(())
 }
 
@@ -122,28 +107,28 @@ pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
     afb_log_msg!(Notice, apiv4, "Registering verb={}", mod_name);
 
     let event = AfbEvent::new("pub-sub-event");
-    let ctxdata = Arc::new(UserCtxData {
+    let ctxdata = Arc::new(UserData {
         counter: Cell::new(0),
         event: event,
     });
 
-    // create an infinite timer that increment a counter and push an event
-    let timerdata = UserTimerData {
-        ctx: Arc::clone(&ctxdata),
-    };
-
     AfbTimer::new("sensor_simulator")
         .set_period(1000)
-        .set_callback(Box::new(timerdata))
+        .set_callback(timer_callback)
+        .set_context(UserContext {
+            _debug: "simulator",
+            ctx: Arc::clone(&ctxdata),
+        })
         //.set_decount(9999)
         .start()?;
 
-    let vcbdata = UserVcbData {
-        ctx: Arc::clone(&ctxdata),
-    };
-    let verb = AfbVerb::new("pub/sub");
-    verb.set_name("pub-sub")
-        .set_callback(Box::new(vcbdata))
+    let verb = AfbVerb::new("pub/sub")
+        .set_name("pub-sub")
+        .set_callback(sensor_cb)
+        .set_context(UserContext {
+            _debug: "pub/sub",
+            ctx: Arc::clone(&ctxdata),
+        })
         .set_action("['reset','read','subscribe','unsubscribe']")
         .expect("valid json array")
         .set_info("simulate publish/subscribe sensor model")

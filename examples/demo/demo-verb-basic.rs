@@ -9,10 +9,16 @@
 // import libafb dependencies
 use afbv4::prelude::*;
 
-// AfbApi AfbVerb without vcbdata
-AfbVerbRegister!(VerbCtrl, callback);
-fn callback(request: &AfbRequest, args: &AfbData) -> Result<(), AfbError> {
+struct MyCtxCb {
+    _text: &'static str,
+    count: u32,
+}
+
+fn verb_cb (request: &AfbRequest, args: &AfbRqtData, ctx: &AfbCtxData) -> Result<(), AfbError> {
+    let context = ctx.get::<MyCtxCb>()?;
     let jquery = args.get::<JsoncObj>(0)?;
+
+    context.count += 1;
 
     // rebuilt a new json object with upcase value of initial one
     let data = jquery.to_string().to_uppercase();
@@ -38,7 +44,8 @@ pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbVerb, AfbError> {
     afb_log_msg!(Notice, apiv4, "Registering verb={}", mod_name);
 
     let verb = AfbVerb::new(mod_name)
-        .set_callback(Box::new(VerbCtrl {}))
+        .set_callback (verb_cb)
+        .set_context( MyCtxCb{_text: "toto", count:0})
         .set_info("My 1st demo verb")
         .set_usage("any json string")
         .set_sample("{'skipail': 'IoT.bzh', 'location':'Lorient'}")?

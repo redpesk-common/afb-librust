@@ -24,8 +24,8 @@ struct ASyncCallData {
 }
 
 // async response is s standard (AfbVerbRegister!) API/verb callback
-AfbCallRegister!(AsyncResponseCtrl, async_response_cb, ASyncCallData);
-fn async_response_cb(api: &AfbApi, params: &AfbData, ctx: &mut ASyncCallData) -> Result <(), AfbError> {
+fn async_response_cb(api: &AfbApi, params: &AfbRqtData, ctx: &AfbCtxData) -> Result <(), AfbError> {
+    let ctx= ctx.get::<ASyncCallData>()?;
     ctx.my_counter += 1;
 
     // we expect 1st argument to be json compatible
@@ -61,7 +61,7 @@ impl AfbApiControls for TapUserData {
         afb_log_msg!(Notice, api, "starting TAP testing");
 
         // testing subcall async
-        AfbSubCall::call_async(api, "rust-api", "ping", AFB_NO_DATA, Box::new(ASyncCallData{my_counter:0}))?;
+        AfbSubCall::call_async(api, "rust-api", "ping", AFB_NO_DATA,async_response_cb, ASyncCallData{my_counter:0})?;
 
         // ------ Simple verb -----------
         let test0 = AfbTapTest::new("builtin-info", "rust-api", "info")
@@ -72,7 +72,7 @@ impl AfbApiControls for TapUserData {
             .set_info("My simple ping test")
             .finalize()?;
 
-        let test2 = AfbTapTest::new("jsonc-arg", "rust-api", "verb_basic")
+        let test2 = AfbTapTest::new("jsonc-basic", "rust-api", "verb_basic")
             .set_info("Check json input param")
             .add_arg(&JsonStr(
                 "{'skipail':'IoT.bzh','location':'Lorient','lander':'Brittany'}",
@@ -88,7 +88,7 @@ impl AfbApiControls for TapUserData {
             .add_expect(&JsonStr("{'LANDER':'BRITTANY'}"))
             .finalize()?;
 
-        let test4 = AfbTapTest::new("jsonc-arg", "rust-api", "verb_typed")
+        let test4 = AfbTapTest::new("jsonc-typed", "rust-api", "verb_typed")
             .set_info("Check invalid typed input")
             .add_arg(&JsonStr("{'x':1,'y':123,'name':'Skipail IoT.bzh'}"))?
             .finalize()?;
@@ -124,12 +124,12 @@ impl AfbApiControls for TapUserData {
             .add_expect(0)
             .finalize()?;
 
-        let rqt5 = AfbTapTest::new("session-check3", "rust-api", "session_group/read")
+        let rqt5 = AfbTapTest::new("session-check5", "rust-api", "session_group/read")
             .set_info("Read new session")
             .add_expect(1)
             .finalize()?;
 
-        let rqt6 = AfbTapTest::new("session-check3", "rust-api", "session_group/drop")
+        let rqt6 = AfbTapTest::new("session-check6", "rust-api", "session_group/drop")
             .set_info("Drop current session")
             .set_onsuccess("check-loa")
             .finalize()?;
@@ -172,10 +172,6 @@ impl AfbApiControls for TapUserData {
             .set_status(-62) // timeout
             .finalize()?;
 
-        let timerx = AfbTapTest::new("builtin-ping", "rust-api", "ping")
-            .set_info("My simple ping test")
-            .finalize()?;
-
         let timer2 = AfbTapTest::new("response-3s", "rust-api", "timer_group/job-post")
             .set_info("Check should provide a response in 3s")
             .set_onsuccess("check-event")
@@ -184,7 +180,6 @@ impl AfbApiControls for TapUserData {
         let timer_group = AfbTapGroup::new("check-timer")
             .set_info("Check delay and timer")
             .add_test(timer1)
-            .add_test(timerx)
             .add_test(timer2)
             .finalize()?;
 
@@ -204,7 +199,7 @@ impl AfbApiControls for TapUserData {
         let event4 = AfbTapTest::new("event-push-no-listener", "rust-api", "event_group/push")
             .set_info("push should not have any subscriber/session")
             .add_arg("{'info': 'some data event'}")?
-            .set_status(0) // no more session
+            .set_status(-100) // no more session
             .finalize()?;
 
         let event_group = AfbTapGroup::new("check-event")

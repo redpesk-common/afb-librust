@@ -10,8 +10,7 @@
 use afbv4::prelude::*;
 
 // note: in production a unique API/verb should do both timer creation and event subscription
-AfbVerbRegister!(HelloStopCtrl, hello_stop_cb);
-fn hello_stop_cb(request: &AfbRequest, _args: &AfbData)  -> Result <(), AfbError> {
+fn hello_stop_cb(request: &AfbRequest, _args: &AfbRqtData, _ctx: &AfbCtxData)  -> Result <(), AfbError> {
     match AfbSubCall::call_sync(request, "helloworld-event", "unsubscribe", AFB_NO_DATA) {
         Err(error) => {
             afb_log_msg!(Error, request, &error);
@@ -23,16 +22,14 @@ fn hello_stop_cb(request: &AfbRequest, _args: &AfbData)  -> Result <(), AfbError
 }
 
 // async subcall response behaves as any other API/verb callback
-AfbVerbRegister!(HelloResponseCtrl, hello_response_cb);
-fn hello_response_cb(request: &AfbRequest, _params: &AfbData)  -> Result <(), AfbError> {
+fn hello_response_cb(request: &AfbRequest, _params: &AfbRqtData, _ctx: &AfbCtxData)  -> Result <(), AfbError> {
     request.reply("subscribe helloworld done (check log in afb-binder console)", 0);
     Ok(())
 }
 
 // Start helloworld timer in synchronous mode and for the fun subscribe to event in asynchronous mode
 // note: in production a unique API/verb should do both timer creation and event subscription
-AfbVerbRegister!(HelloStartCtrl, hello_start_cb);
-fn hello_start_cb(request: &AfbRequest, _args: &AfbData)  -> Result <(), AfbError> {
+fn hello_start_cb(request: &AfbRequest, _args: &AfbRqtData, _ctx: &AfbCtxData)  -> Result <(), AfbError> {
     AfbSubCall::call_sync(request, "helloworld-event", "startTimer", AFB_NO_DATA)?;
 
     AfbSubCall::call_async(
@@ -40,7 +37,8 @@ fn hello_start_cb(request: &AfbRequest, _args: &AfbData)  -> Result <(), AfbErro
         "helloworld-event",
         "subscribe",
         AFB_NO_DATA,
-        Box::new(HelloResponseCtrl {}),
+        hello_response_cb,
+        AFB_NO_DATA,
     )?;
     Ok(())
 }
@@ -52,13 +50,13 @@ pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
     afb_log_msg!(Notice, apiv4, "Registering group={}", mod_name);
 
     let start_hello = AfbVerb::new("hello-start")
-        .set_callback(Box::new(HelloStartCtrl {}))
+        .set_callback(hello_start_cb)
         .set_info("connect to helloworld &api start-timer and subscribe to event")
         .set_usage("no input")
         .finalize()?;
 
     let stop_hello = AfbVerb::new("hello-stop")
-        .set_callback(Box::new(HelloStopCtrl {}))
+        .set_callback(hello_stop_cb)
         .set_info("asynchronous call to api-test/ping")
         .set_usage("no input")
         .finalize()?;

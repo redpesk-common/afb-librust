@@ -19,22 +19,19 @@ fn session_drop_cb(session: &mut SessionUserData) {
     println!("*** session closing count={} ***", session.count);
 }
 
-AfbVerbRegister!(CreateCtrl, create_callback);
-fn create_callback(request: &AfbRequest, _args: &AfbData)  -> Result <(), AfbError>  {
+fn create_callback(request: &AfbRequest, _args: &AfbRqtData, _ctx: &AfbCtxData)  -> Result <(), AfbError>  {
     let session= SessionUserData::set(request, SessionUserData{count:0})?;
     request.reply(session.count, 0);
     Ok(())
 }
 
-AfbVerbRegister!(DropCtrl, drop_callback);
-fn drop_callback(request: &AfbRequest, _args: &AfbData)  -> Result <(), AfbError> {
+fn drop_callback(request: &AfbRequest, _args: &AfbRqtData, _ctx: &AfbCtxData)  -> Result <(), AfbError> {
     SessionUserData::unref(request)?;
     request.reply(AFB_NO_DATA, 0);
     Ok(())
 }
 
-AfbVerbRegister!(GetCtrl, get_callback);
-fn get_callback(request: &AfbRequest, _args: &AfbData)  -> Result <(), AfbError> {
+fn get_callback(request: &AfbRequest, _args: &AfbRqtData, _ctx: &AfbCtxData)  -> Result <(), AfbError> {
     let session = SessionUserData::get(request)?;
     session.count += 1;
     request.reply(session.count, 0);
@@ -49,7 +46,7 @@ pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
 
     let drop = AfbVerb::new("drop")
         .set_info("drop session context")
-        .set_callback(Box::new(DropCtrl{}))
+        .set_callback(drop_callback)
         .set_usage("no input")
         .finalize()?;
 
@@ -57,13 +54,13 @@ pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
         .set_name("reset")
         .set_info("create a new session context")
         .set_usage("no input")
-        .set_callback(Box::new(CreateCtrl))
+        .set_callback(create_callback)
         .finalize()?;
 
     let read = AfbVerb::new("read")
         .set_info("read session context")
         .set_usage("no input")
-        .set_callback(Box::new(GetCtrl))
+        .set_callback(get_callback)
         .finalize()?;
 
     let group = AfbGroup::new(mod_name)

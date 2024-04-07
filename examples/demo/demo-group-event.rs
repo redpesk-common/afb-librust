@@ -28,6 +28,10 @@ struct UserCtxData {
     counter: Cell<u32>,
 }
 
+struct EvtUserData {
+    ctx: Arc<UserCtxData>,
+}
+
 /// each verb share a common data type nevertheless as each verb get its own implementation
 /// it is necessary to add an extra share structure with Rc/Arc to effectively share event/counter
 
@@ -45,22 +49,18 @@ struct SessionUserData {
     count: u32,
 }
 
-struct SubscribeData {
-    ctx: Arc<UserCtxData>,
-}
-AfbVerbRegister!(SubscribeCtrl, subscribe_callback, SubscribeData);
-fn subscribe_callback(request: &AfbRequest, _args: &AfbData, userdata: &mut SubscribeData)  -> Result <(), AfbError> {
+
+fn subscribe_callback(request: &AfbRequest, _args: &AfbRqtData, ctx: &AfbCtxData)  -> Result <(), AfbError> {
+    let userdata = ctx.get::<EvtUserData>()?;
+
     let _session= SessionUserData::set(request, SessionUserData{count:0})?;
     userdata.ctx.event.subscribe(request) ?;
     request.reply(AFB_NO_DATA, 0);
     Ok(())
 }
 
-struct UnsubscribeData {
-    ctx: Arc<UserCtxData>,
-}
-AfbVerbRegister!(UnsubscribeCtrl, unsubscribe_callback, UnsubscribeData);
-fn unsubscribe_callback(request: &AfbRequest, _args: &AfbData, userdata: &mut UnsubscribeData)  -> Result <(), AfbError> {
+fn unsubscribe_callback(request: &AfbRequest, _args: &AfbRqtData, ctx: &AfbCtxData)  -> Result <(), AfbError> {
+    let userdata = ctx.get::<EvtUserData>()?;
     SessionUserData::unref(request) ?;
 
     userdata.ctx.event.unsubscribe(request)?;
@@ -68,11 +68,8 @@ fn unsubscribe_callback(request: &AfbRequest, _args: &AfbData, userdata: &mut Un
     Ok(())
 }
 
-struct PushData {
-    ctx: Arc<UserCtxData>,
-}
-AfbVerbRegister!(PushCtrl, push_callback, PushData);
-fn push_callback(request: &AfbRequest, _args: &AfbData, userdata: &mut PushData)  -> Result <(), AfbError> {
+fn push_callback(request: &AfbRequest, _args: &AfbRqtData, ctx: &AfbCtxData)  -> Result <(), AfbError> {
+    let userdata = ctx.get::<EvtUserData>()?;
     let session = SessionUserData::get(request)?;
     session.count += 1;
 
@@ -84,11 +81,9 @@ fn push_callback(request: &AfbRequest, _args: &AfbData, userdata: &mut PushData)
     Ok(())
 }
 
-struct EvtUserData {
-    ctx: Arc<UserCtxData>,
-}
-AfbEventRegister!(EventGetCtrl, event_get_callback, EvtUserData);
-fn event_get_callback(event: &AfbEventMsg, args: &AfbData, userdata: &mut EvtUserData) -> Result<(),AfbError> {
+fn event_get_callback(event: &AfbEventMsg, args: &AfbRqtData, ctx: &AfbCtxData) -> Result<(),AfbError> {
+    let userdata = ctx.get::<EvtUserData>()?;
+
     // check request introspection
     let evt_uid = event.get_uid();
     let evt_name = event.get_name();
@@ -125,31 +120,35 @@ pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
     let simple_event_handler = AfbEvtHandler::new("handler-1")
         .set_info("My first event handler")
         .set_pattern("helloworld-event/timerCount")
-        .set_callback(Box::new(EventGetCtrl {
+        .set_callback(event_get_callback)
+        .set_context(EvtUserData {
             ctx: Arc::clone(&ctxdata),
-        }))
+        })
         .finalize()?;
 
     let unsubscribe = AfbVerb::new("unsubscribe")
-        .set_callback(Box::new(UnsubscribeCtrl {
+        .set_callback(unsubscribe_callback)
+        .set_context(EvtUserData {
             ctx: Arc::clone(&ctxdata),
-        }))
+        })
         .set_info("unsubscribe to event")
         .set_usage("no input")
         .finalize()?;
 
     let subscribe = AfbVerb::new("subscribe")
-        .set_callback(Box::new(SubscribeCtrl {
+        .set_callback(subscribe_callback)
+        .set_context(EvtUserData {
             ctx: Arc::clone(&ctxdata),
-        }))
+        })
         .set_info("unsubscribe to event")
         .set_usage("no input")
         .finalize()?;
 
     let push = AfbVerb::new("push")
-        .set_callback(Box::new(PushCtrl {
+        .set_callback(push_callback)
+        .set_context(EvtUserData {
             ctx: Arc::clone(&ctxdata),
-        }))
+        })
         .set_info("push query as event output")
         .set_usage("any json data")
         .set_sample("{'skipail':'IoT.bzh'}")?

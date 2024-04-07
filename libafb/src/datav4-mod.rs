@@ -24,7 +24,9 @@
 use crate::prelude::*;
 
 use std::any::Any;
+use std::any::TypeId;
 use std::boxed::Box;
+
 use std::ffi::{c_void, CStr, CString};
 
 // alias few external types
@@ -107,7 +109,7 @@ macro_rules! AfbDataConverter {
             }
         }
 
-        impl ConvertQuery<&'static $datat> for afbv4::datav4::AfbData {
+        impl ConvertQuery<&'static $datat> for afbv4::datav4::AfbRqtData {
             #[track_caller]
             fn import(&self, index: usize) -> Result<&'static $datat, afbv4::utilv4::AfbError> {
                 let typev4 = match unsafe { &$uid::CONVERTER_BOX } {
@@ -178,7 +180,48 @@ macro_rules! AfbDataConverter {
         }
     };
 }
-// make macro visible at module level
+
+pub struct AfbCtxData {
+    raw: *mut std::ffi::c_void,
+    typeid: TypeId,
+}
+
+impl AfbCtxData {
+    pub fn new<T>(ctx: T) -> Self
+    where
+        T: 'static,
+    {
+        let typeid = TypeId::of::<T>();
+        Self {
+            raw: Box::into_raw(Box::new(ctx)) as *mut std::ffi::c_void,
+            typeid,
+        }
+    }
+
+    pub fn get<T>(&self) -> Result<&mut T, AfbError>
+    where
+        T: 'static,
+    {
+        if self.typeid != TypeId::of::<T>() {
+            return afb_error!(
+                "schedjob_cb",
+                "job:(post|callback) incompatible context types",
+            );
+        }
+        let value: &mut T = unsafe { &mut *(self.raw as *mut T )};
+        Ok(value)
+    }
+    pub fn get_type(&self) -> String {
+        format!("{:?}", self.typeid)
+    }
+
+}
+
+impl Drop for AfbCtxData {
+    fn drop(&mut self) {
+       let _ = unsafe {Box::from_raw(self.raw)};
+    }
+}
 
 impl AfbBuiltinType {
     #[track_caller]
@@ -491,7 +534,7 @@ pub fn get_type(uid: &'static str) -> Result<&mut AfbConverter, AfbError> {
 
 macro_rules! _register_query_converter {
     ($rust_type:ty, $afb_builtin_type:ident) => {
-        impl ConvertQuery<$rust_type> for AfbData {
+        impl ConvertQuery<$rust_type> for AfbRqtData {
             #[track_caller]
             fn import(&self, index: usize) -> Result<$rust_type, AfbError> {
                 let converter = unsafe { (*cglue::afbBindingV4r1_itfptr).$afb_builtin_type };
@@ -528,7 +571,7 @@ _register_query_converter!(u32, type_u32);
 _register_query_converter!(bool, type_bool);
 _register_query_converter!(f64, type_double);
 
-impl ConvertQuery<String> for AfbData {
+impl ConvertQuery<String> for AfbRqtData {
     fn import(&self, index: usize) -> Result<String, AfbError> {
         let uid = "builtin-string";
         let converter = unsafe { (*cglue::afbBindingV4r1_itfptr).type_stringz };
@@ -543,7 +586,7 @@ impl ConvertQuery<String> for AfbData {
     }
 }
 
-impl ConvertQuery<JsoncObj> for AfbData {
+impl ConvertQuery<JsoncObj> for AfbRqtData {
     fn import(&self, index: usize) -> Result<JsoncObj, AfbError> {
         // retrieve builtin converter from libafb
         let uid = "builtin-JsoncObj";
@@ -557,16 +600,16 @@ impl ConvertQuery<JsoncObj> for AfbData {
     }
 }
 
-pub struct AfbData {
+pub struct AfbRqtData {
     count: u32,
     status: i32,
     argsv4: Vec<AfbDataV4>,
 }
 
-impl AfbData {
+impl AfbRqtData {
     #[track_caller]
     pub fn new(args: &[AfbDataV4], argc: u32, status: i32) -> Self {
-        AfbData {
+        AfbRqtData {
             count: argc,
             status: status,
             argsv4: args.to_owned(),
@@ -592,11 +635,11 @@ impl AfbData {
     #[track_caller]
     pub fn get<T>(&self, index: usize) -> Result<T, AfbError>
     where
-        AfbData: ConvertQuery<T>,
+        AfbRqtData: ConvertQuery<T>,
     {
         match self.check(index as i32) {
             Err(max) => afb_error!(
-                "AfbData.get",
+                "AfbRqtData.get",
                 "invalid argument index ask:{} max:{}",
                 index + 1,
                 max
@@ -609,11 +652,11 @@ impl AfbData {
     #[track_caller]
     pub fn get_on_status<T>(&self, index: usize) -> Result<T, AfbError>
     where
-        AfbData: ConvertQuery<T>,
+        AfbRqtData: ConvertQuery<T>,
     {
         if self.status < 0 {
             afb_error!(
-                "AfbData.status",
+                "AfbRqtData.status",
                 "value:{} info:{}",
                 self.status,
                 afb_error_info(self.status)
@@ -627,11 +670,11 @@ impl AfbData {
     #[track_caller]
     pub fn get_onsuccess<T>(&self, index: usize) -> Result<T, AfbError>
     where
-        AfbData: ConvertQuery<T>,
+        AfbRqtData: ConvertQuery<T>,
     {
         if self.status < 0 {
             afb_error!(
-                "AfbData.status",
+                "AfbRqtData.status",
                 "value:{} info:{}",
                 self.status,
                 afb_error_info(self.status)
@@ -865,10 +908,10 @@ impl ConvertResponse<AfbParams> for AfbParams {
     }
 }
 
-// proxy converter when AfbData is push reply
-impl ConvertResponse<AfbData> for AfbParams {
+// proxy converter when AfbRqtData is push reply
+impl ConvertResponse<AfbRqtData> for AfbParams {
     #[track_caller]
-    fn export(data: AfbData) -> AfbExportResponse {
+    fn export(data: AfbRqtData) -> AfbExportResponse {
         let mut param = AfbParams::new();
         for idx in 0..data.count {
             let datav4 = data.argsv4[idx as usize];
@@ -913,16 +956,16 @@ impl AfbParams {
     }
 
     #[track_caller]
-    pub fn addref (&self) {
+    pub fn addref(&self) {
         for data in &self.arguments {
-            unsafe {cglue::afb_data_addref(*data)};
+            unsafe { cglue::afb_data_addref(*data) };
         }
     }
 
     #[track_caller]
-    pub fn unref (&self) {
+    pub fn unref(&self) {
         for data in &self.arguments {
-            unsafe {cglue::afb_data_unref(*data)};
+            unsafe { cglue::afb_data_unref(*data) };
         }
     }
 

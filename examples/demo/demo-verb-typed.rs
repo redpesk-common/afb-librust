@@ -13,8 +13,7 @@ use afbv4::prelude::*;
 extern crate demo_converter;
 use self::demo_converter::MySimpleData;
 
-AfbVerbRegister!(VerbCtrl, callback);
-fn callback(request: &AfbRequest, args: &AfbData) ->Result <(), AfbError>{
+fn typed_callback(request: &AfbRequest, args: &AfbRqtData, _ctx: &AfbCtxData) ->Result <(), AfbError>{
     // check arg0 match MySimpleData grammar
     let input = args.get::<&MySimpleData>(0)?;
 
@@ -50,7 +49,7 @@ pub fn register(rootv4: AfbApiV4) -> Result<&'static AfbVerb, AfbError> {
     afb_log_msg!(Notice, rootv4, "Registering verb={}", mod_name);
 
     let group= AfbVerb::new(mod_name)
-        .set_callback(Box::new(VerbCtrl {}))
+        .set_callback(typed_callback)
         .set_info("My 2nd demo verb")
         .set_usage("any json string")
         .set_sample("{'x': 1, 'y':99, 'name':'IoT.bzh'}")?

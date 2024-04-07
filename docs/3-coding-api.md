@@ -6,11 +6,10 @@ At first your file should start with code:
 
 ```rust
 // import libafb dependencies
-extern crate jsonc;
 extern crate afbv4;
 
 // import libafb dependencies
-use libafb::prelude::*;
+use afbv4::prelude::*;
 ```
 
 This code will allow you to use rust binding code in your program.
@@ -104,16 +103,17 @@ impl AfbApiControls for ApiUserData {
 
 Except in special case as test, all API exposed some user-defined verbs. While lib-afb framework only support a flat hierarchy of api/verb, afb-librust permits to group verb when they share a common prefix or access control privilege/loa.
 
-* Verb optionally carry a static private userdata call vcbdata. When defined verb callback receive an extra userdata parameter.
+* Verb optionally carry a static private userdata call context. When defined verb callback receive an extra userdata parameter.
 * Verb systematically receive a request, this request is used as a global libafb handle within the callback
 * Verb optionally receive parameters. Those parameters are typed with builtin libafb/types (i.e. int,jsonc,string,...) or respond
-      to a custom user defined type as ```MySimpleData``` in following sample. Note that custom encoding/decoding function are
+      to a custom user defined type as ```MySimpleType``` in following sample. Note that custom encoding/decoding function are
       implemented automatically.
 
 To create a verb developer should:
 
-* link verb callback and userdata ```AfbVerbRegister!(handle, callback, [vcbdata])```
-* implement api logic ```callback(request, params, [vcbdata])```
+* link verb callback ```.set_callback(my_callback)```
+* optionally link verb with userdata ```.set_context (myStruct {init values})```
+* implement api logic ```callback(request, params, vcbdata)```
 * create verb object with ```AfbVerb::new("verb-uid")```
 * optionally register custom user-defined data type ```AfbDataConverter!() + simple_data::register()```
 * finally add the verb to the API or to a group with ```api.ad_verb(handle{})```
@@ -122,31 +122,32 @@ To create a verb developer should:
 
 ```rust
 // extract from examples/demo/demo-verb*.rs
-AfbDataConverter!(simple_data, MySimpleData);
+AfbDataConverter!(simple_data, MySimpleType);
 use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug, Default)]
-pub struct MySimpleData {
+pub struct MySimpleType {
     pub name: String,
     pub x: i32,
     pub y: i32,
 }
 
-AfbVerbRegister!(VerbCtrl, callback);
-fn callback(request: &AfbRequest, args: &mut AfbData) {
-    // check arg0 match MySimpleData grammar
-    let arg0 = args.get::<&'static MySimpleData>(0);
-    let input = match arg0 {
-        Err(error) => {
-            afb_log_msg!(Error, request, "invalid args[0] error={}", error);
-            request.reply(afb_add_trace!(error), 405);
-            return;
-        }
-        Ok(data) => data,
-    };
+struct MySimpleContext {
+    x: i32,
+    ....
+}
+
+fn simple_callback(request: &AfbRequest, args: &mut AfbRqtData, ctx: AfbCtxData) -> Result<(),AfbError> {
+    // check arg0 match MySimpleType grammar
+    let arg0 = args.get::<&MySimpleType>(0)?;
+
+    // get use context data
+    let usrdata= ctx.get::<MySimpleContext>()?;
+    let usrdata.x += 1;
+
     // we have a valid simple input data
     afb_log_msg!(Notice, request, "got simple-data={:?}", input);
     // create a sample simple-data object as response
-    let output = MySimpleData {
+    let output = MySimpleType {
         name: input.name.to_uppercase(),
         x: input.x + 1,
         y: input.y - 1,
@@ -162,6 +163,7 @@ fn callback(request: &AfbRequest, args: &mut AfbData) {
     if let Err(error) = reply() {
         request.reply(afb_add_trace!(error), 405);
     }
+    Ok(())
 }
 
 // register user custom defined data type within libafb framework
@@ -174,8 +176,8 @@ match simple_data::register() {
 };
 
 // register verb handle within API
-AfbVerb::new("my-verb")
-        .set_callback(Box::new(VerbCtrl {}))
+AfbVerb::new("my-simple-verb")
+        .set_callback(simple_callback)
         .set_info("My custom type demo verb")
         .set_usage("any json string")
         .set_sample("{'lander': 'Brittany', 'location':'Europe'}")
@@ -191,25 +193,20 @@ Explicit response to a request is done with ```request.reply(data, status)```. W
 
 ```rust
 // async response callback uses standard (AfbVerbRegister!) callback
-AfbVerbRegister!(AsyncResponseCtrl, async_response_cb);
-fn async_response_cb(request: &AfbRequest, params: &mut AfbData) {
-    let jquery = match params.get::<JsoncObj>(0) {
-        Ok(argument) => {afb_log_msg!(Info,request,"async_response received params={}",argument);}
-        Err(error) => {
-            afb_log_msg!(Error, request, "async_response error={}", error);
-            request.reply(afb_add_trace!(error), -1);
-            return;
-        }
-    };
+fn async_response_cb(request: &AfbRequest, params: &mut AfbRqtData, ctx: AfbCtxData) -> Result<(),AfbError> {
+    let jquery = match params.get::<JsoncObj>(0) ?;
+    let usrdata= ctx.get::<MyCtxType>()?;
+
     // do something
     request.reply("async callback done", 0);
+    Ok(())
 }
 
 // Depending on execution context, handle is either a request or an api.
 // ----------------------------------------------------------------------
 
 // asynchronous subcall
-match AfbSubCall::call_async(handle,"api-test","ping",AFB_NO_DATA, Box::new(AsyncResponseCtrl{})) {
+match AfbSubCall::call_async(handle,"api-test","ping",AFB_NO_DATA, async_response_cb, MyCtxType{}) {
     Err(error) => {
         afb_log_msg!(Error, &handle, &error);
         handle.reply(afb_add_trace!(error), -1)
@@ -243,34 +240,27 @@ Receiving events is very similar to a standard api/verb request callback. Receiv
 * no permission or authentication is possible
 * no session is defined
 * request handle is replace with an event handle
-* event callback uses ```AfbEventRegister!```
+* event callback uses ```.set_callback()``` optionally ```.set_context()```
 * you subscribe to an event pattern in place of an api/verb
 * input arguments and userdata are the same as for api/verb
 * event should be register in the API either directly or thought a group
 
 ```rust
 // event callback is similar to verb callback expect for AfbEventRegister!
-AfbEventRegister!(EventGetCtrl, event_get_callback, EvtUserData);
-fn event_get_callback(event: &AfbEventMsg, args: &mut AfbData, userdata: &mut EvtUserData) {
+fn event_get_callback(event: &AfbEventMsg, args: &mut AfbRqtData, ctx: &AfbCtxData) -> Result<(),AfbError> {
+    let userdata = ctx.get::<EvtUserData>()?;
     userdata.counter += 1;
     afb_log_msg!(Notice,&event,"evt={} name={} counter={}",event.get_uid(),event.get_name(), userdata.counter);
-    match args.get::<JsoncObj>(0) {
-        Ok(argument) => {
-            afb_log_msg!(Info, event, "Got valid jsonc object argument={}", argument);
-            argument
-        }
-        Err(error) => {
-            afb_log_msg!(Error, event, "hoop invalid json argument {}", error);
-            JsoncObj::from("invalid json input argument")
-        }
-    };
+    let argument= match args.get::<JsoncObj>(0)?;
+    Ok(())
 }
 
 // create the event object with its pattern and optionally userdata
 let event_handler = AfbEvtHandler::new("handler-1")
     .set_info("My first event handler")
     .set_pattern("helloworld-event/timerCount")
-    .set_callback(Box::new(EvtUserData { counter: 0 }))
+    .set_callback(event_get_callback)
+    .set_context(EvtUserData { counter: 0 })
     .finalize();
 
 // register event within the API directly or through a group
@@ -294,8 +284,7 @@ Note: to keep following example as simple as possible (subscribe,unsubscribe,pus
 ```rust
 use ApiUserData;
 
-AfbVerbRegister!(SubscribeCtrl, subscribe_callback);
-fn subscribe_callback(request: &AfbRequest, _args: &mut AfbData) {
+fn subscribe_callback(request: &AfbRequest, _args: &mut AfbRqtData, _ctx: AfbCtxData) -> Result<(),AfbError> {
     let apidata = request
         .get_apidata()
         .downcast_ref::<ApiUserData>()
@@ -305,10 +294,10 @@ fn subscribe_callback(request: &AfbRequest, _args: &mut AfbData) {
         Err(error) => request.reply(afb_add_trace!(error), 405),
         Ok(_event) => request.reply(AFB_NO_DATA, 0),
     }
+    Ok(())
 }
 
-AfbVerbRegister!(UnsubscribeCtrl, unsubscribe_callback);
-fn unsubscribe_callback(request: &AfbRequest, _args: &mut AfbData) {
+fn unsubscribe_callback(request: &AfbRequest, _args: &mut AfbRqtData, _ctx: AfbCtxData) -> Result<(),AfbError> {
     let apidata = request
         .get_apidata()
         .downcast_ref::<ApiUserData>()
@@ -318,26 +307,20 @@ fn unsubscribe_callback(request: &AfbRequest, _args: &mut AfbData) {
         Err(error) => request.reply(afb_add_trace!(error), 405),
         Ok(_event) => request.reply(AFB_NO_DATA, 0),
     }
+    Ok(())
 }
 
-AfbVerbRegister!(PushCtrl, push_callback);
-fn push_callback(request: &AfbRequest, args: &mut AfbData) {
+fn push_callback(request: &AfbRequest, args: &mut AfbRqtData, _ctx: AfbCtxData) -> Result<(),AfbError> {
     let apidata = request
         .get_apidata()
         .downcast_ref::<ApiUserData>()
         .expect("invalid api-data");
 
-    let jquery = match args.get::<JsoncObj>(0) {
-        Ok(argument) => argument,
-        Err(error) => {
-            afb_log_msg!(Error, request, "hoop invalid json argument {}", error);
-            JsoncObj::from("no-data")
-        }
-    };
-
+    let jquery = match args.get::<JsoncObj>(0)?;
     // increment event counter and push event to listener(s)
     let listeners = apidata.my_event.push(jquery);
     request.reply(format!("event listener listeners={}", listeners), 0);
+    Ok(())
 }
 
 // event depends on API and should be create only after api is ready
@@ -353,6 +336,7 @@ pub fn start(api: &AfbApi, api_data: &mut ApiUserData) -> Result<(), AfbError> {
             Ok(())
         }
     }
+    Ok(())
 }
 ```
 
@@ -381,21 +365,23 @@ struct TimerUserData {
 }
 
 // Callback is called for each tick until decount>0
-AfbTimerRegister!(TimerCtrl, timer_callback, TimerUserData);
-fn timer_callback(timer: &AfbTimer, decount: i32, userdata: &mut TimerUserData) {
+fn timer_callback(timer: &AfbTimer, decount: i32, ctx: &mut AfbCtxData) -> Result<(),AfbError> {
+    let usedata= ctx.get::<TimerUserData>()?;
     userdata.counter += 1;
 
     afb_log_msg!(Notice,timer,"timer={} counter={} decount={}", timer.get_uid(),userdata.counter,decount);
     let _count = userdata.event.push(userdata.counter);
+    Ok(())
 }
 
 let timer= match AfbTimer::new("demo_timer")
     .set_period(3000)
     .set_count(10)
-    .set_callback(Box::new(TimerUserData {
+    .set_callback(timer_callback)
+    .set_context(TimerUserData {
         counter: 0,
         event: apidata.my_event,
-    }))
+    })
     .start()
     {
         Err(error) => {
@@ -422,43 +408,27 @@ struct JobVerbContext {
     job_handle: &'static AfbSchedJob
 }
 
-// Job Context is frozen for all jobpost handle live cycle
-struct JobPostContext {
-    event: &'static AfbEvent,
-}
-// JobData is valid only for one post transaction
-struct JobPostAnyData {
-    rqt: AfbRqtV4
-    text: String,
-    number: u32,
+struct JobPostData {
+    rqt: AfbRqtV4,
+    jsonc: JsoncObj,
+    count: u32,
 }
 
 // this callback starts from AfbSchedJob::new. If signal!=0 then callback overpass its watchdog timeout
-AfbJobRegister!(DelayCtrl, jobpost_callback, JobPostContext);
-fn jobpost_callback(job: &AfbSchedJob, signal: i32, data: &AfbSchedData, ctx: &mut JobPostContext) {
+fn jobpost_callback(
+    job: &AfbSchedJob,
+    signal: i32,
+    args: &AfbCtxData,
+    _ctx: &AfbCtxData,
+) -> Result<(), AfbError> {
+    // retrieve job post arguments
+    let params = args.get::<JobPostData>()?;
+    let request = AfbRequest::from_raw(params.rqt);
 
-    // use data attach to job handle
-    ctx.event.push ("job post started");
-
-    // retrieve data attach to current post
-    let userdata=args.get::<JobPostAnyData>()?;
-
-    // retrieve and respond to request (data+status)
-    let mut request = userdata.rqt;
-    request.reply(userdata.jsonc.clone(), 300);
-}
-
-// post a job at 3s with a clone of the received json query
-AfbVerbRegister!(JobPostVerb, jobpost_verb, ctx: JobVerbData);
-fn jobpost_verb(request: &AfbRequest, args: &mut AfbData) {
-
-    let data= JobPostAnyData {
-        text: "demo-string".to_string(),
-        number: 123456,
-        rqt: request.add_ref(),
-    };
-
-
+    let mut response = AfbParams::new();
+    response.push(&params.jsonc)?;
+    request.reply(response, signal);
+    Ok(())
 }
 
 let event = AfbEvent::new("demo-job-event");
@@ -466,13 +436,14 @@ let event = AfbEvent::new("demo-job-event");
 // create a new job handle
 let job_handle= AfbSchedJob::new("demo-job-delay")
         .set_exec_watchdog(10) // limit exec time to 1s;
-        .set_callback(Box::new(JobPostContext {event}))
+        .set_callback(jobpost_callback)
         .finalize();
 
 let job_verb = AfbSchedJob::new("demo-job-post")
         .set_exec_watchdog(10) // limit exec time to 10s;
         .set_group(1)
-        .set_callback(Box::new(JobVerbContext {job_handle}))
+        .set_callback(jobpost_callback)
+        .set_context(JobStaticContext {job_handle})
         .finalize();
 
 // register verb within api

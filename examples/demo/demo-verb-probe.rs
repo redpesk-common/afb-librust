@@ -10,8 +10,7 @@
 use afbv4::prelude::*;
 
 // just return use to test afb-rust framework minimal cost
-AfbVerbRegister!(VerbCtrl, callback);
-fn callback(request: &AfbRequest, _args: &AfbData) ->Result <(), AfbError> {
+fn probe_callback(request: &AfbRequest, _args: &AfbRqtData, _ctx: &AfbCtxData) ->Result <(), AfbError> {
     request.reply(AFB_NO_DATA, 0);
     Ok(())
 }
@@ -22,7 +21,7 @@ pub fn register(apiv4: AfbApiV4) ->  Result<&'static AfbVerb, AfbError> {
     afb_log_msg!(Notice, apiv4, "Registering verb={}", mod_name);
 
     let group=AfbVerb::new(mod_name)
-        .set_callback(Box::new(VerbCtrl {}))
+        .set_callback(probe_callback)
         .set_info("Probe no input/output data")
         .set_usage("no-data")
         .finalize()?;

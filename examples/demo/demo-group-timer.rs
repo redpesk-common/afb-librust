@@ -42,15 +42,11 @@ struct UserVcbData {
 }
 
 // Callback is called for each tick until decount>0
-AfbTimerRegister!(TimerCtrl, timer_callback, UserVcbData);
-fn timer_callback(
-    timer: &AfbTimer,
-    decount: u32,
-    userdata: &mut UserVcbData,
-) -> Result<(), AfbError> {
+fn timer_callback(timer: &AfbTimer, decount: u32, ctx: &AfbCtxData) -> Result<(), AfbError> {
     // check request introspection
     let timer_uid = timer.get_uid();
-    let count = userdata.ctx.incr_counter();
+    let context = ctx.get::<UserVcbData>()?;
+    let count = context.ctx.incr_counter();
 
     afb_log_msg!(
         Notice,
@@ -60,27 +56,30 @@ fn timer_callback(
         count,
         decount
     );
-    let _count = userdata.ctx.event.push(userdata.ctx.get_counter());
+    let _count = context.ctx.event.push(context.ctx.get_counter());
     Ok(())
 }
 
-AfbVerbRegister!(StartTimerCtrl, start_timer_callback, UserVcbData);
 fn start_timer_callback(
     request: &AfbRequest,
-    _args: &AfbData,
-    userdata: &mut UserVcbData,
+    _args: &AfbRqtData,
+    ctx: &AfbCtxData,
 ) -> Result<(), AfbError> {
     // subscribe client to event
-    userdata.ctx.event.subscribe(request).unwrap();
+    let context = ctx.get::<UserVcbData>()?;
+    context.ctx.event.subscribe(request).unwrap();
 
     // timer get require private instantiation of TimerUserData
     AfbTimer::new("demo_timer")
         .set_period(1000)
         .set_decount(10)
-        .set_callback(Box::new(UserVcbData {
-            ctx: userdata.ctx.clone(),
-        }))
+        .set_callback(timer_callback)
+        .set_context(UserVcbData {
+            ctx: context.ctx.clone(),
+        })
         .start()?;
+
+    request.reply(AFB_NO_DATA, 0);
     Ok(())
 }
 
@@ -91,23 +90,27 @@ struct JobPostData {
 }
 
 // this callback starts from AfbSchedJob::new. If signal!=0 then callback overpass its watchdog timeout
-AfbJobRegister!(JobPostCb, jobpost_callback);
-fn jobpost_callback(job: &AfbSchedJob, signal: i32, args: &AfbSchedData, ) -> Result<(), AfbError> {
+fn jobpost_callback(
+    job: &AfbSchedJob,
+    signal: i32,
+    args: &AfbCtxData,
+    _ctx: &AfbCtxData,
+) -> Result<(), AfbError> {
     // retrieve job post arguments
-    let context = args.get::<JobPostData>()?;
-    let request = AfbRequest::from_raw(context.rqt);
+    let params = args.get::<JobPostData>()?;
+    let request = AfbRequest::from_raw(params.rqt);
     afb_log_msg!(
         Info,
         job,
         "{}: jobpost callback signal={} jsonc:{} count={}",
         job.get_uid(),
         signal,
-        context.jsonc,
-        context.count
+        params.jsonc,
+        params.count
     );
     let mut response = AfbParams::new();
 
-    response.push(&context.jsonc)?;
+    response.push(&params.jsonc)?;
     request.reply(response, signal);
     Ok(())
 }
@@ -118,35 +121,35 @@ struct UserPostVerb {
     job_post: &'static AfbSchedJob,
     count: u32,
 }
-AfbVerbRegister!(JobPostVerb, jobpost_verb, UserPostVerb);
 fn jobpost_verb(
     request: &AfbRequest,
-    args: &AfbData,
-    ctx: &mut UserPostVerb,
+    args: &AfbRqtData,
+    ctx: &AfbCtxData,
 ) -> Result<(), AfbError> {
     // extract jquery from 1st argument
+    let context= ctx.get::<UserPostVerb>()?;
     let jquery = match args.get::<JsoncObj>(0) {
         Ok(argument) => argument,
         Err(error) => error.to_jsonc()?,
     };
 
     // increase count
-    ctx.count = ctx.count + 1;
+    context.count += 1;
 
-    let job_ctx = JobPostData {
+    let job_context = JobPostData {
         rqt: request.add_ref(),
         jsonc: jquery.clone(),
-        count: ctx.count,
+        count: context.count,
     };
 
-    let _jobid = ctx.job_post.post(3000, job_ctx)?;
+    let _jobid = context.job_post.post(3000, job_context)?;
 
-    match ctx.event.subscribe(request) {
+    match context.event.subscribe(request) {
         Err(_error) => {}
         Ok(event) => {
             event.push(format!(
                 "job-post response should arrive in 3s count={}",
-                ctx.count
+                context.count
             ));
         }
     }
@@ -166,9 +169,10 @@ pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
     });
 
     let start_timer = AfbVerb::new("timer-start")
-        .set_callback(Box::new(UserVcbData {
+        .set_callback(start_timer_callback)
+        .set_context(UserVcbData {
             ctx: ctxdata.clone(),
-        }))
+        })
         .set_info("tics 1s timer for 10 tic")
         .set_usage("no input")
         .finalize()?;
@@ -176,15 +180,16 @@ pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
     let job_post = AfbSchedJob::new("demo-job-post-verb-cb")
         .set_exec_watchdog(10) // limit exec time to 10s;
         .set_group(1)
-        .set_callback(Box::new(JobPostCb {}))
+        .set_callback(jobpost_callback)
         .finalize();
 
     let job_verb = AfbVerb::new("job-post")
-        .set_callback(Box::new(UserPostVerb {
+        .set_callback(jobpost_verb)
+        .set_context(UserPostVerb {
             event,
             job_post,
             count: 0,
-        }))
+        })
         .set_info("return response in 3s")
         .set_usage("no input")
         .finalize()?;

@@ -12,14 +12,13 @@ use afbv4::prelude::*;
 // subcall demo create a dummy "loop-test/ping" to enable loopback test
 // both call ping verb and return result.
 
-struct ASyncApiData {
+struct AsyncResponseCtx {
     my_counter: u32,
 }
 
-// async response is s standard (AfbVerbRegister!) API/verb callback
-AfbVerbRegister!(AsyncResponseCtrl, async_response_cb, ASyncApiData);
-fn async_response_cb(request: &AfbRequest, params: &AfbData, userdata: &mut ASyncApiData) -> Result <(), AfbError> {
-    userdata.my_counter += 1;
+fn async_response_verb(request: &AfbRequest, params: &AfbRqtData, ctx: &AfbCtxData) -> Result <(), AfbError> {
+    let context = ctx.get::<AsyncResponseCtx>()?;
+    context.my_counter += 1;
 
     // we expect 1st argument to be json compatible
     let jquery = match params.get::<JsoncObj>(0) {
@@ -28,7 +27,7 @@ fn async_response_cb(request: &AfbRequest, params: &AfbData, userdata: &mut ASyn
                 Info,
                 request,
                 "async_response count={} params={}",
-                userdata.my_counter,
+                context.my_counter,
                 argument
             );
             argument
@@ -47,14 +46,14 @@ fn async_response_cb(request: &AfbRequest, params: &AfbData, userdata: &mut ASyn
     Ok(())
 }
 
-AfbVerbRegister!(AsyncCallCtrl, async_call_cb);
-fn async_call_cb(request: &AfbRequest, _args: &AfbData) ->Result <(), AfbError>{
+fn async_call_verb(request: &AfbRequest, _args: &AfbRqtData, _ctx: &AfbCtxData) ->Result <(), AfbError>{
     match AfbSubCall::call_async(
         request,
         "loop-test",
         "ping",
         AFB_NO_DATA,
-        Box::new(AsyncResponseCtrl { my_counter: 99 }),
+        async_response_verb,
+        AsyncResponseCtx{my_counter: 99}
     ) {
         Err(error) => {
             afb_log_msg!(Error, request, &error);
@@ -64,8 +63,7 @@ fn async_call_cb(request: &AfbRequest, _args: &AfbData) ->Result <(), AfbError>{
     Ok(())
 }
 
-AfbVerbRegister!(SyncCallCtrl, sync_call_cb);
-fn sync_call_cb(request: &AfbRequest, _args: &AfbData) -> Result <(), AfbError> {
+fn sync_call_verb(request: &AfbRequest, _args: &AfbRqtData, _ctx: &AfbCtxData) -> Result <(), AfbError> {
     match AfbSubCall::call_sync(request, "loop-test", "ping", AFB_NO_DATA) {
         Err(error) => {
             afb_log_msg!(Error, request, &error);
@@ -95,14 +93,14 @@ pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
         }
     };
 
-    let job_post = AfbVerb::new("sync-call")
-        .set_callback(Box::new(SyncCallCtrl {}))
+    let sync_call = AfbVerb::new("sync-call")
+        .set_callback(sync_call_verb)
         .set_info("synchronous call to internal loop-test/ping")
         .set_usage("no input")
         .finalize()?;
 
-    let start_timer = AfbVerb::new("async-call")
-        .set_callback(Box::new(AsyncCallCtrl {}))
+    let async_call = AfbVerb::new("async-call")
+        .set_callback(async_call_verb)
         .set_info("asynchronous call to loop-test/ping")
         .set_usage("no input")
         .finalize()?;
@@ -112,8 +110,8 @@ pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
         .set_prefix(mod_name)
         //.set_permission(AfbPermission::new("acl:evt"))
         .set_verbosity(3)
-        .add_verb(job_post)
-        .add_verb(start_timer)
+        .add_verb(sync_call)
+        .add_verb(async_call)
         .finalize()?;
 
     Ok(group)

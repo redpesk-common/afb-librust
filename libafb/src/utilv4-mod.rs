@@ -23,7 +23,6 @@
 use crate::prelude::*;
 
 use bitflags::bitflags;
-use std::any::TypeId;
 use std::collections::HashMap;
 use std::ffi::CString;
 use std::fmt;
@@ -63,101 +62,6 @@ macro_rules! AfbAuthAnyOf {
  };
 }
 
-pub use crate::AfbTimerRegister;
-#[macro_export]
-macro_rules! AfbTimerRegister {
-    ($timer_name:ident, $callback:ident, $userdata:ident) => {
-        #[allow(non_camel_case_types)]
-        type $timer_name = $userdata;
-        impl afbv4::utilv4::AfbTimerControl for $userdata {
-            fn timer_callback(
-                &mut self,
-                timer: &afbv4::utilv4::AfbTimer,
-                decount: u32,
-            ) -> Result<(), AfbError> {
-                $callback(timer, decount, self)
-            }
-        }
-    };
-    ($timer_name: ident, $callback:ident) => {
-        #[allow(non_camel_case_types)]
-        struct $timer_name;
-        impl afbv4::apiv4::AfbTimerControl for $timer_name {
-            fn timer_callback(
-                &mut self,
-                timer: &afbv4::utilv4::AfbTimer,
-                decount: u32,
-            ) -> Result<(), AfbError> {
-                $callback(timer, decount)
-            }
-        }
-    };
-}
-
-pub use crate::AfbEvtFdRegister;
-#[macro_export]
-macro_rules! AfbEvtFdRegister {
-    ($evtfd_name:ident, $callback:ident, $userdata:ident) => {
-        #[allow(non_camel_case_types)]
-        type $evtfd_name = $userdata;
-        impl afbv4::utilv4::AfbEvtFdControl for $userdata {
-            fn evtfd_callback(
-                &mut self,
-                evtfd: &afbv4::utilv4::AfbEvtFd,
-                revents: u32,
-            ) -> Result<(), AfbError> {
-                $callback(evtfd, revents, self)
-            }
-        }
-    };
-    ($evtfd_name: ident, $callback:ident) => {
-        #[allow(non_camel_case_types)]
-        struct $evtfd_name;
-        impl afbv4::apiv4::AfbEvtFdControl for $evtfd_name {
-            fn evtfd_callback(
-                &mut self,
-                evtfd: &afbv4::utilv4::AfbEvtFd,
-                revents: u32,
-            ) -> Result<(), AfbError> {
-                $callback(evtfd, revents)
-            }
-        }
-    };
-}
-
-pub use crate::AfbJobRegister;
-#[macro_export]
-macro_rules! AfbJobRegister {
-    ($job_name:ident, $callback:ident, $userdata:ident) => {
-        #[allow(non_camel_case_types)]
-        type $job_name = $userdata;
-        impl afbv4::utilv4::AfbJobControl for $userdata {
-            fn job_callback(
-                &mut self,
-                job: &afbv4::utilv4::AfbSchedJob,
-                signal: i32,
-                data: &AfbSchedData,
-            ) -> Result<(), AfbError> {
-                $callback(job, signal, data, self)
-            }
-        }
-    };
-    ($job_name: ident, $callback:ident) => {
-        #[allow(non_camel_case_types)]
-        struct $job_name;
-        impl afbv4::utilv4::AfbJobControl for $job_name {
-            fn job_callback(
-                &mut self,
-                job: &afbv4::utilv4::AfbSchedJob,
-                signal: i32,
-                data: &AfbSchedData,
-            ) -> Result<(), AfbError> {
-                $callback(job, signal, data)
-            }
-        }
-    };
-}
-
 pub use crate::afb_log_msg;
 #[macro_export]
 macro_rules! afb_log_msg {
@@ -191,12 +95,12 @@ pub use crate::afb_error;
 macro_rules! afb_error {
  ( $label:expr, $format:expr, $( $args:expr ),*) => {
     {
-    Err(AfbError::new ($label, format! ($format, $($args),*)))
+    Err(AfbError::new ($label, 0, format! ($format, $($args),*)))
     }
  };
  ( $label:expr, $format:expr) => {
     {
-     Err(AfbError::new ($label, $format))
+     Err(AfbError::new ($label, 0, $format))
     }
  }
 }
@@ -233,14 +137,15 @@ macro_rules! afb_add_trace {
 }
 
 pub trait MakeError<T> {
-    fn make(uid: &str, msg: T, location: &'static Location<'static>) -> AfbError;
+    fn make(uid: &str, status: i32, msg: T, location: &'static Location<'static>) -> AfbError;
 }
 
 impl MakeError<&str> for AfbError {
-    fn make(uid: &str, msg: &str, caller: &'static Location<'static>) -> AfbError {
+    fn make(uid: &str, status: i32, msg: &str, caller: &'static Location<'static>) -> AfbError {
         AfbError {
             uid: uid.to_string(),
             info: msg.to_string(),
+            status,
             dbg_info: DbgInfo {
                 name: func_name!(),
                 file: caller.file(),
@@ -252,9 +157,10 @@ impl MakeError<&str> for AfbError {
 }
 
 impl MakeError<String> for AfbError {
-    fn make(uid: &str, msg: String, caller: &'static Location<'static>) -> AfbError {
+    fn make(uid: &str, status: i32, msg: String, caller: &'static Location<'static>) -> AfbError {
         AfbError {
             uid: uid.to_string(),
+            status,
             info: msg,
             dbg_info: DbgInfo {
                 name: func_name!(),
@@ -276,24 +182,27 @@ pub struct DbgInfo {
 pub struct AfbError {
     uid: String,
     info: String,
+    status: i32,
     dbg_info: DbgInfo,
 }
 
 impl AfbError {
     #[track_caller]
-    pub fn new<T>(uid: &str, msg: T) -> AfbError
+    pub fn new<T>(uid: &str, status: i32, msg: T) -> AfbError
     where
         AfbError: MakeError<T>,
     {
-        Self::make(uid, msg, Location::caller())
+        Self::make(uid, status, msg, Location::caller())
     }
     pub fn get_uid(&self) -> String {
         self.uid.to_owned()
     }
+    pub fn get_status(&self) -> i32 {
+        self.status
+    }
     pub fn get_info(&self) -> String {
         self.info.to_owned()
     }
-
     pub fn get_dbg<'a>(&'a self) -> &DbgInfo {
         &self.dbg_info
     }
@@ -308,6 +217,7 @@ impl AfbError {
         AfbError {
             uid: self.uid.to_owned(),
             info: self.info.to_owned(),
+            status: self.get_status(),
             dbg_info: DbgInfo {
                 name: name,
                 file: file,
@@ -623,8 +533,16 @@ impl AfbLogMsg {
     }
 }
 
-pub trait AfbTimerControl {
-    fn timer_callback(&mut self, timer: &AfbTimer, decount: u32) -> Result<(), AfbError>;
+// AfbTimer callback api signature
+pub type TimerCallback =
+    fn(timer: &AfbTimer, decount: u32, ctx: &AfbCtxData) -> Result<(), AfbError>;
+#[track_caller]
+fn timer_default_cb(timer: &AfbTimer, _decount: u32, _ctx: &AfbCtxData) -> Result<(), AfbError> {
+    afb_error!(
+        "afb-default-cb",
+        "uid:{} no timer callback defined",
+        timer.get_uid()
+    )
 }
 
 // Afb AfbTimerHandle implementation
@@ -637,12 +555,7 @@ pub extern "C" fn api_timers_cb(
 ) {
     // extract timer+api object from libafb internals
     let timer_ref = unsafe { &mut *(userdata as *mut AfbTimer) };
-
-    // call timer calback
-    let result = match timer_ref.callback {
-        Some(timer_control) => unsafe { (*timer_control).timer_callback(timer_ref, decount) },
-        _ => panic!("timer={} no callback defined", timer_ref._uid),
-    };
+    let result = (timer_ref.callback)(timer_ref, decount, &timer_ref.context);
 
     match result {
         Ok(()) => {}
@@ -671,7 +584,8 @@ pub struct AfbTimer {
     _uid: &'static str,
     _timerv4: AfbTmrV4,
     info: &'static str,
-    callback: Option<*mut dyn AfbTimerControl>,
+    callback: TimerCallback,
+    context: AfbCtxData,
     decount: u32,
     period: u32,
     autounref: i32,
@@ -683,12 +597,13 @@ impl AfbTimer {
         let timer_box = Box::new(AfbTimer {
             _uid: uid,
             info: "",
-            callback: None,
             decount: 0,
             period: 0,
             verbosity: 255, // Fulup TBD should inherit from API
             _timerv4: 0 as cglue::afb_timer_t,
             autounref: 0,
+            callback: timer_default_cb,
+            context: AfbCtxData::new(AFB_NO_DATA),
         });
         Box::leak(timer_box)
     }
@@ -719,15 +634,23 @@ impl AfbTimer {
         self.autounref = value;
         self
     }
-    pub fn set_callback(&mut self, ctrlbox: Box<dyn AfbTimerControl>) -> &mut Self {
-        self.callback = Some(Box::leak(ctrlbox));
+    pub fn set_callback(&mut self, callback: TimerCallback) -> &mut Self {
+        self.callback = callback;
+        self
+    }
+
+    pub fn set_context<T>(&mut self, ctx: T) -> &mut Self
+    where
+        T: 'static,
+    {
+        self.context = AfbCtxData::new(ctx);
         self
     }
 
     #[track_caller]
     pub fn start(&mut self) -> Result<&Self, AfbError> {
-        if self.period == 0 || self.callback == None {
-            return afb_error!(self._uid, "Timer callback must be set and period should >0",);
+        if self.period == 0 {
+            return afb_error!(self._uid, "Timer period should >0",);
         }
 
         let status = unsafe {
@@ -773,46 +696,37 @@ impl fmt::Display for AfbTimer {
     }
 }
 
+// AfbJob callback api signature
+pub type JobCallback = fn(
+    job: &AfbSchedJob,
+    decount: i32,
+    args: &AfbCtxData,
+    ctx: &AfbCtxData,
+) -> Result<(), AfbError>;
+#[track_caller]
+fn job_default_cb(
+    job: &AfbSchedJob,
+    _signal: i32,
+    _args: &AfbCtxData,
+    _ctx: &AfbCtxData,
+) -> Result<(), AfbError> {
+    afb_error!(
+        "afb-default-cb",
+        "uid:{} no job callback defined",
+        job.get_uid()
+    )
+}
+
 struct SchedJobV4 {
     job: *const AfbSchedJob,
-    args: AfbSchedData,
-}
-
-pub struct AfbSchedData {
-    raw: *mut std::ffi::c_void,
-    typeid: TypeId,
-}
-
-impl AfbSchedData {
-    pub fn get<T>(&self) -> Result<Box<T>, AfbError>
-    where
-        T: 'static,
-    {
-        if self.typeid != TypeId::of::<T>() {
-            return afb_error!(
-                "schedjob_cb",
-                "job:(post|callback) incompatible context types",
-            );
-        }
-        let boxe: Box<T> = unsafe { Box::from_raw(self.raw as *mut T) };
-        Ok(boxe)
-    }
-
-    pub fn get_type(&self) -> String {
-        format!("{:?}", self.typeid)
-    }
+    args: AfbCtxData,
 }
 
 #[no_mangle]
 pub extern "C" fn api_schedjob_cb(signal: i32, userdata: *mut std::os::raw::c_void) {
     let handle = unsafe { Box::from_raw(userdata as *mut SchedJobV4) };
     let job_ref = unsafe { &mut *(handle.job as *mut AfbSchedJob) };
-    let args_ref = handle.args;
-
-    let result = match job_ref.callback {
-        Some(control) => unsafe { (*control).job_callback(job_ref, signal, &args_ref) },
-        _ => panic!("schedjob={} no callback defined", job_ref._uid),
-    };
+    let result = (job_ref.callback)(job_ref, signal, &handle.args, &job_ref.context);
 
     match result {
         Ok(()) => {}
@@ -832,14 +746,6 @@ pub extern "C" fn api_schedjob_cb(signal: i32, userdata: *mut std::os::raw::c_vo
     }
 }
 
-pub trait AfbJobControl {
-    fn job_callback(
-        &mut self,
-        jobs: &AfbSchedJob,
-        signal: i32,
-        args: &AfbSchedData,
-    ) -> Result<(), AfbError>;
-}
 pub struct AfbSchedJob {
     _uid: &'static str,
     _jobv4: i32,
@@ -847,7 +753,8 @@ pub struct AfbSchedJob {
     group: usize,
     watchdog: i32,
     verbosity: i32,
-    callback: Option<*mut dyn AfbJobControl>,
+    callback: JobCallback,
+    context: AfbCtxData,
 }
 
 impl AfbSchedJob {
@@ -859,7 +766,8 @@ impl AfbSchedJob {
             group: 0,
             watchdog: 0,
             verbosity: 255,
-            callback: None,
+            callback: job_default_cb,
+            context: AfbCtxData::new(AFB_NO_DATA),
         });
         Box::leak(job_box)
     }
@@ -888,8 +796,16 @@ impl AfbSchedJob {
         self
     }
 
-    pub fn set_callback(&mut self, ctrlbox: Box<dyn AfbJobControl>) -> &mut Self {
-        self.callback = Some(Box::leak(ctrlbox));
+    pub fn set_callback(&mut self, callback: JobCallback) -> &mut Self {
+        self.callback = callback;
+        self
+    }
+
+    pub fn set_context<T>(&mut self, ctx: T) -> &mut Self
+    where
+        T: 'static,
+    {
+        self.context = AfbCtxData::new(ctx);
         self
     }
 
@@ -906,33 +822,24 @@ impl AfbSchedJob {
     where
         T: 'static,
     {
-        let typeid = TypeId::of::<T>();
         let handle = Box::into_raw(Box::new(SchedJobV4 {
             job: self as *const AfbSchedJob,
-            args: AfbSchedData {
-                raw: Box::into_raw(Box::new(args)) as *mut std::ffi::c_void,
-                typeid,
-            },
+            args: AfbCtxData::new(args),
         }));
 
-        match self.callback {
-            None => afb_error!(self._uid, "schedjob require callback setting"),
-            Some(_control) => {
-                let jobv4 = unsafe {
-                    cglue::afb_job_post(
-                        delay_ms,
-                        self.watchdog,
-                        Some(api_schedjob_cb),
-                        handle as *const _ as *mut std::ffi::c_void,
-                        self.group as *mut std::ffi::c_void,
-                    )
-                };
-                if jobv4 <= 0 {
-                    return afb_error!(self._uid, "Job_post launch fail");
-                }
-                Ok(jobv4)
-            }
+        let jobv4 = unsafe {
+            cglue::afb_job_post(
+                delay_ms,
+                self.watchdog,
+                Some(api_schedjob_cb),
+                handle as *const _ as *mut std::ffi::c_void,
+                self.group as *mut std::ffi::c_void,
+            )
+        };
+        if jobv4 <= 0 {
+            return afb_error!(self._uid, "Job_post launch fail");
         }
+        Ok(jobv4)
     }
 
     pub fn get_info(&self) -> &'static str {
@@ -949,13 +856,8 @@ impl AfbSchedJob {
     }
 
     // delete job post handle and attached callback context
-    pub fn drop(&self) {
-        unsafe {
-            if let Some(callback) = self.callback {
-                let _callback = Box::from_raw(callback as *const _ as *mut std::ffi::c_void);
-            }
-            let _ctrlbox = Box::from_raw(self as *const _ as *mut std::ffi::c_void);
-        }
+    pub fn terminate(&self) {
+        let _ = unsafe { Box::from_raw(self as *const _ as *mut std::ffi::c_void) };
     }
 
     pub fn finalize(&mut self) -> &Self {
@@ -1093,40 +995,222 @@ impl AfbPermission {
 }
 
 // TAP test
-struct TapCtxData {
+struct TapJobData {
     test: *const AfbTapTest,
 }
 
-impl AfbJobControl for TapCtxData {
-    fn job_callback(
-        &mut self,
-        job: &AfbSchedJob,
-        signal: i32,
-        _args: &AfbSchedData,
-    ) -> Result<(), AfbError> {
-        let test = unsafe { &mut *(self.test as *mut AfbTapTest) };
-        let suite = test.get_suite();
-        let event = suite.get_event();
+fn tap_job_callback(
+    job: &AfbSchedJob,
+    signal: i32,
+    _args: &AfbCtxData,
+    ctx: &AfbCtxData,
+) -> Result<(), AfbError> {
+    let context = ctx.get::<TapJobData>()?;
 
-        let jsonc = JsoncObj::new();
-        jsonc.add("index", test.index).unwrap();
-        jsonc.add("test", test.uid).unwrap();
-        event.push(jsonc);
+    let test = unsafe { &mut *(context.test as *mut AfbTapTest) };
+    let suite = test.get_suite();
+    let event = suite.get_event();
 
-        if signal == 0 {
-            // subcall start
-            let _ignore = test.call_sync();
-        } else {
-            // force a timeout response
-            let no_data = [0 as cglue::afb_data_t; 0];
-            let reply = AfbData::new(&no_data, 0, -62);
-            let response = test.check_response(reply);
-            test.done(response);
+    let jsonc = JsoncObj::new();
+    jsonc.add("index", test.index).unwrap();
+    jsonc.add("test", test.uid).unwrap();
+    event.push(jsonc);
+
+    if signal == 0 {
+        // subcall start
+        let _ignore = test.call_sync();
+    } else {
+        // force a timeout response
+        let no_data = [0 as cglue::afb_data_t; 0];
+        let reply = AfbRqtData::new(&no_data, 0, -62);
+        let response = test.check_response(reply);
+        test.done(response);
+    }
+    job.terminate(); // jobpost is rebuilt for each test
+    Ok(())
+}
+
+// AfbEvtFdControl callback api signature
+pub type EvtFdCallback =
+    fn(evfd: &AfbEvtFd, revents: u32, ctx: &AfbCtxData) -> Result<(), AfbError>;
+#[track_caller]
+fn evtfd_default_cb(evfd: &AfbEvtFd, _revents: u32, _ctx: &AfbCtxData) -> Result<(), AfbError> {
+    afb_error!(
+        "afb-default-cb",
+        "uid:{} no evtfd callback defined",
+        evfd.get_uid()
+    )
+}
+
+// Afb EvtFdHandle implementation
+// ------------------------
+#[no_mangle]
+pub extern "C" fn api_evtfd_cb(
+    _efd: cglue::afb_evfd_t,
+    _fd: ::std::os::raw::c_int,
+    revents: u32,
+    userdata: *mut ::std::os::raw::c_void,
+) {
+    // extract evtfd+api object from libafb internals
+    let evtfd_ref = unsafe { &mut *(userdata as *mut AfbEvtFd) };
+
+    // call evtfd calback
+    let result = (evtfd_ref.callback)(evtfd_ref, revents, &evtfd_ref.context);
+
+    match result {
+        Ok(()) => {}
+        Err(error) => {
+            let dbg = error.get_dbg();
+            afb_log_raw!(
+                Notice,
+                None,
+                "{}:{} file: {}:{}:{}",
+                evtfd_ref.uid,
+                error,
+                dbg.file,
+                dbg.line,
+                dbg.column
+            );
         }
-        job.drop(); // jobpost is rebuilt for each test
-        Ok(())
+    }
+
+    // clean callback control box
+    if revents == AfbEvtFdPoll::HUP.bits() {
+        let _ctrlbox = unsafe { Box::from_raw(evtfd_ref) };
     }
 }
+
+bitflags! {
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+    pub struct AfbEvtFdPoll: u32 {
+        const IN = cglue::afb_epoll_epoll_IN;
+        const OUT= cglue::afb_epoll_epoll_OUT;
+        const HUP= cglue::afb_epoll_epoll_HUP;
+        const ERR= cglue::afb_epoll_epoll_ERR;
+        const RUP= cglue::afb_epoll_epoll_RDH;
+        const ALL= 0xffff;
+    }
+}
+
+// Event FD add a filedescriptor to mainloop and connect a callback
+pub struct AfbEvtFd {
+    uid: &'static str,
+    info: &'static str,
+    efdv4: cglue::afb_evfd_t,
+    fd: ::std::os::raw::c_int,
+    events: u32,
+    callback: EvtFdCallback,
+    context: AfbCtxData,
+    autounref: i32,
+    autoclose: i32,
+}
+
+impl AfbEvtFd {
+    pub fn new(uid: &'static str) -> &'static mut Self {
+        let evt_box = Box::new(AfbEvtFd {
+            uid: uid,
+            fd: 0,
+            info: "",
+            callback: evtfd_default_cb,
+            context: AfbCtxData::new(AFB_NO_DATA),
+            autounref: 0,
+            autoclose: 0,
+            efdv4: 0 as cglue::afb_evfd_t,
+            events: AfbEvtFdPoll::IN.bits(),
+        });
+        Box::leak(evt_box)
+    }
+
+    pub fn set_info(&mut self, value: &'static str) -> &mut Self {
+        self.info = value;
+        self
+    }
+
+    pub fn set_fd(&mut self, sockfd: ::std::os::raw::c_int) -> &mut Self {
+        self.fd = sockfd;
+        self
+    }
+
+    pub fn set_autounref(&mut self, autounref: bool) -> &mut Self {
+        if autounref {
+            self.autounref = 1
+        };
+        self
+    }
+
+    pub fn set_autoclose(&mut self, autoclose: bool) -> &mut Self {
+        if autoclose {
+            self.autoclose = 1
+        };
+        self
+    }
+
+    pub fn set_events(&mut self, events: AfbEvtFdPoll) -> &mut Self {
+        self.events = events.bits();
+        self
+    }
+
+    pub fn set_callback(&mut self, callback: EvtFdCallback) -> &mut Self {
+        self.callback = callback;
+        self
+    }
+
+    pub fn set_context<T>(&mut self, ctx: T) -> &mut Self
+    where
+        T: 'static,
+    {
+        self.context = AfbCtxData::new(ctx);
+        self
+    }
+
+    #[track_caller]
+    pub fn start(&mut self) -> Result<&Self, AfbError> {
+        if self.fd == 0 {
+            return afb_error!(self.uid, "EventFd fd should >0",);
+        }
+
+        let status = unsafe {
+            cglue::afb_evfd_create(
+                &mut self.efdv4,
+                self.fd,
+                self.events,
+                Some(api_evtfd_cb),
+                self as *const _ as *mut std::ffi::c_void,
+                self.autounref,
+                self.autoclose,
+            )
+        };
+        if status != 0 {
+            return afb_error!(self.uid, "Afb_EvtFd creation fail");
+        }
+        Ok(self)
+    }
+
+    pub fn get_uid(&self) -> &'static str {
+        self.uid
+    }
+
+    pub fn unref(&self) {
+        unsafe { cglue::afb_evfd_unref(self.efdv4) };
+    }
+
+    pub fn addref(&self) {
+        unsafe { cglue::afb_evfd_addref(self.efdv4) };
+    }
+
+    pub fn get_fd(&self) -> i32 {
+        unsafe { cglue::afb_evfd_get_fd(self.efdv4) }
+    }
+
+    pub fn get_events(&self) -> u32 {
+        unsafe { cglue::afb_evfd_get_events(self.efdv4) }
+    }
+
+    pub fn get_info(&self) -> &'static str {
+        self.info
+    }
+}
+
 pub struct AfbTapResponse {
     pub status: i32,
     pub diagnostic: String,
@@ -1248,7 +1332,7 @@ impl AfbTapTest {
         group.get_suite()
     }
 
-    fn check_response(&self, reply: AfbData) -> AfbTapResponse {
+    fn check_response(&self, reply: AfbRqtData) -> AfbTapResponse {
         let api = self.get_suite().get_api();
 
         if reply.get_status() != self.status {
@@ -1315,9 +1399,14 @@ impl AfbTapTest {
 
         let result = AfbSubCall::call_sync(api, self.api, self.verb, self.params.clone());
         let response = match result {
-            Err(error) => AfbTapResponse {
-                status: -1,
-                diagnostic: error.to_string(),
+            // Err(error) => AfbTapResponse {
+            //     status: error.get_status(),
+            //     diagnostic: error.to_string(),
+            // }
+            Err(error) => {
+                let no_data = [0 as cglue::afb_data_t; 0];
+                let response = AfbRqtData::new(&no_data, 0, error.get_status());
+                self.check_response(response)
             },
             Ok(response) => self.check_response(response),
         };
@@ -1388,7 +1477,8 @@ impl AfbTapTest {
 
         match AfbSchedJob::new(self.uid)
             .set_exec_watchdog(timeout as i32)
-            .set_callback(Box::new(TapCtxData { test: self }))
+            .set_callback(tap_job_callback)
+            .set_context(TapJobData { test: self })
             .post(self.delay as i64, AFB_NO_DATA)
         {
             Err(_error) => {
@@ -1478,7 +1568,8 @@ impl AfbTapGroup {
 
         let verb = AfbVerb::new(test.uid)
             .set_info(test.info)
-            .set_callback(Box::new(TapTestData { test: test }))
+            .set_callback(tap_test_callback)
+            .set_context(TapTestData { test: test })
             .set_usage("no input")
             .finalize()
             .unwrap();
@@ -1612,7 +1703,8 @@ impl AfbTapSuite {
         let vcbdata = TapGroupData { group: group };
         let api = unsafe { &mut *(self.tap_api as *mut AfbApi) };
         let verb = AfbVerb::new(group.uid);
-        verb.set_callback(Box::new(vcbdata))
+        verb.set_callback(tap_group_callback)
+            .set_context(vcbdata)
             .set_info(group.info)
             .set_usage("no_input")
             .register(api.get_apiv4(), AFB_NO_AUTH);
@@ -1694,7 +1786,8 @@ impl AfbTapSuite {
         api.add_group(autostart_afb);
 
         let verb = AfbVerb::new(AUTOSTART);
-        verb.set_callback(Box::new(vcbdata))
+        verb.set_callback(tap_group_callback)
+            .set_context(vcbdata)
             .set_info("default tap autostart group")
             .set_usage("no_input")
             .register(api.get_apiv4(), AFB_NO_AUTH);
@@ -1705,7 +1798,8 @@ impl AfbTapSuite {
 
         if self.autorun {
             match AfbSchedJob::new(self.uid)
-                .set_callback(Box::new(TapSuiteAutoRun { suite: self }))
+                .set_callback(tap_suite_callback)
+                .set_context(TapSuiteAutoRun { suite: self })
                 .post(0, AFB_NO_DATA)
             {
                 Err(error) => Err(error),
@@ -1767,62 +1861,65 @@ struct TapSuiteAutoRun {
     suite: *mut AfbTapSuite,
 }
 
-impl AfbJobControl for TapSuiteAutoRun {
-    fn job_callback(
-        &mut self,
-        job: &AfbSchedJob,
-        _signal: i32,
-        _args: &AfbSchedData,
-    ) -> Result<(), AfbError> {
-        let suite = unsafe { &mut *(self.suite as *mut AfbTapSuite) };
-        let autostart = unsafe { &mut *(suite.autostart) };
+fn tap_suite_callback(
+    job: &AfbSchedJob,
+    _signal: i32,
+    _args: &AfbCtxData,
+    ctx: &AfbCtxData,
+) -> Result<(), AfbError> {
+    let context = ctx.get::<TapSuiteAutoRun>()?;
+    let suite = unsafe { &mut *(context.suite as *mut AfbTapSuite) };
+    let autostart = unsafe { &mut *(suite.autostart) };
 
-        match autostart.launch() {
-            Err(error) => {
-                afb_log_raw!(
-                    Critical,
-                    suite.get_api().get_apiv4(),
-                    "Test fail {}:autostart error={}",
-                    suite.get_uid(),
-                    error
-                );
-            }
-            Ok(()) => {}
+    match autostart.launch() {
+        Err(error) => {
+            afb_log_raw!(
+                Critical,
+                suite.get_api().get_apiv4(),
+                "Test fail {}:autostart error={}",
+                suite.get_uid(),
+                error
+            );
         }
-
-        let autoexit = suite.get_autoexit();
-        suite.get_report();
-        job.drop();
-
-        if autoexit {
-            std::process::exit(0);
-        }
-        Ok(())
+        Ok(()) => {}
     }
+
+    let autoexit = suite.get_autoexit();
+    suite.get_report();
+    job.terminate();
+
+    if autoexit {
+        std::process::exit(0);
+    }
+    Ok(())
 }
 
 // implement TapTest API callback
 struct TapTestData {
     test: *mut AfbTapTest,
 }
-impl AfbRqtControl for TapTestData {
-    #[track_caller]
-    fn verb_callback(&mut self, rqt: &AfbRequest, _args: &AfbData) -> Result<(), AfbError> {
-        // bypass Rust limitation that refuses to understand static object pointers
-        let test = unsafe { &mut (*self.test) };
-        match test.jobpost() {
-            Err(error) => {
-                afb_log_msg!(Error, rqt, "fail to launch test error={}", error);
-                rqt.reply(error, 405);
-            }
-            Ok(_jreport) => {
-                // wait for test to be completed
-                let _next = test.get_next();
-                rqt.reply(test.get_report(), 0);
-            }
+#[track_caller]
+fn tap_test_callback(
+    rqt: &AfbRequest,
+    _args: &AfbRqtData,
+    ctx: &AfbCtxData,
+) -> Result<(), AfbError> {
+    let context = ctx.get::<TapTestData>()?;
+
+    // bypass Rust limitation that refuses to understand static object pointers
+    let test = unsafe { &mut (*context.test) };
+    match test.jobpost() {
+        Err(error) => {
+            afb_log_msg!(Error, rqt, "fail to launch test error={}", error);
+            rqt.reply(error, 405);
         }
-        Ok(())
+        Ok(_jreport) => {
+            // wait for test to be completed
+            let _next = test.get_next();
+            rqt.reply(test.get_report(), 0);
+        }
     }
+    Ok(())
 }
 
 // implement TapGroup API callback
@@ -1830,190 +1927,28 @@ struct TapGroupData {
     group: *mut AfbTapGroup,
 }
 
-impl AfbRqtControl for TapGroupData {
-    #[track_caller]
-    fn verb_callback(&mut self, rqt: &AfbRequest, _args: &AfbData) -> Result<(), AfbError> {
-        // bypass Rust limitation that refuses to understand static object pointers
-        let group = unsafe { &mut (*self.group) };
-        let suite = unsafe { &mut (*group.suite) };
-        let event = unsafe { &mut (*suite.event) };
+#[track_caller]
+fn tap_group_callback(
+    rqt: &AfbRequest,
+    _args: &AfbRqtData,
+    ctx: &AfbCtxData,
+) -> Result<(), AfbError> {
+    let context = ctx.get::<TapGroupData>()?;
+    // bypass Rust limitation that refuses to understand static object pointers
+    let group = unsafe { &mut (*context.group) };
+    let suite = unsafe { &mut (*group.suite) };
+    let event = unsafe { &mut (*suite.event) };
 
-        event.subscribe(rqt)?;
+    event.subscribe(rqt)?;
 
-        match group.launch() {
-            Err(error) => {
-                afb_log_msg!(Error, rqt, "fail to launch test error={}", error);
-                rqt.reply(error, 405);
-            }
-            Ok(_jreport) => {
-                rqt.reply(group.get_report(), 0);
-            }
-        }
-        Ok(())
-    }
-}
-
-pub trait AfbEvtFdControl {
-    fn evtfd_callback(&mut self, evfd: &AfbEvtFd, revents: u32) -> Result<(), AfbError>;
-}
-
-// Afb AfbTimerHandle implementation
-// ------------------------
-#[no_mangle]
-pub extern "C" fn api_evtfd_cb(
-    _efd: cglue::afb_evfd_t,
-    _fd: ::std::os::raw::c_int,
-    revents: u32,
-    userdata: *mut ::std::os::raw::c_void,
-) {
-    // extract evtfd+api object from libafb internals
-    let evtfd_ref = unsafe { &mut *(userdata as *mut AfbEvtFd) };
-
-    // call evtfd calback
-    let result = match evtfd_ref.callback {
-        Some(evtfd_control) => unsafe { (*evtfd_control).evtfd_callback(evtfd_ref, revents) },
-        _ => panic!("evtfd={} no callback defined", evtfd_ref.uid),
-    };
-
-    match result {
-        Ok(()) => {}
+    match group.launch() {
         Err(error) => {
-            let dbg = error.get_dbg();
-            afb_log_raw!(
-                Notice,
-                None,
-                "{}:{} file: {}:{}:{}",
-                evtfd_ref.uid,
-                error,
-                dbg.file,
-                dbg.line,
-                dbg.column
-            );
+            afb_log_msg!(Error, rqt, "fail to launch test error={}", error);
+            rqt.reply(error, 405);
+        }
+        Ok(_jreport) => {
+            rqt.reply(group.get_report(), 0);
         }
     }
-
-    // clean callback control box
-    if revents == AfbEvtFdPoll::HUP.bits() {
-        let _ctrlbox = unsafe { Box::from_raw(evtfd_ref) };
-    }
-}
-
-bitflags! {
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-    pub struct AfbEvtFdPoll: u32 {
-        const IN = cglue::afb_epoll_epoll_IN;
-        const OUT= cglue::afb_epoll_epoll_OUT;
-        const HUP= cglue::afb_epoll_epoll_HUP;
-        const ERR= cglue::afb_epoll_epoll_ERR;
-        const RUP= cglue::afb_epoll_epoll_RDH;
-        const ALL= 0xffff;
-    }
-}
-
-// Event FD add a filedescriptor to mainloop and connect a callback
-pub struct AfbEvtFd {
-    uid: &'static str,
-    info: &'static str,
-    efdv4: cglue::afb_evfd_t,
-    fd: ::std::os::raw::c_int,
-    events: u32,
-    callback: Option<*mut dyn AfbEvtFdControl>,
-    autounref: i32,
-    autoclose: i32,
-}
-
-impl AfbEvtFd {
-    pub fn new(uid: &'static str) -> &'static mut Self {
-        let timer_box = Box::new(AfbEvtFd {
-            uid: uid,
-            fd: 0,
-            info: "",
-            callback: None,
-            autounref: 0,
-            autoclose: 0,
-            efdv4: 0 as cglue::afb_evfd_t,
-            events: AfbEvtFdPoll::IN.bits(),
-        });
-        Box::leak(timer_box)
-    }
-
-    pub fn set_info(&mut self, value: &'static str) -> &mut Self {
-        self.info = value;
-        self
-    }
-
-    pub fn set_fd(&mut self, sockfd: ::std::os::raw::c_int) -> &mut Self {
-        self.fd = sockfd;
-        self
-    }
-
-    pub fn set_autounref(&mut self, autounref: bool) -> &mut Self {
-        if autounref {
-            self.autounref = 1
-        };
-        self
-    }
-
-    pub fn set_autoclose(&mut self, autoclose: bool) -> &mut Self {
-        if autoclose {
-            self.autoclose = 1
-        };
-        self
-    }
-
-    pub fn set_events(&mut self, events: AfbEvtFdPoll) -> &mut Self {
-        self.events = events.bits();
-        self
-    }
-
-    pub fn set_callback(&mut self, ctrlbox: Box<dyn AfbEvtFdControl>) -> &mut Self {
-        self.callback = Some(Box::leak(ctrlbox));
-        self
-    }
-    #[track_caller]
-    pub fn start(&mut self) -> Result<&Self, AfbError> {
-        if self.fd == 0 || self.callback == None {
-            return afb_error!(self.uid, "EventFd callback must be set and fd should >0",);
-        }
-
-        let status = unsafe {
-            cglue::afb_evfd_create(
-                &mut self.efdv4,
-                self.fd,
-                self.events,
-                Some(api_evtfd_cb),
-                self as *const _ as *mut std::ffi::c_void,
-                self.autounref,
-                self.autoclose,
-            )
-        };
-        if status != 0 {
-            return afb_error!(self.uid, "Afb_EvtFd creation fail");
-        }
-        Ok(self)
-    }
-
-    pub fn get_uid(&self) -> &'static str {
-        self.uid
-    }
-
-    pub fn unref(&self) {
-        unsafe { cglue::afb_evfd_unref(self.efdv4) };
-    }
-
-    pub fn addref(&self) {
-        unsafe { cglue::afb_evfd_addref(self.efdv4) };
-    }
-
-    pub fn get_fd(&self) -> i32 {
-        unsafe { cglue::afb_evfd_get_fd(self.efdv4) }
-    }
-
-    pub fn get_events(&self) -> u32 {
-        unsafe { cglue::afb_evfd_get_events(self.efdv4) }
-    }
-
-    pub fn get_info(&self) -> &'static str {
-        self.info
-    }
+    Ok(())
 }

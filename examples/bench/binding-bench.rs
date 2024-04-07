@@ -132,7 +132,7 @@ fn timer_callback(timer: &AfbTimer, decount: u32, userdata: &mut UserTimerData) 
 
 // call API without any argument
 AfbVerbRegister!(TimerVerbCtrl, timer_verb_cb);
-fn timer_verb_cb(request: &AfbRequest, args: &AfbData) -> Result<(),AfbError> {
+fn timer_verb_cb(request: &AfbRequest, args: &AfbRqtData) -> Result<(),AfbError> {
 
     let jargs= args.get::<JsoncObj>(0) ?;
     let count = jargs.get::<u32>("loop") ?;
@@ -164,7 +164,7 @@ fn timer_verb_cb(request: &AfbRequest, args: &AfbData) -> Result<(),AfbError> {
 
 // call API without any argument
 AfbVerbRegister!(PingCtrl, ping_subcall_cb);
-fn ping_subcall_cb(request: &AfbRequest, args: &AfbData) -> Result<(), AfbError>{
+fn ping_subcall_cb(request: &AfbRequest, args: &AfbRqtData) -> Result<(), AfbError>{
     let jarg = args.get::<JsoncObj>(0)?;
     let count= jarg.get::<u32>("loop")?;
 
@@ -181,7 +181,7 @@ fn ping_subcall_cb(request: &AfbRequest, args: &AfbData) -> Result<(), AfbError>
 
 // call API with passing a retrieve a jsonc object, this will force conversion
 AfbVerbRegister!(JsonCtrl, json_subcall_cb);
-fn json_subcall_cb(request: &AfbRequest, args: &AfbData) -> Result<(), AfbError> {
+fn json_subcall_cb(request: &AfbRequest, args: &AfbRqtData) -> Result<(), AfbError> {
     let jargs = args.get::<JsoncObj>(0) ?;
     let count= jargs.get::<u32>("loop") ?;
 
@@ -226,7 +226,7 @@ fn json_subcall_cb(request: &AfbRequest, args: &AfbData) -> Result<(), AfbError>
 
 // call API with passing a binary object using lazy converting mode
 AfbVerbRegister!(LazyCtrl, lazy_subcall_cb);
-fn lazy_subcall_cb(request: &AfbRequest, args: &AfbData) -> Result <(), AfbError> {
+fn lazy_subcall_cb(request: &AfbRequest, args: &AfbRqtData) -> Result <(), AfbError> {
     let jargs = args.get::<JsoncObj>(0) ?;
     let count = jargs.get::<u32>("loop") ?;
 
