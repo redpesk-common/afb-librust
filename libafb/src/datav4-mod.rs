@@ -26,6 +26,8 @@ use crate::prelude::*;
 use std::any::Any;
 use std::any::TypeId;
 use std::boxed::Box;
+use std::ops::{Deref, DerefMut};
+use std::sync::{Mutex, MutexGuard};
 
 use std::ffi::{c_void, CStr, CString};
 
@@ -184,6 +186,26 @@ macro_rules! AfbDataConverter {
 pub struct AfbCtxData {
     raw: *mut std::ffi::c_void,
     typeid: TypeId,
+    lock: Mutex<i8>,
+}
+
+pub struct AfbCtxLock<'a, T> {
+    data: T,
+    _lock: MutexGuard<'a, i8>,
+}
+
+impl<'a, T> Deref for AfbCtxLock<'a, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.data
+    }
+}
+
+impl<'a, T> DerefMut for AfbCtxLock<'a, T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.data
+    }
 }
 
 impl AfbCtxData {
@@ -195,20 +217,37 @@ impl AfbCtxData {
         Self {
             raw: Box::into_raw(Box::new(ctx)) as *mut std::ffi::c_void,
             typeid,
+            lock: Mutex::new(0),
         }
+    }
+
+    fn check_type(&self, tid: TypeId) -> Result<(), AfbError>
+    {
+        if self.typeid != tid {
+            return afb_error!("afb-ctx-data", "source/destination incompatible data types",);
+        }
+        Ok(())
+    }
+
+    pub fn get_lock<T>(&self) -> Result<AfbCtxLock<&mut T>, AfbError>
+    where
+        T: 'static,
+    {
+        self.check_type(TypeId::of::<T>())?;
+        let value = AfbCtxLock {
+            data: unsafe { &mut *(self.raw as *mut T) },
+            _lock: self.lock.lock().unwrap(),
+        };
+
+        Ok(value)
     }
 
     pub fn get_ref<T>(&self) -> Result<&T, AfbError>
     where
         T: 'static,
     {
-        if self.typeid != TypeId::of::<T>() {
-            return afb_error!(
-                "schedjob_cb",
-                "job:(post|callback) incompatible context types",
-            );
-        }
-        let value: &mut T = unsafe { &mut *(self.raw as *mut T )};
+        self.check_type(TypeId::of::<T>())?;
+        let value: &mut T = unsafe { &mut *(self.raw as *mut T) };
         Ok(value)
     }
 
@@ -216,25 +255,19 @@ impl AfbCtxData {
     where
         T: 'static,
     {
-        if self.typeid != TypeId::of::<T>() {
-            return afb_error!(
-                "schedjob_cb",
-                "job:(post|callback) incompatible context types",
-            );
-        }
-        let value: &mut T = unsafe { &mut *(self.raw as *mut T )};
+        self.check_type(TypeId::of::<T>())?;
+        let value: &mut T = unsafe { &mut *(self.raw as *mut T) };
         Ok(value)
     }
 
     pub fn get_type(&self) -> String {
         format!("{:?}", self.typeid)
     }
-
 }
 
 impl Drop for AfbCtxData {
     fn drop(&mut self) {
-       let _ = unsafe {Box::from_raw(self.raw)};
+        let _ = unsafe { Box::from_raw(self.raw) };
     }
 }
 

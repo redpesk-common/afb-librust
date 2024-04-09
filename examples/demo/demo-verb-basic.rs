@@ -15,9 +15,9 @@ struct MyCtxCb {
 }
 
 fn verb_cb (request: &AfbRequest, args: &AfbRqtData, ctx: &AfbCtxData) -> Result<(), AfbError> {
-    let context = ctx.get_mut::<MyCtxCb>()?;
     let jquery = args.get::<JsoncObj>(0)?;
 
+    let mut context = ctx.get_lock::<MyCtxCb>()?;
     context.count += 1;
 
     // rebuilt a new json object with upcase value of initial one
@@ -27,6 +27,7 @@ fn verb_cb (request: &AfbRequest, args: &AfbRqtData, ctx: &AfbCtxData) -> Result
     let reply = || -> Result<(), AfbError> {
         let mut response = AfbParams::new();
         response.push(jreply)?;
+        response.push(context.count)?;
         request.reply(response, 0);
         Ok(())
     };
