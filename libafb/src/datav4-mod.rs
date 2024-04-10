@@ -263,6 +263,10 @@ impl AfbCtxData {
     pub fn get_type(&self) -> String {
         format!("{:?}", self.typeid)
     }
+
+    pub fn free(&self) {
+       let _ = unsafe { Box::from_raw(self.raw) };
+    }
 }
 
 impl Drop for AfbCtxData {

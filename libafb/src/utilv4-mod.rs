@@ -748,7 +748,6 @@ pub extern "C" fn api_schedjob_cb(signal: i32, userdata: *mut std::os::raw::c_vo
 
 pub struct AfbSchedJob {
     _uid: &'static str,
-    _jobv4: i32,
     info: &'static str,
     group: usize,
     watchdog: i32,
@@ -761,7 +760,6 @@ impl AfbSchedJob {
     pub fn new(uid: &'static str) -> &'static mut Self {
         let job_box = Box::new(AfbSchedJob {
             _uid: uid,
-            _jobv4: 0,
             info: "",
             group: 0,
             watchdog: 0,
@@ -809,10 +807,6 @@ impl AfbSchedJob {
         self
     }
 
-    pub fn get_jobid(&self) -> i32 {
-        self._jobv4
-    }
-
     pub fn get_uid(&self) -> &'static str {
         self._uid
     }
@@ -845,6 +839,7 @@ impl AfbSchedJob {
     pub fn get_info(&self) -> &'static str {
         self.info
     }
+
     #[track_caller]
     pub fn abort(&self, jobv4: i32) -> Result<(), AfbError> {
         let rc = unsafe { cglue::afb_job_abort(jobv4) };
