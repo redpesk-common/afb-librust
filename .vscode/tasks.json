@@ -1,23 +1,20 @@
 {
     "tasks": [
         {
+            "label": "binding-native-build",
             "type": "cargo",
-            "command": "",
-            "args": [
-                "build"
-            ],
+            "command": "build",
             "problemMatcher": [
                 "$rustc"
             ],
-            "group": "build",
-            "label": "rust: cargo build"
+            "group": "build"
         },
         {
+            "label": "native-compile-demo",
             "type": "cargo",
-            "command": "",
-            "dependsOn": "rust: cargo build",
+            "command": "build",
+            "dependsOn": "binding-native-build",
             "args": [
-                "build",
                 "--example",
                 "afb_demo"
             ],
@@ -25,7 +22,20 @@
                 "$rustc"
             ],
             "group": "build",
-            "label": "native-compile-demo"
+        },
+        {
+            "label": "native-compile-test",
+            "type": "cargo",
+            "command": "build",
+            "dependsOn": "binding-native-demo",
+            "args": [
+                "--example",
+                "afb_test"
+            ],
+            "problemMatcher": [
+                "$rustc"
+            ],
+            "group": "build",
         }
     ]
 }

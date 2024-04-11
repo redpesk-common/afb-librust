@@ -1148,6 +1148,10 @@ impl<'a> AfbRequest<'a> {
         self.api
     }
 
+    pub fn get_apiv4(&'a self) -> AfbApiV4 {
+        self.api._apiv4.get()
+    }
+
     pub fn get_rqtv4(&'a self) -> cglue::afb_req_t {
         self._rqtv4
     }

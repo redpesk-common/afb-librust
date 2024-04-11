@@ -4,7 +4,7 @@
         {
             "name": "Native 'afb-demo'",
             "type": "lldb",
-            // "preLaunchTask": "native-compile-demo",
+            "preLaunchTask": "native-compile-demo",
             "request": "launch",
             "program": "afb-binder",
             "env": {
@@ -24,7 +24,7 @@
         {
             "name": "Native 'tap-test-auto'",
             "type": "lldb",
-            //"preLaunchTask": "native-compile-test",
+            "preLaunchTask": "native-compile-test",
             "request": "launch",
             "program": "afb-binder",
             "env": {
@@ -45,7 +45,7 @@
         {
             "name": "Native 'tap-test-api'",
             "type": "lldb",
-            //"preLaunchTask": "native-compile-test",
+            "preLaunchTask": "native-compile-test",
             "request": "launch",
             "program": "afb-binder",
             "env": {
