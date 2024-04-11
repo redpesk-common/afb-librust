@@ -221,6 +221,7 @@ impl AfbCtxData {
         }
     }
 
+    #[track_caller]
     fn check_type(&self, tid: TypeId) -> Result<(), AfbError>
     {
         if self.typeid != tid {
@@ -229,6 +230,7 @@ impl AfbCtxData {
         Ok(())
     }
 
+    #[track_caller]
     pub fn get_lock<T>(&self) -> Result<AfbCtxLock<&mut T>, AfbError>
     where
         T: 'static,
@@ -242,6 +244,7 @@ impl AfbCtxData {
         Ok(value)
     }
 
+    #[track_caller]
     pub fn get_ref<T>(&self) -> Result<&T, AfbError>
     where
         T: 'static,
@@ -251,6 +254,7 @@ impl AfbCtxData {
         Ok(value)
     }
 
+    #[track_caller]
     pub fn get_mut<T>(&self) -> Result<&mut T, AfbError>
     where
         T: 'static,
