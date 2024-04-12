@@ -2012,10 +2012,19 @@ impl DoSubcallSync<AfbApiV4> for AfbSubCall {
             )
         };
         if rc < 0 || nreplies > MAX_CALL_ARGS || status < 0 {
+            let error = if status == -100 {
+                let replies = AfbRqtData::new(&replies, nreplies, status);
+                match replies.get::<JsoncObj>(0) {
+                    Ok(jerror) => jerror.to_string(),
+                    Err(_) => format!("status:{}({})", status, afb_error_info(status))
+                }
+            } else {
+                String::new()
+            };
             return Err(AfbError::new(
-                "api-subcall",
+                "api-subcalls",
                 status,
-                format!("info={}", afb_error_info(status)),
+                error,
             ));
         }
         let datas = AfbRqtData::new(&replies, nreplies, status);
@@ -2112,10 +2121,20 @@ impl DoSubcallSync<AfbRqtV4> for AfbSubCall {
             )
         };
         if rc < 0 || status < 0 {
+            let error = if status == -100 {
+                let replies = AfbRqtData::new(&replies, nreplies, status);
+                match replies.get::<JsoncObj>(0) {
+                    Ok(jerror) => jerror.to_string(),
+                    Err(_) =>  format!("status:{}({})", status, afb_error_info(status))
+,
+                }
+            } else {
+                String::new()
+            };
             return Err(AfbError::new(
-                "api-subcall",
+                "api-subcalla",
                 status,
-                format!("info={}", afb_error_info(status)),
+                error,
             ));
         }
         // move const **array in something Rust may understand
