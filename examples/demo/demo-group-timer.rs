@@ -84,7 +84,7 @@ fn start_timer_callback(
 }
 
 struct JobPostData {
-    rqt: AfbRqtV4,
+    rqt: AfbRequest,
     jsonc: JsoncObj,
     count: u32,
 }
@@ -98,7 +98,7 @@ fn jobpost_callback(
 ) -> Result<(), AfbError> {
     // retrieve job post arguments
     let params = args.get_ref::<JobPostData>()?;
-    let request = AfbRequest::from_raw(params.rqt);
+    let request= &params.rqt;
     afb_log_msg!(
         Info,
         job,

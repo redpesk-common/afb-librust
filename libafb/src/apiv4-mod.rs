@@ -1048,10 +1048,11 @@ impl fmt::Display for AfbVerb {
     }
 }
 
-pub struct AfbRequest<'a> {
+#[derive(Clone)]
+pub struct AfbRequest {
     _rqtv4: cglue::afb_req_t,
-    api: &'a AfbApi,
-    verb: &'a AfbVerb,
+    api: &'static AfbApi,
+    verb: &'static AfbVerb,
 }
 
 // Rust dynamic object are fat pointer and should be encapculated before passing to C
@@ -1063,8 +1064,8 @@ pub trait AfbRqtSession {
     fn closing(&mut self) {}
 }
 
-impl<'a> AfbRequest<'a> {
-    pub fn new(rqtv4: cglue::afb_req_t, api: &'a AfbApi, verb: &'a AfbVerb) -> Self {
+impl AfbRequest {
+    pub fn new(rqtv4: cglue::afb_req_t, api: &'static AfbApi, verb: &'static AfbVerb) -> Self {
         AfbRequest {
             _rqtv4: unsafe { cglue::afb_req_addref(rqtv4) },
             verb: verb,
@@ -1136,23 +1137,23 @@ impl<'a> AfbRequest<'a> {
         }
     }
 
-    pub fn get_uid(&'a self) -> String {
+    pub fn get_uid(&self) -> String {
         format!("rqt:{:p}", self)
     }
 
-    pub fn get_verb(&'a self) -> &'a AfbVerb {
+    pub fn get_verb(&self) -> &'static AfbVerb {
         self.verb
     }
 
-    pub fn get_api(&'a self) -> &'a AfbApi {
+    pub fn get_api(&self) -> &'static AfbApi {
         self.api
     }
 
-    pub fn get_apiv4(&'a self) -> AfbApiV4 {
+    pub fn get_apiv4(&self) -> AfbApiV4 {
         self.api._apiv4.get()
     }
 
-    pub fn get_rqtv4(&'a self) -> cglue::afb_req_t {
+    pub fn get_rqtv4(&self) -> cglue::afb_req_t {
         self._rqtv4
     }
 
@@ -1180,11 +1181,11 @@ impl<'a> AfbRequest<'a> {
         JsoncObj::from(jso)
     }
 
-    pub fn add_ref(&self) -> AfbRqtV4 {
+    pub fn add_ref(&self) -> Self {
         unsafe {
             cglue::afb_req_addref(self._rqtv4);
         }
-        self._rqtv4
+        self.clone()
     }
 
     pub fn reply<T>(&self, args: T, status: i32)
@@ -1211,7 +1212,7 @@ impl<'a> AfbRequest<'a> {
 }
 
 #[doc(hidden)]
-impl<'a> Drop for AfbRequest<'a> {
+impl<'a> Drop for AfbRequest {
     fn drop(&mut self) {
         unsafe {
             cglue::afb_req_unref(self._rqtv4);
@@ -1219,7 +1220,7 @@ impl<'a> Drop for AfbRequest<'a> {
     }
 }
 
-impl<'a> fmt::Display for AfbRequest<'a> {
+impl<'a> fmt::Display for AfbRequest {
     fn fmt(&self, format: &mut fmt::Formatter<'_>) -> fmt::Result {
         #[allow(invalid_reference_casting)]
         unsafe {
@@ -2032,7 +2033,7 @@ impl DoSubcallSync<AfbApiV4> for AfbSubCall {
     }
 }
 
-impl<'a, C: 'static> DoSubcallAsync<&AfbRequest<'a>, RqtCallback, C> for AfbSubCall {
+impl<'a, C: 'static> DoSubcallAsync<&AfbRequest, RqtCallback, C> for AfbSubCall {
     #[track_caller]
     fn subcall_async(
         rqt: &AfbRequest,
@@ -2053,7 +2054,7 @@ impl<'a, C: 'static> DoSubcallAsync<&AfbRequest<'a>, RqtCallback, C> for AfbSubC
     }
 }
 
-impl<'a> DoSubcallSync<&AfbRequest<'a>> for AfbSubCall {
+impl<'a> DoSubcallSync<&AfbRequest> for AfbSubCall {
     #[track_caller]
     fn subcall_sync(
         rqt: &AfbRequest,

@@ -321,10 +321,10 @@ impl<'a> DoSendLog<&AfbSchedJob> for AfbLogMsg {
     }
 }
 
-impl<'a> DoSendLog<&AfbRequest<'a>> for AfbLogMsg {
+impl DoSendLog<&AfbRequest> for AfbLogMsg {
     fn print_log(
         level: i32,
-        rqt: &AfbRequest<'a>,
+        rqt: &AfbRequest,
         file: *const Cchar,
         line: u32,
         funcname: *const Cchar,
