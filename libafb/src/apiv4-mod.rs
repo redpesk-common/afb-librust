@@ -1188,6 +1188,13 @@ impl AfbRequest {
         self.clone()
     }
 
+    pub fn un_ref(&self) -> Self {
+        unsafe {
+            cglue::afb_req_unref(self._rqtv4);
+        }
+        self.clone()
+    }
+
     pub fn reply<T>(&self, args: T, status: i32)
     where
         AfbParams: ConvertResponse<T>,
