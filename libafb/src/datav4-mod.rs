@@ -268,14 +268,9 @@ impl AfbCtxData {
         format!("{:?}", self.typeid)
     }
 
-    pub fn free(&self) {
-       let _ = unsafe { Box::from_raw(self.raw) };
-    }
-}
-
-impl Drop for AfbCtxData {
-    fn drop(&mut self) {
-        let _ = unsafe { Box::from_raw(self.raw) };
+    pub fn free<T>(&self) {
+       let boxe = unsafe { Box::from_raw(self.raw as *mut T) };
+       drop(boxe)
     }
 }
 

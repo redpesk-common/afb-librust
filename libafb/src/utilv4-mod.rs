@@ -1041,7 +1041,7 @@ fn evtfd_default_cb(evfd: &AfbEvtFd, _revents: u32, _ctx: &AfbCtxData) -> Result
 // ------------------------
 #[no_mangle]
 pub extern "C" fn api_evtfd_cb(
-    _efd: cglue::afb_evfd_t,
+    efd: cglue::afb_evfd_t,
     _fd: ::std::os::raw::c_int,
     revents: u32,
     userdata: *mut ::std::os::raw::c_void,
@@ -1072,7 +1072,7 @@ pub extern "C" fn api_evtfd_cb(
     // clean callback control box
     if (revents & AfbEvtFdPoll::RUP.bits()) != 0 ||  (revents & AfbEvtFdPoll::HUP.bits()) != 0 {
         let _ctrlbox = unsafe { Box::from_raw(evtfd_ref) };
-    }
+        unsafe { cglue::afb_evfd_unref(efd) }; }
 }
 
 bitflags! {
