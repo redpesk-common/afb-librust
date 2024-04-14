@@ -1070,7 +1070,7 @@ pub extern "C" fn api_evtfd_cb(
     }
 
     // clean callback control box
-    if revents == AfbEvtFdPoll::HUP.bits() {
+    if (revents & AfbEvtFdPoll::RUP.bits()) != 0 ||  (revents & AfbEvtFdPoll::HUP.bits()) != 0 {
         let _ctrlbox = unsafe { Box::from_raw(evtfd_ref) };
     }
 }
