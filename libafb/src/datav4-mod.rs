@@ -186,12 +186,12 @@ macro_rules! AfbDataConverter {
 pub struct AfbCtxData {
     raw: *mut std::ffi::c_void,
     typeid: TypeId,
-    lock: Mutex<i8>,
+    lock: Mutex<bool>,
 }
 
 pub struct AfbCtxLock<'a, T> {
     data: T,
-    _lock: MutexGuard<'a, i8>,
+    _lock: MutexGuard<'a, bool>,
 }
 
 impl<'a, T> Deref for AfbCtxLock<'a, T> {
@@ -217,13 +217,12 @@ impl AfbCtxData {
         Self {
             raw: Box::into_raw(Box::new(ctx)) as *mut std::ffi::c_void,
             typeid,
-            lock: Mutex::new(0),
+            lock: Mutex::new(true),
         }
     }
 
     #[track_caller]
-    fn check_type(&self, tid: TypeId) -> Result<(), AfbError>
-    {
+    fn check_type(&self, tid: TypeId) -> Result<(), AfbError> {
         if self.typeid != tid {
             return afb_error!("afb-ctx-data", "source/destination incompatible data types",);
         }
@@ -269,8 +268,23 @@ impl AfbCtxData {
     }
 
     pub fn free<T>(&self) {
-       let boxe = unsafe { Box::from_raw(self.raw as *mut T) };
-       drop(boxe)
+        let mut lock = self.lock.lock().unwrap();
+        if *lock {
+            *lock = false;
+            let boxe = unsafe { Box::from_raw(self.raw as *mut T) };
+            drop(boxe)
+        }
+    }
+}
+
+impl Drop for AfbCtxData {
+    fn drop(&mut self) {
+        let mut lock = self.lock.lock().unwrap();
+        if *lock {
+            *lock = false;
+            let boxe = unsafe { Box::from_raw(self.raw) };
+            drop(boxe)
+        }
     }
 }
 
