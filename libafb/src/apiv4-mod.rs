@@ -2020,20 +2020,12 @@ impl DoSubcallSync<AfbApiV4> for AfbSubCall {
             )
         };
         if rc < 0 || nreplies > MAX_CALL_ARGS || status < 0 {
-            let error = if status == -100 {
-                let replies = AfbRqtData::new(&replies, nreplies, status);
-                match replies.get::<JsoncObj>(0) {
-                    Ok(jerror) => jerror.to_string(),
-                    Err(_) => format!("status:{}({})", status, afb_error_info(status))
-                }
-            } else {
-                String::new()
+            let replies = AfbRqtData::new(&replies, nreplies, status);
+            let error = match replies.get::<JsoncObj>(0) {
+                Ok(jerror) => jerror.to_string(),
+                Err(_) => format!("status:{}({})", status, afb_error_info(status)),
             };
-            return Err(AfbError::new(
-                "api-subcalls",
-                status,
-                error,
-            ));
+            return Err(AfbError::new("api-subcalls", status, error));
         }
         let datas = AfbRqtData::new(&replies, nreplies, status);
         Ok(datas)
@@ -2128,22 +2120,13 @@ impl DoSubcallSync<AfbRqtV4> for AfbSubCall {
                 replies.as_ref() as *const _ as *mut cglue::afb_data_t,
             )
         };
-        if rc < 0 || status < 0 {
-            let error = if status == -100 {
-                let replies = AfbRqtData::new(&replies, nreplies, status);
-                match replies.get::<JsoncObj>(0) {
-                    Ok(jerror) => jerror.to_string(),
-                    Err(_) =>  format!("status:{}({})", status, afb_error_info(status))
-,
-                }
-            } else {
-                String::new()
+        if rc < 0 || nreplies > MAX_CALL_ARGS || status < 0 {
+            let replies = AfbRqtData::new(&replies, nreplies, status);
+            let error = match replies.get::<JsoncObj>(0) {
+                Ok(jerror) => jerror.to_string(),
+                Err(_) => format!("status:{}({})", status, afb_error_info(status)),
             };
-            return Err(AfbError::new(
-                "api-subcalla",
-                status,
-                error,
-            ));
+            return Err(AfbError::new("api-subcalls", status, error));
         }
         // move const **array in something Rust may understand
         let datas = AfbRqtData::new(&replies, nreplies, status);
