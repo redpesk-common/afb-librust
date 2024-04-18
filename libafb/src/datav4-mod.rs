@@ -78,7 +78,7 @@ macro_rules! AfbDataConverter {
                 let data = unsafe { &mut *(cbuffer as *mut $datat) };
                 match serde_json::to_string(data) {
                     Ok(output) => Ok(output),
-                    Err(error) => Err(error.to_string()),
+                    Err(error) => Err(format!("{}::{} {}", stringify!($uid), stringify!($datat), error.to_string()))
                 }
             }
 
@@ -86,7 +86,7 @@ macro_rules! AfbDataConverter {
             pub fn decode(json_string: &str) -> Result<Box<dyn Any>, String> {
                 match serde_json::from_str::<$datat>(json_string) {
                     Ok(value) => Ok(Box::new(value)),
-                    Err(error) => Err(error.to_string()),
+                    Err(error) => Err(format!("{}::{} {}", stringify!($uid), stringify!($datat), error.to_string()))
                 }
             }
 
