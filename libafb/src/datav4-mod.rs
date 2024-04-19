@@ -74,19 +74,20 @@ macro_rules! AfbDataConverter {
             pub static mut CONVERTER_BOX: ConverterBox = ConverterBox(None);
 
             #[track_caller]
-            pub fn encode(cbuffer: *mut std::ffi::c_void) -> Result<String, String> {
+            pub fn encode(cbuffer: *mut std::ffi::c_void) -> Result<String, AfbError> {
                 let data = unsafe { &mut *(cbuffer as *mut $datat) };
                 match serde_json::to_string(data) {
                     Ok(output) => Ok(output),
-                    Err(error) => Err(format!("{}::{} {}", stringify!($uid), stringify!($datat), error.to_string()))
+                    Err(error) => afb_error! (stringify!($uid), "{} {}", stringify!($datat), &error.to_string())
                 }
             }
 
             #[track_caller]
-            pub fn decode(json_string: &str) -> Result<Box<dyn Any>, String> {
+            pub fn decode(json_string: &str) -> Result<Box<dyn Any>, AfbError> {
                 match serde_json::from_str::<$datat>(json_string) {
                     Ok(value) => Ok(Box::new(value)),
-                    Err(error) => Err(format!("{}::{} {}", stringify!($uid), stringify!($datat), error.to_string()))
+                    //Err(error) => Err(format!("{}::{} {}", stringify!($uid), stringify!($datat), error.to_string()))
+                    Err(error) => afb_error! (stringify!($uid), "{} {}", stringify!($datat), &error.to_string())
                 }
             }
 
@@ -364,8 +365,8 @@ pub extern "C" fn free_box_cb(context: *mut std::ffi::c_void) {
     drop(cbox);
 }
 
-type EncoderCb = fn(*mut std::ffi::c_void) -> Result<String, String>;
-type DecoderCb = fn(&str) -> Result<Box<dyn Any>, String>;
+type EncoderCb = fn(*mut std::ffi::c_void) -> Result<String, AfbError>;
+type DecoderCb = fn(&str) -> Result<Box<dyn Any>, AfbError>;
 
 #[no_mangle]
 // move from internal representation to json string

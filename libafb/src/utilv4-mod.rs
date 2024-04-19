@@ -1171,7 +1171,7 @@ impl AfbEvtFd {
                 self.events,
                 Some(api_evtfd_cb),
                 self as *const _ as *mut std::ffi::c_void,
-                self.autounref,
+                0, //self.autounref done by rust callback
                 self.autoclose,
             )
         };
