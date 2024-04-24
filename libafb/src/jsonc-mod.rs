@@ -82,7 +82,7 @@ pub fn hexa_to_bytes<'a>(input: &str, buffer: &'a mut [u8]) -> Result<usize, Afb
 }
 
 #[track_caller]
-pub fn bytes_to_hexa<'a>(buffer: &[u8]) -> String {
+pub fn bytes_to_hexa(buffer: &[u8]) -> String {
     format!("{:02x?}", buffer).replace(" ", "")
 }
 
