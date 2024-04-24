@@ -198,17 +198,6 @@ impl DoPutJso<i32> for JsoncObj {
     }
 }
 
-impl DoPutJso<bool> for JsoncObj {
-    #[track_caller]
-    fn put_jso(jso: *mut cglue::json_object) -> Result<bool, AfbError> {
-        if unsafe { cglue::json_object_get_type(jso) } != cglue::json_type_json_type_boolean {
-            afb_error!("jsonc-get-type", "jsonc object is not boolean")
-        } else {
-            Ok(unsafe { cglue::json_object_get_boolean(jso) != 0 })
-        }
-    }
-}
-
 impl DoPutJso<u32> for JsoncObj {
     #[track_caller]
     fn put_jso(jso: *mut cglue::json_object) -> Result<u32, AfbError> {
@@ -216,6 +205,93 @@ impl DoPutJso<u32> for JsoncObj {
             afb_error!("jsonc-get-type", "jsonc object is not integer",)
         } else {
             Ok(unsafe { cglue::json_object_get_int(jso) as u32 })
+        }
+    }
+}
+
+impl DoPutJso<i16> for JsoncObj {
+    #[track_caller]
+    fn put_jso(jso: *mut cglue::json_object) -> Result<i16, AfbError> {
+        if unsafe { cglue::json_object_get_type(jso) } != cglue::json_type_json_type_int {
+            afb_error!("jsonc-get-type", "jsonc object is not an integer",)
+        } else {
+            let value= unsafe { cglue::json_object_get_int(jso) };
+            if value > std::i16::MAX as i32 || value < std::i16::MIN as i32 {
+                return afb_error!(
+                    "jsonc::get<i16>",
+                    "multiplier should be i16 get:{}",
+                    value
+                )
+            }
+            Ok(value as i16)
+        }
+    }
+}
+
+impl DoPutJso<u8> for JsoncObj {
+    #[track_caller]
+    fn put_jso(jso: *mut cglue::json_object) -> Result<u8, AfbError> {
+        if unsafe { cglue::json_object_get_type(jso) } != cglue::json_type_json_type_int {
+            afb_error!("jsonc-get-type", "jsonc object is not an integer",)
+        } else {
+            let value= unsafe { cglue::json_object_get_int(jso) };
+            if value > std::u8::MAX as i32 || value < std::u8::MIN as i32 {
+                return afb_error!(
+                    "jsonc::get<u8>",
+                    "multiplier should be u8 get:{}",
+                    value
+                )
+            }
+            Ok(value as u8)
+        }
+    }
+}
+
+impl DoPutJso<i8> for JsoncObj {
+    #[track_caller]
+    fn put_jso(jso: *mut cglue::json_object) -> Result<i8, AfbError> {
+        if unsafe { cglue::json_object_get_type(jso) } != cglue::json_type_json_type_int {
+            afb_error!("jsonc-get-type", "jsonc object is not an integer",)
+        } else {
+            let value= unsafe { cglue::json_object_get_int(jso) };
+            if value > std::i8::MAX as i32 || value < std::i8::MIN as i32 {
+                return afb_error!(
+                    "jsonc::get<i8>",
+                    "multiplier should be i8 get:{}",
+                    value
+                )
+            }
+            Ok(value as i8)
+        }
+    }
+}
+
+impl DoPutJso<u16> for JsoncObj {
+    #[track_caller]
+    fn put_jso(jso: *mut cglue::json_object) -> Result<u16, AfbError> {
+        if unsafe { cglue::json_object_get_type(jso) } != cglue::json_type_json_type_int {
+            afb_error!("jsonc-get-type", "jsonc object is not an integer",)
+        } else {
+            let value= unsafe { cglue::json_object_get_int(jso) };
+            if value > std::u16::MAX as i32 || value < std::u16::MIN as i32 {
+                return afb_error!(
+                    "jsonc::get<u16>",
+                    "multiplier should be u16 get:{}",
+                    value
+                )
+            }
+            Ok(value as u16)
+        }
+    }
+}
+
+impl DoPutJso<bool> for JsoncObj {
+    #[track_caller]
+    fn put_jso(jso: *mut cglue::json_object) -> Result<bool, AfbError> {
+        if unsafe { cglue::json_object_get_type(jso) } != cglue::json_type_json_type_boolean {
+            afb_error!("jsonc-get-type", "jsonc object is not boolean")
+        } else {
+            Ok(unsafe { cglue::json_object_get_boolean(jso) != 0 })
         }
     }
 }
