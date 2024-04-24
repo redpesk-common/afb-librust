@@ -122,6 +122,19 @@ fn expend_to_vec() {
 // testing object type
 // -------------------------------------------------
 #[test]
+fn hexa_converter() {
+    let input= "[01,02,03,04,05,06]";
+    let mut buffer:[u8;6]= [0;6];
+
+    let output= hexa_to_byte(input, &mut buffer).unwrap();
+    assert!(output==6);
+
+    let result= byte_to_hexa(&buffer);
+    assert!(input == result);
+
+}
+
+#[test]
 fn get_from_object() {
 
     let value1=123;
