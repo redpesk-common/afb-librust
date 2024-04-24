@@ -57,7 +57,7 @@ pub fn to_static_str(value: String) -> &'static str {
 
 // convert an hexadecimal string "01:02:...:xx" into an &[u8] slice
 #[track_caller]
-pub fn hexa_to_byte<'a>(input: &str, buffer: &'a mut [u8]) -> Result<usize, AfbError> {
+pub fn hexa_to_bytes<'a>(input: &str, buffer: &'a mut [u8]) -> Result<usize, AfbError> {
     let mut idx = 0;
     for hexa in input[1..input.len() - 1].split(',') {
         if idx == buffer.len() {
@@ -82,7 +82,7 @@ pub fn hexa_to_byte<'a>(input: &str, buffer: &'a mut [u8]) -> Result<usize, AfbE
 }
 
 #[track_caller]
-pub fn byte_to_hexa<'a>(buffer: &[u8]) -> String {
+pub fn bytes_to_hexa<'a>(buffer: &[u8]) -> String {
     format!("{:02x?}", buffer).replace(" ", "")
 }
 
