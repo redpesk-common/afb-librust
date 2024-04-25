@@ -377,23 +377,6 @@ pub trait DoAddon<T> {
     fn insert(&self, value: T);
 }
 
-impl DoAddon<f64> for JsoncObj {
-    #[track_caller]
-    fn add(&self, key: &str, value: f64) {
-        unsafe {
-            let object = cglue::json_object_new_double(value);
-            self.add_to_object(key, object);
-        }
-    }
-
-    #[track_caller]
-    fn insert(&self, value: f64) {
-        unsafe {
-            let object = cglue::json_object_new_double(value);
-            self.add_to_array(object);
-        }
-    }
-}
 
 impl DoAddon<bool> for JsoncObj {
     #[track_caller]
@@ -412,6 +395,24 @@ impl DoAddon<bool> for JsoncObj {
     }
 }
 
+impl DoAddon<f64> for JsoncObj {
+    #[track_caller]
+    fn add(&self, key: &str, value: f64) {
+        unsafe {
+            let object = cglue::json_object_new_double(value);
+            self.add_to_object(key, object);
+        }
+    }
+
+    #[track_caller]
+    fn insert(&self, value: f64) {
+        unsafe {
+            let object = cglue::json_object_new_double(value);
+            self.add_to_array(object);
+        }
+    }
+}
+
 impl DoAddon<i64> for JsoncObj {
     #[track_caller]
     fn add(&self, key: &str, value: i64) {
@@ -424,6 +425,23 @@ impl DoAddon<i64> for JsoncObj {
     fn insert(&self, value: i64) {
         unsafe {
             let object = cglue::json_object_new_int64(value);
+            self.add_to_array(object);
+        }
+    }
+}
+
+impl DoAddon<u64> for JsoncObj {
+    #[track_caller]
+    fn add(&self, key: &str, value: u64) {
+        unsafe {
+            let object = cglue::json_object_new_int64(value as i64);
+            self.add_to_object(key, object);
+        }
+    }
+    #[track_caller]
+    fn insert(&self, value: u64) {
+        unsafe {
+            let object = cglue::json_object_new_int64(value as i64);
             self.add_to_array(object);
         }
     }
@@ -454,6 +472,50 @@ impl DoAddon<u32> for JsoncObj {
     #[track_caller]
     fn insert(&self, value: u32) {
         DoAddon::insert(self, value as i64)
+    }
+}
+
+impl DoAddon<u16> for JsoncObj {
+    #[track_caller]
+    fn add(&self, key: &str, value: u16) {
+        DoAddon::add(self, key, value as u32)
+    }
+    #[track_caller]
+    fn insert(&self, value: u16) {
+        DoAddon::insert(self, value as u32)
+    }
+}
+
+impl DoAddon<i16> for JsoncObj {
+    #[track_caller]
+    fn add(&self, key: &str, value: i16) {
+        DoAddon::add(self, key, value as i32)
+    }
+    #[track_caller]
+    fn insert(&self, value: i16) {
+        DoAddon::insert(self, value as i32)
+    }
+}
+
+impl DoAddon<u8> for JsoncObj {
+    #[track_caller]
+    fn add(&self, key: &str, value: u8) {
+        DoAddon::add(self, key, value as u32)
+    }
+    #[track_caller]
+    fn insert(&self, value: u8) {
+        DoAddon::insert(self, value as u32)
+    }
+}
+
+impl DoAddon<i8> for JsoncObj {
+    #[track_caller]
+    fn add(&self, key: &str, value: i8) {
+        DoAddon::add(self, key, value as i32)
+    }
+    #[track_caller]
+    fn insert(&self, value: i8) {
+        DoAddon::insert(self, value as i32)
     }
 }
 
