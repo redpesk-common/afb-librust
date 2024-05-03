@@ -243,7 +243,7 @@ impl fmt::Display for AfbError {
 
 impl fmt::Debug for AfbError {
     fn fmt(&self, format: &mut fmt::Formatter) -> fmt::Result {
-        write!(format, "{}:{}", self.uid, self.info)
+        write!(format, "{}:{} {}:{}:{}", self.uid, self.info, self.dbg_info.file, self.dbg_info.line, self.dbg_info.column)
     }
 }
 
