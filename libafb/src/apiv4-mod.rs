@@ -770,9 +770,6 @@ impl AfbApi {
     #[doc(hidden)]
     // hack to update apiv4 after api object creation
     pub fn set_apiv4(&self, apiv4: cglue::afb_api_t) {
-        // #[allow(invalid_reference_casting)]
-        // let api_ref = unsafe { &mut *(self as *const _ as *mut AfbApi) };
-        // api_ref._apiv4.get() = apiv4;
         self._apiv4.set(apiv4);
     }
 
@@ -803,13 +800,6 @@ impl AfbApi {
             )
         } else {
             Ok(self)
-        }
-    }
-
-    pub fn as_mut(&self) -> &mut Self {
-        #[allow(invalid_reference_casting)]
-        unsafe {
-            &mut *(self as *const _ as *mut AfbApi)
         }
     }
 
@@ -1229,11 +1219,10 @@ impl<'a> Drop for AfbRequest {
 
 impl<'a> fmt::Display for AfbRequest {
     fn fmt(&self, format: &mut fmt::Formatter<'_>) -> fmt::Result {
-        #[allow(invalid_reference_casting)]
         unsafe {
-            let self_ref = &mut *(self as *const _ as *mut AfbRequest);
-            let api_ref = &mut *(self_ref.get_api() as *const _ as *mut AfbApi);
-            let verb_ref = &mut *(self_ref.get_verb() as *const _ as *mut AfbVerb);
+            let self_ref = &*(self as *const _ as *mut AfbRequest);
+            let api_ref = & *(self_ref.get_api() as *const _ as *mut AfbApi);
+            let verb_ref = & *(self_ref.get_verb() as *const _ as *mut AfbVerb);
 
             let api_uid = api_ref.get_uid();
             let verb_uid = verb_ref.get_uid();
@@ -1287,11 +1276,10 @@ impl<'a> AfbEventMsg<'a> {
 
 impl fmt::Display for AfbEventMsg<'_> {
     fn fmt(&self, format: &mut fmt::Formatter<'_>) -> fmt::Result {
-        #[allow(invalid_reference_casting)]
         unsafe {
-            let self_ref = &mut *(self as *const _ as *mut AfbEventMsg);
-            let api_ref = &mut *(self_ref.get_api() as *const _ as *mut AfbApi);
-            let handler_ref = &mut *(self_ref.get_handler() as *const _ as *mut AfbEvtHandler);
+            let self_ref = &*(self as *const _ as *mut AfbEventMsg);
+            let api_ref = &*(self_ref.get_api() as *const _ as *mut AfbApi);
+            let handler_ref = &*(self_ref.get_handler() as *const _ as *mut AfbEvtHandler);
 
             let api_uid = api_ref.get_uid();
             let handler_uid = handler_ref.get_uid();
@@ -1783,13 +1771,6 @@ impl AfbGroup {
     // return object getter trait to prevent any malicious modification
     pub fn finalize(&'static mut self) -> Result<&'static AfbGroup, AfbError> {
         Ok(self)
-    }
-
-    pub fn as_mut(&self) -> &mut Self {
-        #[allow(invalid_reference_casting)]
-        unsafe {
-            &mut *(self as *const _ as *mut AfbGroup)
-        }
     }
 
     pub fn as_any(&self) -> &dyn Any {

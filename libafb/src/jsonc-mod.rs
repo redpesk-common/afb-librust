@@ -55,7 +55,7 @@ pub fn to_static_str(value: String) -> &'static str {
     Box::leak(value.into_boxed_str())
 }
 
-// convert an hexadecimal string "01:02:...:xx" into an &[u8] slice
+// convert an hexadecimal string "[01,02,...,xx]" into an &[u8] slice
 #[track_caller]
 pub fn hexa_to_bytes<'a>(input: &str, buffer: &'a mut [u8]) -> Result<&'a[u8], AfbError> {
     let mut idx = 0;
