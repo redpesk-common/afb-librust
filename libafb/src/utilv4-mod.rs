@@ -1613,11 +1613,11 @@ impl AfbTapGroup {
         let jsonc = JsoncObj::array();
         let count = self.tests.len();
         let msg = format!("1..{} # {}", count, self.uid);
-        jsonc.insert(msg.as_str()).unwrap();
+        jsonc.append(msg.as_str()).unwrap();
         for idx in 0..count {
             let test_ref = self.get_test(idx).unwrap();
             let test = &mut *(test_ref);
-            jsonc.insert(test.get_report()).unwrap();
+            jsonc.append(test.get_report()).unwrap();
         }
         jsonc
     }

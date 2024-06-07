@@ -806,7 +806,7 @@ impl AfbRqtData {
                 Err(error) => error.to_jsonc().unwrap(),
                 Ok(data) => data,
             };
-            jdata.insert(jsonc).unwrap();
+            jdata.append(jsonc).unwrap();
         }
         jsonc.add("status", self.status).unwrap();
         jsonc.add("response", jdata).unwrap();

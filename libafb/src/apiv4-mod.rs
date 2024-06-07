@@ -222,7 +222,7 @@ fn add_verbs_to_group(
                 jverb.add("sample", jsamples).unwrap();
             };
         };
-        jverbs.insert(jverb).unwrap();
+        jverbs.append(jverb).unwrap();
     }
     jgroup.add("verbs", jverbs).unwrap();
     jgroup
@@ -263,13 +263,13 @@ pub extern "C" fn api_info_cb(
     // create groups array to host verbs
     let jgroups = JsoncObj::array();
     jgroups
-        .insert(add_verbs_to_group("", "", &mut api_ref.verbs))
+        .append(add_verbs_to_group("", "", &mut api_ref.verbs))
         .unwrap();
 
     for slot in &api_ref.groups {
         let group_ref = unsafe { &mut *(*slot as *mut AfbGroup) };
         jgroups
-            .insert(add_verbs_to_group(
+            .append(add_verbs_to_group(
                 group_ref._uid,
                 group_ref.info,
                 &mut group_ref.verbs,
@@ -940,7 +940,7 @@ impl AfbVerb {
         match jparse {
             Err(_error) => afb_error!("jsonc-parsing-error", value.to_string()),
             Ok(jvalue) => {
-                self.samples.insert(jvalue).unwrap();
+                self.samples.append(jvalue).unwrap();
                 Ok(self)
             }
         }

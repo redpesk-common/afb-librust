@@ -374,7 +374,7 @@ impl DoGetJso<usize> for JsoncObj {
 pub trait DoAddon<T> {
     #[track_caller]
     fn add(&self, key: &str, value: T);
-    fn insert(&self, value: T);
+    fn insert(&self, idx: usize, value: T);
     fn append(&self, value: T);
 }
 
@@ -387,10 +387,10 @@ impl DoAddon<bool> for JsoncObj {
         }
     }
     #[track_caller]
-    fn insert(&self, value: bool) {
+    fn insert(&self, idx: usize, value: bool) {
         unsafe {
             let object = cglue::json_object_new_boolean(value as i32);
-            self.append_to_array(object);
+            self.insert_to_array(idx, object);
         }
     }
 
@@ -398,7 +398,7 @@ impl DoAddon<bool> for JsoncObj {
     fn append(&self, value: bool) {
         unsafe {
             let object = cglue::json_object_new_boolean(value as i32);
-            self.insert_to_array(object);
+            self.append_to_array(object);
         }
     }
 }
@@ -421,10 +421,10 @@ impl DoAddon<f64> for JsoncObj {
     }
 
     #[track_caller]
-    fn insert(&self, value: f64) {
+    fn insert(&self, idx: usize, value: f64) {
         unsafe {
             let object = cglue::json_object_new_double(value);
-            self.insert_to_array(object);
+            self.insert_to_array(idx, object);
         }
     }
 }
@@ -445,10 +445,10 @@ impl DoAddon<i64> for JsoncObj {
         }
     }
     #[track_caller]
-    fn insert(&self, value: i64) {
+    fn insert(&self, idx: usize, value: i64) {
         unsafe {
             let object = cglue::json_object_new_int64(value);
-            self.insert_to_array(object);
+            self.insert_to_array(idx, object);
         }
     }
 }
@@ -469,10 +469,10 @@ impl DoAddon<u64> for JsoncObj {
         }
     }
     #[track_caller]
-    fn insert(&self, value: u64) {
+    fn insert(&self, idx: usize, value: u64) {
         unsafe {
             let object = cglue::json_object_new_int64(value as i64);
-            self.insert_to_array(object);
+            self.insert_to_array(idx, object);
         }
     }
 }
@@ -493,10 +493,10 @@ impl DoAddon<i32> for JsoncObj {
         }
     }
     #[track_caller]
-    fn insert(&self, value: i32) {
+    fn insert(&self, idx: usize, value: i32) {
         unsafe {
             let object = cglue::json_object_new_int(value);
-            self.insert_to_array(object);
+            self.insert_to_array(idx, object);
         }
     }
 }
@@ -507,8 +507,8 @@ impl DoAddon<u32> for JsoncObj {
         DoAddon::add(self, key, value as i64)
     }
     #[track_caller]
-    fn insert(&self, value: u32) {
-        DoAddon::insert(self, value as i64)
+    fn insert(&self, idx: usize, value: u32) {
+        DoAddon::insert(self, idx, value as i64)
     }
     #[track_caller]
     fn append(&self, value: u32) {
@@ -522,8 +522,8 @@ impl DoAddon<u16> for JsoncObj {
         DoAddon::add(self, key, value as u32)
     }
     #[track_caller]
-    fn insert(&self, value: u16) {
-        DoAddon::insert(self, value as u32)
+    fn insert(&self, idx: usize, value: u16) {
+        DoAddon::insert(self, idx, value as u32)
     }
     #[track_caller]
     fn append(&self, value: u16) {
@@ -537,8 +537,8 @@ impl DoAddon<i16> for JsoncObj {
         DoAddon::add(self, key, value as i32)
     }
     #[track_caller]
-    fn insert(&self, value: i16) {
-        DoAddon::insert(self, value as i32)
+    fn insert(&self, idx: usize, value: i16) {
+        DoAddon::insert(self, idx, value as i32)
     }
     #[track_caller]
     fn append(&self, value: i16) {
@@ -552,8 +552,8 @@ impl DoAddon<u8> for JsoncObj {
         DoAddon::add(self, key, value as u32)
     }
     #[track_caller]
-    fn insert(&self, value: u8) {
-        DoAddon::insert(self, value as u32)
+    fn insert(&self, idx: usize, value: u8) {
+        DoAddon::insert(self, idx, value as u32)
     }
     #[track_caller]
     fn append(&self, value: u8) {
@@ -567,8 +567,8 @@ impl DoAddon<i8> for JsoncObj {
         DoAddon::add(self, key, value as i32)
     }
     #[track_caller]
-    fn insert(&self, value: i8) {
-        DoAddon::insert(self, value as i32)
+    fn insert(&self, idx: usize, value: i8) {
+        DoAddon::insert(self, idx, value as i32)
     }
     #[track_caller]
     fn append(&self, value: i8) {
@@ -581,8 +581,8 @@ impl DoAddon<usize> for JsoncObj {
     fn add(&self, key: &str, value: usize) {
         DoAddon::add(self, key, value as i64)
     }
-    fn insert(&self, value: usize) {
-        DoAddon::insert(self, value as i64)
+    fn insert(&self, idx: usize, value: usize) {
+        DoAddon::insert(self, idx, value as i64)
     }
     fn append(&self, value: usize) {
         DoAddon::append(self, value as i64)
@@ -607,11 +607,11 @@ impl DoAddon<&str> for JsoncObj {
         }
     }
 
-    fn insert(&self, value: &str) {
+    fn insert(&self, idx: usize, value: &str) {
         let sval = CString::new(value).expect("Invalid jsonc key string");
         unsafe {
             let object = cglue::json_object_new_string(sval.into_raw());
-            self.insert_to_array(object);
+            self.insert_to_array(idx, object);
         }
     }
 }
@@ -622,8 +622,8 @@ impl DoAddon<&String> for JsoncObj {
         DoAddon::add(self, key, value.as_str())
     }
     #[track_caller]
-    fn insert(&self, value: &String) {
-        DoAddon::insert(self, value.as_str())
+    fn insert(&self, idx: usize, value: &String) {
+        DoAddon::insert(self, idx, value.as_str())
     }
 
     #[track_caller]
@@ -638,8 +638,8 @@ impl DoAddon<&JsoncObj> for JsoncObj {
         self.add_to_object(key, object.jso);
     }
     #[track_caller]
-    fn insert(&self, object: &JsoncObj) {
-        self.insert_to_array(object.jso);
+    fn insert(&self, idx: usize, object: &JsoncObj) {
+        self.insert_to_array(idx, object.jso);
     }
     #[track_caller]
     fn append(&self, object: &JsoncObj) {
@@ -657,8 +657,8 @@ impl DoAddon<JsoncObj> for JsoncObj {
         self.append_to_array(object.jso);
     }
     #[track_caller]
-    fn insert(&self, object: JsoncObj) {
-        self.insert_to_array(object.jso);
+    fn insert(&self, idx: usize, object: JsoncObj) {
+        self.insert_to_array(idx, object.jso);
     }
 }
 
@@ -889,7 +889,7 @@ impl JsoncObj {
     }
 
     #[track_caller]
-    pub fn insert<T>(&self, value: T) -> Result<&Self, AfbError>
+    pub fn insert<T>(&self, idx: usize, value: T) -> Result<&Self, AfbError>
     where
         JsoncObj: DoAddon<T>,
     {
@@ -898,13 +898,12 @@ impl JsoncObj {
                 if cglue::json_object_is_type(self.jso, cglue::json_type_json_type_array) == 0 {
                     afb_error!("jsonc-insert-fail", "jsonc target is not an array",)
                 } else {
-                    DoAddon::insert(self, value);
+                    DoAddon::insert(self, idx, value);
                     Ok(self)
                 };
             return result;
         }
     }
-
 
     #[track_caller]
     pub fn append<T>(&self, value: T) -> Result<&Self, AfbError>
@@ -945,9 +944,9 @@ impl JsoncObj {
     }
 
     #[track_caller]
-    fn insert_to_array(&self, jval: *mut cglue::json_object) {
+    fn insert_to_array(&self, idx: usize, jval: *mut cglue::json_object) {
         unsafe {
-            cglue::json_object_array_put_idx(self.jso, 0, jval);
+            cglue::json_object_array_put_idx(self.jso, idx, jval);
         }
     }
 
