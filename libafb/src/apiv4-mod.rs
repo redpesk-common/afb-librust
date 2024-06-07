@@ -1661,42 +1661,42 @@ impl AfbGroup {
         Box::leak(group_box)
     }
 
-    pub fn set_prefix(&'static mut self, value: &'static str) -> &'static mut Self {
+    pub fn set_prefix(&mut self, value: &'static str) -> &mut Self {
         self.prefix = value;
         self
     }
 
-    pub fn set_permission(&'static mut self, value: &'static AfbPermission) -> &'static mut Self {
+    pub fn set_permission(&mut self, value: &'static AfbPermission) -> &mut Self {
         self.permission = value;
         self
     }
 
-    pub fn set_info(&'static mut self, value: &'static str) -> &'static mut Self {
+    pub fn set_info(&mut self, value: &'static str) -> &mut Self {
         self.info = value;
         self
     }
 
-    pub fn set_separator(&'static mut self, value: &'static str) -> &'static mut Self {
+    pub fn set_separator(&mut self, value: &'static str) -> &mut Self {
         self.separator = value;
         self
     }
 
-    pub fn set_verbosity(&'static mut self, value: i32) -> &'static mut Self {
+    pub fn set_verbosity(&mut self, value: i32) -> &mut Self {
         self.verbosity = value;
         self
     }
 
-    pub fn add_verb(&'static mut self, verb: &AfbVerb) -> &'static mut Self {
+    pub fn add_verb(&mut self, verb: &AfbVerb) -> &mut Self {
         self.verbs.push(verb);
         self
     }
 
-    pub fn add_event(&'static mut self, event: &'static AfbEvent) -> &'static mut Self {
+    pub fn add_event(&mut self, event: &'static AfbEvent) -> &mut Self {
         self.events.push(event);
         self
     }
 
-    pub fn add_evt_handler(&'static mut self, handler: &AfbEvtHandler) -> &'static mut Self {
+    pub fn add_evt_handler(&mut self, handler: &AfbEvtHandler) -> &mut Self {
         self.evthandlers.push(handler);
         self
     }
@@ -1769,7 +1769,7 @@ impl AfbGroup {
     }
 
     // return object getter trait to prevent any malicious modification
-    pub fn finalize(&'static mut self) -> Result<&'static AfbGroup, AfbError> {
+    pub fn finalize(&mut self) -> Result<&AfbGroup, AfbError> {
         Ok(self)
     }
 
