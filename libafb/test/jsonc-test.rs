@@ -83,19 +83,19 @@ fn insert_array() {
     assert!(jsonc.is_type(Jtype::Array), "object not a jsonc array");
     assert!(jsonc.count().unwrap() == 0, "object count != 0");
 
-    jsonc.insert(123).unwrap();
+    jsonc.append(123).unwrap();
     assert!(jsonc.count().unwrap() == 1, "object count != 1");
 
-    jsonc.insert(123.456).unwrap();
+    jsonc.append(123.456).unwrap();
     assert!(jsonc.count().unwrap() == 2, "object count != 2");
 
-    jsonc.insert("toto").unwrap();
+    jsonc.append("toto").unwrap();
     assert!(jsonc.count().unwrap() == 3, "object count != 3");
 
     // adding an object may fail is target is not an object
     let jobject= JsoncObj::parse("{'a':1,'b':2}");
     assert!(jobject.is_ok(), "Fail to parse jsonc string");
-    let result= jsonc.insert(jobject.unwrap());
+    let result= jsonc.append(jobject.unwrap());
     assert!(result.is_ok(), "Fail insert jsonc object in array");
     assert!(jsonc.count().unwrap() == 4, "object count != 4");
 
@@ -126,10 +126,9 @@ fn hexa_converter() {
     let input= "[01,02,03,04,05,06]";
     let mut buffer:[u8;6]= [0;6];
 
-    let output= hexa_to_byte(input, &mut buffer).unwrap();
-    assert!(output==6);
+    let buffer= hexa_to_bytes(input, &mut buffer).unwrap();
 
-    let result= byte_to_hexa(&buffer);
+    let result= bytes_to_hexa(&buffer);
     assert!(input == result);
 
 }
@@ -192,11 +191,11 @@ fn get_from_array() {
 
     // create a testing jsonc object
     let jsonc = JsoncObj::array();
-    jsonc.insert(value1).unwrap();
-    jsonc.insert(value2).unwrap();
-    jsonc.insert(value3).unwrap();
-    jsonc.insert(JsoncObj::new()).unwrap();
-    jsonc.insert(JsoncObj::array()).unwrap();
+    jsonc.append(value1).unwrap();
+    jsonc.append(value2).unwrap();
+    jsonc.append(value3).unwrap();
+    jsonc.append(JsoncObj::new()).unwrap();
+    jsonc.append(JsoncObj::array()).unwrap();
     assert!(matches!(jsonc.get_type(),Jtype::Array), "object not a jsonc array");
 
     match jsonc.index::<i64>(0) {
