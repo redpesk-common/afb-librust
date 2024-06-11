@@ -948,30 +948,26 @@ impl AfbVerb {
     }
 
     #[track_caller]
-    pub fn set_sample(&mut self, value: &'static str) -> Result<&mut Self, AfbError> {
-        let jparse = JsoncObj::parse(value);
-        match jparse {
-            Err(_error) => afb_error!("jsonc-parsing-error", value.to_string()),
-            Ok(jvalue) => {
-                self.samples.append(jvalue).unwrap();
-                Ok(self)
-            }
-        }
+    pub fn set_sample<T>(&mut self, sample: T) -> Result<&mut Self, AfbError>
+    where
+        T: Into<JsoncObj>,
+    {
+        let jvalue = JsoncObj::from(sample);
+        self.samples.append(JsoncObj::from(jvalue.clone()))?;
+        Ok(self)
     }
 
     #[track_caller]
-    pub fn set_action(&mut self, value: &'static str) -> Result<&mut Self, AfbError> {
-        let jparse = JsoncObj::parse(value);
-        match jparse {
-            Err(error) => Err(error),
-            Ok(jvalue) => {
-                if jvalue.is_type(Jtype::Array) {
-                    self.actions = jvalue;
-                    Ok(self)
-                } else {
-                    afb_error!("verb-set-action", "not a valid json array")
-                }
-            }
+    pub fn set_actions<T>(&mut self, actions: T) -> Result<&mut Self, AfbError>
+    where
+        T: Into<JsoncObj>,
+    {
+        let jvalue = JsoncObj::from(actions);
+        if jvalue.is_type(Jtype::Array) {
+            self.actions = jvalue.clone();
+            Ok(self)
+        } else {
+            afb_error!("verb-set-action", "not a valid json array")
         }
     }
 

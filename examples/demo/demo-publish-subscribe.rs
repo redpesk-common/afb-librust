@@ -129,7 +129,7 @@ pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
             _debug: "pub/sub",
             ctx: Arc::clone(&ctxdata),
         })
-        .set_action("['reset','read','subscribe','unsubscribe']")
+        .set_actions("['reset','read','subscribe','unsubscribe']")
         .expect("valid json array")
         .set_info("simulate publish/subscribe sensor model")
         .set_usage("no input")

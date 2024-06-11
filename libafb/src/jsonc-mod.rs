@@ -133,7 +133,10 @@ impl fmt::Display for JsoncObj {
             let jso = &mut *(self.jso as *mut cglue::json_object);
             let cbuffer = if format.alternate() {
                 // {:#}
-                cglue::json_object_to_json_string_ext(jso, cglue::JSON_C_TO_STRING_PRETTY as i32)
+                cglue::json_object_to_json_string_ext(
+                    jso,
+                    (cglue::JSON_C_TO_STRING_PRETTY | cglue::JSON_C_TO_STRING_NOSLASHESCAPE) as i32,
+                )
             } else {
                 // {}
                 cglue::json_object_to_json_string_ext(
@@ -712,13 +715,17 @@ impl From<f64> for JsoncObj {
 impl From<&str> for JsoncObj {
     #[track_caller]
     fn from(value: &str) -> Self {
-        let sval = CString::new(value).expect("Invalid jsonc key string");
-        unsafe {
-            let jsonc = JsoncObj {
-                jso: cglue::json_object_new_string(sval.into_raw()),
-            };
-            cglue::json_object_get(jsonc.jso);
-            return jsonc;
+        if value.starts_with('{') || value.starts_with('[') {
+            JsoncObj::parse(value).expect("valid json string expected")
+        } else {
+            let sval = CString::new(value).expect("Invalid jsonc key string");
+            unsafe {
+                let jsonc = JsoncObj {
+                    jso: cglue::json_object_new_string(sval.into_raw()),
+                };
+                cglue::json_object_get(jsonc.jso);
+                return jsonc;
+            }
         }
     }
 }
