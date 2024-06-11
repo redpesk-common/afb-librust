@@ -40,6 +40,7 @@ pub const NULLPTR: *mut std::ffi::c_void = 0 as *mut std::ffi::c_void;
 const MAX_CALL_ARGS: u32 = 10;
 
 pub trait AfbApiSubCallControl {
+    #[track_caller]
     fn api_callback(&mut self, api: &AfbApi, args: &AfbRqtData) -> Result<(), AfbError>;
 }
 
@@ -111,6 +112,7 @@ macro_rules! AfbSessionRegister {
         }
 
         impl $userdata {
+            #[track_caller]
             fn get<'a>(request: &'a AfbRequest) -> Result<&'a mut Self, AfbError> {
                 match request.get_session() {
                     Err(error) => Err(error),
@@ -121,6 +123,7 @@ macro_rules! AfbSessionRegister {
                 }
             }
 
+            #[track_caller]
             fn set<'a>(
                 request: &'a AfbRequest,
                 userdata: $userdata,
@@ -134,6 +137,7 @@ macro_rules! AfbSessionRegister {
                 }
             }
 
+            #[track_caller]
             fn unref(request: &AfbRequest) -> Result<(), afbv4::utilv4::AfbError> {
                 request.drop_session()
             }
@@ -149,6 +153,7 @@ macro_rules! AfbSessionRegister {
         }
 
         impl $userdata {
+            #[track_caller]
             fn get<'a>(request: &'a AfbRequest) -> Result<&'a mut Self, AfbError> {
                 match request.get_session() {
                     Err(error) => Err(error),
@@ -159,6 +164,7 @@ macro_rules! AfbSessionRegister {
                 }
             }
 
+            #[track_caller]
             fn set<'a>(
                 request: &'a AfbRequest,
                 userdata: $userdata,
@@ -172,6 +178,7 @@ macro_rules! AfbSessionRegister {
                 }
             }
 
+            #[track_caller]
             fn unref(request: &AfbRequest) -> Result<(), afbv4::utilv4::AfbError> {
                 request.drop_session()
             }
@@ -310,6 +317,7 @@ pub extern "C" fn api_ping_cb(
 }
 
 pub trait AfbApiControls {
+    #[track_caller]
     fn config(&mut self, api: &AfbApi, config: JsoncObj) -> Result<(), AfbError> {
         afb_log_msg!(
             Notice,
@@ -322,12 +330,13 @@ pub trait AfbApiControls {
         Ok(())
     }
 
+    #[track_caller]
     fn start(&mut self, api: &AfbApi) -> Result<(), AfbError> {
         afb_log_msg!(Debug, api, "api init uid:{}", api._uid);
         Ok(())
     }
 
-    #[doc(hidden)]
+    #[track_caller]
     fn ready(&mut self, api: &AfbApi) -> Result<(), AfbError> {
         afb_log_msg!(Debug, api, "api ready uid:{}", api._uid);
         Ok(())
@@ -773,6 +782,7 @@ impl AfbApi {
         self._apiv4.set(apiv4);
     }
 
+    #[track_caller]
     pub fn finalize(&mut self) -> Result<&AfbApi, AfbError> {
         let api_name = CString::new(self.name).expect("invalid api name");
         let api_info = CString::new(self.info).expect("invalid api info");
@@ -1063,6 +1073,7 @@ impl AfbRequest {
         }
     }
 
+    #[track_caller]
     pub fn set_session(
         &self,
         value: Box<dyn AfbRqtSession>,
@@ -1084,6 +1095,7 @@ impl AfbRequest {
         }
     }
 
+    #[track_caller]
     pub fn drop_session(&self) -> Result<(), AfbError> {
         let status = unsafe { cglue::afb_req_context_drop(self.get_rqtv4()) };
         if status < 0 {
@@ -1092,6 +1104,8 @@ impl AfbRequest {
             Ok(())
         }
     }
+
+    #[track_caller]
     pub fn get_session(&self) -> Result<&mut dyn AfbRqtSession, AfbError> {
         let session = 0 as *mut ::std::os::raw::c_void;
         let status = unsafe {
@@ -1151,6 +1165,7 @@ impl AfbRequest {
         self.get_api().getctrlbox().as_any()
     }
 
+    #[track_caller]
     pub fn set_loa(&self, loa: u32) -> Result<u32, AfbError> {
         let status = unsafe { cglue::afb_req_session_set_LOA(self._rqtv4, loa) };
         if status < 0 {
@@ -1221,8 +1236,8 @@ impl<'a> fmt::Display for AfbRequest {
     fn fmt(&self, format: &mut fmt::Formatter<'_>) -> fmt::Result {
         unsafe {
             let self_ref = &*(self as *const _ as *mut AfbRequest);
-            let api_ref = & *(self_ref.get_api() as *const _ as *mut AfbApi);
-            let verb_ref = & *(self_ref.get_verb() as *const _ as *mut AfbVerb);
+            let api_ref = &*(self_ref.get_api() as *const _ as *mut AfbApi);
+            let verb_ref = &*(self_ref.get_verb() as *const _ as *mut AfbVerb);
 
             let api_uid = api_ref.get_uid();
             let verb_uid = verb_ref.get_uid();
@@ -1516,6 +1531,7 @@ impl AfbEvent {
         status
     }
 
+    #[track_caller]
     pub fn subscribe(&self, rqt: &AfbRequest) -> Result<&Self, AfbError> {
         if self._evtv4 == 0 as AfbEvtV4 {
             return afb_error!(self._uid, "should register before usage");
@@ -1529,6 +1545,7 @@ impl AfbEvent {
         }
     }
 
+    #[track_caller]
     pub fn unsubscribe(&self, rqt: &AfbRequest) -> Result<&Self, AfbError> {
         if self._evtv4 == 0 as AfbEvtV4 {
             return afb_error!(self._uid, "should register before usage");
@@ -1906,6 +1923,7 @@ pub trait DoSubcallAsync<H, K, C> {
 }
 
 pub trait DoSubcallSync<H> {
+    #[track_caller]
     fn subcall_sync(
         handle: H,
         apiname: CString,
