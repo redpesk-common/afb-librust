@@ -460,8 +460,9 @@ pub extern "C" fn api_controls_cb(
                         afb_log_msg!(
                             Critical,
                             api_ref._apiv4.get(),
-                            "Fail to register verb={}",
-                            verb_ref.get_uid()
+                            "Fail to register verb={} afberror={}",
+                            verb_ref.get_uid(),
+                            get_strerror(status)
                         );
                         break;
                     };
@@ -498,8 +499,9 @@ pub extern "C" fn api_controls_cb(
                         afb_log_msg!(
                             Critical,
                             api_ref._apiv4.get(),
-                            "Fail to register event={}",
-                            event_ref.get_uid()
+                            "Fail to register event={} afberror={}",
+                            event_ref.get_uid(),
+                            get_strerror(status)
                         );
                         break;
                     };
@@ -520,8 +522,9 @@ pub extern "C" fn api_controls_cb(
                         afb_log_msg!(
                             Critical,
                             api_ref._apiv4.get(),
-                            "Fail to register event={}",
-                            event_ref.get_uid()
+                            "Fail to register event={} afberror={}",
+                            event_ref.get_uid(),
+                            get_strerror(status)
                         );
                         break;
                     };
@@ -994,6 +997,7 @@ impl AfbVerb {
         self
     }
 
+    #[track_caller]
     pub fn register(&self, apiv4: cglue::afb_api_t, inherited_auth: *const AfbAuthV4) -> i32 {
         let verb_name = CString::new(self.name).expect("invalid verb name");
         let verb_info = CString::new(self.info).expect("invalid verb info");
@@ -1440,6 +1444,7 @@ impl AfbEvtHandler {
         self
     }
 
+    #[track_caller]
     pub fn register(&mut self, apiv4: cglue::afb_api_t) -> i32 {
         let event_pattern = CString::new(self.pattern).expect("invalid event pattern");
 
@@ -1516,6 +1521,7 @@ impl AfbEvent {
         self.verbosity
     }
 
+    #[track_caller]
     pub fn register<T>(&mut self, api: T) -> i32
     where
         AfbEvent: GetApiV4<T>,
@@ -1746,8 +1752,9 @@ impl AfbGroup {
                 afb_log_msg!(
                     Critical,
                     apiv4,
-                    "Fail to register verb={} status={}",
-                    verb_ref.get_uid(), status
+                    "Fail to register verb={} afberror={}",
+                    verb_ref.get_uid(),
+                    get_strerror(status)
                 );
                 break;
             };
@@ -1760,8 +1767,9 @@ impl AfbGroup {
                     afb_log_msg!(
                         Critical,
                         apiv4,
-                        "Fail to register event_handler={}",
-                        event_ref.get_uid()
+                        "Fail to register event_handler={} afberror={}",
+                        event_ref.get_uid(),
+                        get_strerror(status)
                     );
                     break;
                 };
@@ -1775,8 +1783,9 @@ impl AfbGroup {
                     afb_log_msg!(
                         Critical,
                         apiv4,
-                        "Fail to register event={}",
-                        event_ref.get_uid()
+                        "Fail to register event={} afberror={}",
+                        event_ref.get_uid(),
+                        get_strerror(status)
                     );
                     break;
                 };
