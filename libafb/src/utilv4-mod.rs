@@ -22,12 +22,27 @@
  */
 use crate::prelude::*;
 
+use ::std::os::raw;
 use bitflags::bitflags;
 use std::collections::HashMap;
+use std::ffi::CStr;
 use std::ffi::CString;
 use std::fmt;
 use std::panic::Location;
 use std::sync::{Arc, Condvar, Mutex};
+
+const MAX_ERROR_LEN: usize = 256;
+pub fn get_perror() -> String {
+    get_strerror(unsafe{*cglue::__errno_location()})
+}
+
+pub fn get_strerror(code: i32) -> String {
+    let mut buffer = [0 as ::std::os::raw::c_char; MAX_ERROR_LEN];
+    unsafe { cglue::strerror_r(code, &mut buffer as *mut raw::c_char, MAX_ERROR_LEN) };
+    let cstring = unsafe { CStr::from_ptr(&mut buffer as *const raw::c_char) };
+    let slice: &str = cstring.to_str().unwrap();
+    slice.to_owned()
+}
 
 const AUTOSTART: &str = "autostart";
 const TIMEOUT: u32 = 5;
@@ -243,7 +258,11 @@ impl fmt::Display for AfbError {
 
 impl fmt::Debug for AfbError {
     fn fmt(&self, format: &mut fmt::Formatter) -> fmt::Result {
-        write!(format, "{}:{} {}:{}:{}", self.uid, self.info, self.dbg_info.file, self.dbg_info.line, self.dbg_info.column)
+        write!(
+            format,
+            "{}:{} {}:{}:{}",
+            self.uid, self.info, self.dbg_info.file, self.dbg_info.line, self.dbg_info.column
+        )
     }
 }
 
@@ -1070,9 +1089,10 @@ pub extern "C" fn api_evtfd_cb(
     }
 
     // clean callback control box
-    if (revents & AfbEvtFdPoll::RUP.bits()) != 0 ||  (revents & AfbEvtFdPoll::HUP.bits()) != 0 {
+    if (revents & AfbEvtFdPoll::RUP.bits()) != 0 || (revents & AfbEvtFdPoll::HUP.bits()) != 0 {
         let _ctrlbox = unsafe { Box::from_raw(evtfd_ref) };
-        unsafe { cglue::afb_evfd_unref(efd) }; }
+        unsafe { cglue::afb_evfd_unref(efd) };
+    }
 }
 
 bitflags! {
@@ -1402,7 +1422,7 @@ impl AfbTapTest {
                 let no_data = [0 as cglue::afb_data_t; 0];
                 let response = AfbRqtData::new(&no_data, 0, error.get_status());
                 self.check_response(response)
-            },
+            }
             Ok(response) => self.check_response(response),
         };
         // decrease group test count and return result

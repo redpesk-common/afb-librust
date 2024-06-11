@@ -25,6 +25,9 @@
 // process with gcc -E libafb_glue.h | sed 's/static *inline//' | sed '/^#/d' | sed '/^$/d' >libafb_glue.c
 #include <afb/afb-binding-v4.h>
 #include <sys/epoll.h>
+#include <errno.h>
+#include <string.h>
+
 
 //void afb_verbose(int loglevel, const char *file, int line, const char *function, const char *fmt, ...) __attribute__((format(printf, 5, 6)));
 

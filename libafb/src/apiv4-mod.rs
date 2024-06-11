@@ -1746,8 +1746,8 @@ impl AfbGroup {
                 afb_log_msg!(
                     Critical,
                     apiv4,
-                    "Fail to register verb={}",
-                    verb_ref.get_uid()
+                    "Fail to register verb={} status={}",
+                    verb_ref.get_uid(), status
                 );
                 break;
             };

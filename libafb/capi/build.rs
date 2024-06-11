@@ -17,9 +17,8 @@
 use std::process::Command;
 
 fn main() {
-
-        // ============== LIBAFB C interface =====================
-        let header = "
+    // ============== LIBAFB C interface =====================
+    let header = "
         // -----------------------------------------------------------------------
         //         <- private 'libafb' Rust/C unsafe binding ->
         // -----------------------------------------------------------------------
@@ -30,7 +29,7 @@ fn main() {
         // -----------------------------------------------------------------------
         ";
     // probe for dependencies
-    #[cfg(not(feature="rpm_build"))]
+    #[cfg(not(feature = "rpm_build"))]
     system_deps::Config::new().probe().unwrap();
 
     // invalidate the built crate whenever the wrapper changes
@@ -51,15 +50,16 @@ fn main() {
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .derive_debug(false)
         .layout_tests(false)
+        .allowlist_function("errno")
+        .allowlist_function("strerror_r")
+        .allowlist_function("__errno_location")
         .allowlist_function("afb_.*")
         .allowlist_type("afb_syslog_.*")
         .allowlist_type("afb_epoll_.*")
         .allowlist_type("afb_req_subcall_flags")
         .allowlist_var("afbBinding.*")
         .blocklist_item("__BindgenBitfieldUnit")
-        .blocklist_function("__.*")
         .blocklist_item("json_object")
-
         // generate libafb wrapper
         .generate()
         .expect("Unable to generate libafb");
@@ -72,10 +72,10 @@ fn main() {
     // println!("cargo:rerun-if-changed=src/capi/libafb-map.c");
     // Use the `cc` crate to build a C file and statically link it.
     cc::Build::new()
-         .file("capi/_libafb-map.c")
-         .include("/usr/local/include")
-         .include("/usr/include/linux")
-         .compile("afb-glue");
+        .file("capi/_libafb-map.c")
+        .include("/usr/local/include")
+        .include("/usr/include/linux")
+        .compile("afb-glue");
 
     // ============== JSONC-C interface =====================
     // add here any special search path specific to your configuration
@@ -117,7 +117,6 @@ fn main() {
         .blocklist_item("json_object_set_serializer")
         .blocklist_item("json_tokener_srec")
         .blocklist_item("json_object_delete_fn")
-
         // generate jsonc wrapper
         .generate()
         .expect("Unable to generate jsonc");
@@ -125,5 +124,4 @@ fn main() {
     jsonc
         .write_to_file("capi/_jsonc-map.rs")
         .expect("Couldn't write jsonc!");
-
 }
