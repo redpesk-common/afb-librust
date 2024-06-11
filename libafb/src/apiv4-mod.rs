@@ -72,7 +72,23 @@ macro_rules! AfbBindingRegister {
             ctlarg: *mut std::ffi::c_void,
             api_data: *mut std::ffi::c_void,
         ) -> i32 {
-            let jconf = afbv4::apiv4::afb_binding_get_config(apiv4, ctlid, ctlarg, api_data);
+            let jconf= match afbv4::apiv4::afb_binding_get_config(apiv4, ctlid, ctlarg, api_data) {
+                Ok(config) => config,
+                Err(error) => {
+                    let dbg = error.get_dbg();
+                    afb_log_raw!(
+                        Notice,
+                        apiv4,
+                        "binding config fail {} file: {}:{}:{}",
+                        error.get_info(),
+                        dbg.file,
+                        dbg.line,
+                        dbg.column
+                    );
+                    return AFB_ABORT
+                }
+            };
+
             match $callback(apiv4, jconf) {
                 Ok(api) => {
                     afb_log_msg!(Notice, apiv4, "RUST api uid={} started", api.get_uid());
@@ -355,18 +371,21 @@ pub trait AfbApiControls {
 }
 
 #[doc(hidden)]
-fn binding_parse_config(apiv4: cglue::afb_api_t, ctlarg: cglue::afb_ctlarg_t) -> JsoncObj {
+fn binding_parse_config(
+    apiv4: cglue::afb_api_t,
+    ctlarg: cglue::afb_ctlarg_t,
+) -> Result<JsoncObj, AfbError> {
     assert!(ctlarg.is_null() != true);
     let jso: *mut std::ffi::c_void =
         unsafe { (*ctlarg).root_entry.config } as *mut _ as *mut std::ffi::c_void;
 
     // extract config rust object from C void* ctrlbox
     if jso != 0 as *mut std::ffi::c_void {
-        JsoncObj::from(jso)
+        JsoncObj::import(jso)
     } else {
         // libafb may not pass api config as expected
         let jso = unsafe { cglue::afb_api_settings(apiv4) };
-        JsoncObj::from(jso as *mut std::ffi::c_void)
+        JsoncObj::import(jso as *mut std::ffi::c_void)
     }
 }
 
@@ -376,7 +395,7 @@ pub fn afb_binding_get_config(
     _ctlid_v4: *mut std::ffi::c_void,
     ctlarg_v4: *mut std::ffi::c_void,
     _apidata: *mut std::ffi::c_void,
-) -> JsoncObj {
+) -> Result<JsoncObj, AfbError> {
     // return Rust binding config
     let ctlarg = ctlarg_v4 as cglue::afb_ctlarg_t;
     let apiv4 = apiv4 as cglue::afb_api_t;
@@ -401,8 +420,24 @@ pub extern "C" fn api_controls_cb(
             api_ref.set_apiv4(apiv4);
             let mut status = match api_ref.ctrlbox {
                 Some(ctrlbox) => {
-                    match unsafe { (*ctrlbox).config(api_ref, binding_parse_config(apiv4, ctlarg)) }
-                    {
+                    let jconfig = match binding_parse_config(apiv4, ctlarg) {
+                        Ok(value) => value,
+                        Err(error) => {
+                            let dbg = error.get_dbg();
+                            afb_log_raw!(
+                                Critical,
+                                apiv4,
+                                "binding config fail:{} file: {}:{}:{}",
+                                error.get_info(),
+                                dbg.file,
+                                dbg.line,
+                                dbg.column
+                            );
+                            return AFB_FAIL;
+                        }
+                    };
+
+                    match unsafe { (*ctrlbox).config(api_ref, jconfig) } {
                         Err(error) => {
                             let dbg = error.get_dbg();
                             afb_log_raw!(
@@ -950,21 +985,21 @@ impl AfbVerb {
     #[track_caller]
     pub fn set_sample<T>(&mut self, sample: T) -> Result<&mut Self, AfbError>
     where
-        T: Into<JsoncObj>,
+        JsoncObj: JsoncImport<T>,
     {
-        let jvalue = JsoncObj::from(sample);
-        self.samples.append(JsoncObj::from(jvalue.clone()))?;
+        let jvalue = JsoncObj::import(sample)?;
+        self.samples.append(jvalue)?;
         Ok(self)
     }
 
     #[track_caller]
     pub fn set_actions<T>(&mut self, actions: T) -> Result<&mut Self, AfbError>
     where
-        T: Into<JsoncObj>,
+        JsoncObj: JsoncImport<T>,
     {
-        let jvalue = JsoncObj::from(actions);
+        let jvalue = JsoncObj::import(actions)?;
         if jvalue.is_type(Jtype::Array) {
-            self.actions = jvalue.clone();
+            self.actions = jvalue;
             Ok(self)
         } else {
             afb_error!("verb-set-action", "not a valid json array")
@@ -1181,9 +1216,9 @@ impl AfbRequest {
         }
     }
 
-    pub fn get_client_info(&self) -> JsoncObj {
+    pub fn get_client_info(&self) -> Result<JsoncObj, AfbError> {
         let jso = unsafe { cglue::afb_req_get_client_info(self._rqtv4) as *mut std::ffi::c_void };
-        JsoncObj::from(jso)
+        JsoncObj::import(jso)
     }
 
     pub fn add_ref(&self) -> Self {

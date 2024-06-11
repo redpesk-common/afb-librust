@@ -661,7 +661,7 @@ impl ConvertQuery<JsoncObj> for AfbRqtData {
         // retrieve c-buffer pointer to argument void* value
         match self.get_ro(converter, index) {
             None => afb_error!(uid, "invalid converter format args[{}]", index),
-            Some(cbuffer) => Ok(JsoncObj::from(cbuffer)),
+            Some(cbuffer) => JsoncObj::import(cbuffer),
         }
     }
 }

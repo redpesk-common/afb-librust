@@ -327,7 +327,7 @@ pub trait DoGetJso<K> {
 impl DoPutJso<JsoncObj> for JsoncObj {
     #[track_caller]
     fn put_jso(jso: *mut cglue::json_object) -> Result<JsoncObj, AfbError> {
-        Ok(JsoncObj::from(jso as *mut std::ffi::c_void))
+        JsoncObj::import(jso as *mut std::ffi::c_void)
     }
 }
 
@@ -665,58 +665,69 @@ impl DoAddon<JsoncObj> for JsoncObj {
     }
 }
 
-impl From<i64> for JsoncObj {
+pub trait JsoncImport<T> {
+    fn import(args: T) -> Result<JsoncObj, AfbError>;
+}
+
+impl JsoncImport<JsoncObj> for JsoncObj {
     #[track_caller]
-    fn from(value: i64) -> Self {
+    fn import(value: JsoncObj) -> Result<Self, AfbError> {
+        Ok(value.clone())
+    }
+}
+
+impl JsoncImport<i64> for JsoncObj {
+    #[track_caller]
+    fn import(value: i64) -> Result<Self, AfbError> {
         unsafe {
             let jsonc = JsoncObj {
                 jso: cglue::json_object_new_int64(value),
             };
-            return jsonc;
+            return Ok(jsonc);
         }
     }
 }
 
-impl From<&JsonStr> for JsoncObj {
+impl JsoncImport<&JsonStr> for JsoncObj {
     #[track_caller]
-    fn from(value: &JsonStr) -> Self {
+    fn import(value: &JsonStr) -> Result<Self, AfbError>  {
         match JsoncObj::parse(value.0) {
-            Err(error) => panic!("(hoops: invalid json error={}", error),
-            Ok(jsonc) => jsonc,
+            Err(error) => afb_error!("jsonc-import-json-text","(error={})", error),
+            Ok(jsonc) => Ok(jsonc),
         }
     }
 }
 
-impl From<*mut std::ffi::c_void> for JsoncObj {
+impl JsoncImport<*mut std::ffi::c_void> for JsoncObj {
     #[track_caller]
-    fn from(value: *mut std::ffi::c_void) -> Self {
+    fn import(value: *mut std::ffi::c_void) -> Result<Self, AfbError>  {
         let jso: &mut cglue::json_object = unsafe { &mut *(value as *mut cglue::json_object) };
         unsafe {
             let jsonc = JsoncObj { jso: jso };
             cglue::json_object_get(jsonc.jso);
-            return jsonc;
+            return Ok(jsonc);
         }
     }
 }
 
-impl From<f64> for JsoncObj {
+impl JsoncImport<f64> for JsoncObj {
     #[track_caller]
-    fn from(value: f64) -> Self {
+    fn import(value: f64) -> Result<Self, AfbError>  {
         unsafe {
             let jsonc = JsoncObj {
                 jso: cglue::json_object_new_double(value),
             };
             cglue::json_object_get(jsonc.jso);
-            return jsonc;
+            return Ok(jsonc);
         }
     }
 }
 
-impl From<&str> for JsoncObj {
+impl JsoncImport<&str> for JsoncObj {
     #[track_caller]
-    fn from(value: &str) -> Self {
+    fn import(value: &str) -> Result<Self, AfbError> {
         if value.starts_with('{') || value.starts_with('[') {
-            JsoncObj::parse(value).expect("valid json string expected")
+            JsoncObj::parse(value)
         } else {
             let sval = CString::new(value).expect("Invalid jsonc key string");
             unsafe {
@@ -724,22 +735,22 @@ impl From<&str> for JsoncObj {
                     jso: cglue::json_object_new_string(sval.into_raw()),
                 };
                 cglue::json_object_get(jsonc.jso);
-                return jsonc;
+                return Ok(jsonc);
             }
         }
     }
 }
 
-impl From<&String> for JsoncObj {
+impl JsoncImport<&String> for JsoncObj {
     #[track_caller]
-    fn from(value: &String) -> Self {
+    fn import(value: &String) -> Result<Self, AfbError> {
         let sval = CString::new(value.as_str()).expect("Invalid jsonc key string");
         unsafe {
             let jsonc = JsoncObj {
                 jso: cglue::json_object_new_string(sval.into_raw()),
             };
             cglue::json_object_get(jsonc.jso);
-            return jsonc;
+            return Ok(jsonc);
         }
     }
 }
@@ -766,13 +777,13 @@ impl JsoncObj {
         }
     }
 
-    #[track_caller]
-    pub fn from<T>(args: T) -> JsoncObj
-    where
-        T: Into<JsoncObj>,
-    {
-        args.into()
-    }
+    // #[track_caller]
+    // pub fn import<T>(args: T) -> Result<JsoncObj, AfbError>
+    // where
+    //     JsoncObj: JsoncImport<T>,
+    // {
+    //     JsoncObj::import_from(args)
+    // }
 
     #[track_caller]
     pub fn get_as<T>(&self) -> Result<T, AfbError>
@@ -991,10 +1002,10 @@ impl JsoncObj {
     }
 
     #[track_caller]
-    pub fn expand(&self) -> Vec<Jentry> {
+    pub fn expand(&self) -> Result<Vec<Jentry>, AfbError> {
         // if not object return now
         if !self.is_type(Jtype::Object) {
-            return Vec::new();
+            return Ok(Vec::new());
         }
 
         let mut jvec = Vec::new();
@@ -1007,11 +1018,11 @@ impl JsoncObj {
                     .unwrap()
                     .to_owned()
             };
-            let obj = unsafe { JsoncObj::from((*entry).v as *mut std::ffi::c_void) };
+            let obj = unsafe { JsoncObj::import((*entry).v as *mut std::ffi::c_void) }?;
             jvec.push(Jentry { key: key, obj: obj });
             entry = unsafe { (*entry).next };
         }
-        jvec
+        Ok(jvec)
     }
 
     #[track_caller]
@@ -1029,7 +1040,7 @@ impl JsoncObj {
 
     #[track_caller]
     pub fn contains(&mut self, jtok: JsoncObj) -> Result<(), AfbError> {
-        let jvec = jtok.expand();
+        let jvec = jtok.expand()?;
         for entry in &jvec {
             match self.get::<JsoncObj>(entry.key.as_str()) {
                 Err(error) => {

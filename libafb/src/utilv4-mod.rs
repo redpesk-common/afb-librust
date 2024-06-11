@@ -1517,7 +1517,7 @@ impl AfbTapTest {
         cvar.notify_one();
     }
 
-    pub fn get_report(&self) -> JsoncObj {
+    pub fn get_report(&self) -> Result<JsoncObj, AfbError> {
         let msg = match &self.response {
             None => {
                 format!("ok {} - {} # SKIP", self.index, self.uid)
@@ -1533,7 +1533,7 @@ impl AfbTapTest {
                 }
             }
         };
-        JsoncObj::from(msg.as_str())
+        JsoncObj::import(msg.as_str())
     }
 }
 
@@ -1629,7 +1629,7 @@ impl AfbTapGroup {
         Ok(())
     }
 
-    pub fn get_report(&self) -> JsoncObj {
+    pub fn get_report(&self) -> Result<JsoncObj, AfbError> {
         let jsonc = JsoncObj::array();
         let count = self.tests.len();
         let msg = format!("1..{} # {}", count, self.uid);
@@ -1637,9 +1637,9 @@ impl AfbTapGroup {
         for idx in 0..count {
             let test_ref = self.get_test(idx).unwrap();
             let test = &mut *(test_ref);
-            jsonc.append(test.get_report()).unwrap();
+            jsonc.append(test.get_report()?)?;
         }
-        jsonc
+        Ok(jsonc)
     }
 }
 
@@ -1833,14 +1833,14 @@ impl AfbTapSuite {
         self.autorun
     }
 
-    pub fn get_report(&'static mut self) -> JsoncObj {
+    pub fn get_report(&'static mut self) -> Result<JsoncObj, AfbError> {
         let autostart = unsafe { &mut *(self.autostart) };
         let jreport = JsoncObj::new();
-        jreport.add(AUTOSTART, autostart.get_report()).unwrap();
+        jreport.add(AUTOSTART, autostart.get_report()?)?;
 
         for (uid, group) in self.hashmap.drain() {
             let group = unsafe { &mut (*group) };
-            jreport.add(uid, group.get_report()).unwrap();
+            jreport.add(uid, group.get_report()?)?;
         }
 
         match self.output {
@@ -1850,7 +1850,7 @@ impl AfbTapSuite {
             }
             AfbTapOutput::TAP => {
                 println!("-- start:{} --", self.uid);
-                let jvec = jreport.expand();
+                let jvec = jreport.expand()?;
                 for entry in &jvec {
                     let _key = entry.key.as_str();
                     println!();
@@ -1868,7 +1868,7 @@ impl AfbTapSuite {
                 println!("\n-- end:{} --", self.uid);
             }
         };
-        jreport
+        Ok(jreport)
     }
 }
 
@@ -1900,7 +1900,7 @@ fn tap_suite_callback(
     }
 
     let autoexit = suite.get_autoexit();
-    suite.get_report();
+    suite.get_report()?;
     job.terminate();
 
     if autoexit {
@@ -1931,7 +1931,7 @@ fn tap_test_callback(
         Ok(_jreport) => {
             // wait for test to be completed
             let _next = test.get_next();
-            rqt.reply(test.get_report(), 0);
+            rqt.reply(test.get_report()?, 0);
         }
     }
     Ok(())
@@ -1962,7 +1962,7 @@ fn tap_group_callback(
             rqt.reply(error, 405);
         }
         Ok(_jreport) => {
-            rqt.reply(group.get_report(), 0);
+            rqt.reply(group.get_report()?, 0);
         }
     }
     Ok(())

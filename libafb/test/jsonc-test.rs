@@ -27,15 +27,15 @@ fn new_json() {
     assert!(jsonc.is_type(Jtype::Object), "object invalid");
 
     let value = 4;
-    let jsonc = JsoncObj::from(value);
+    let jsonc = JsoncObj::import(value);
     assert!(jsonc.is_type(Jtype::Int), "object not an int");
 
     let value = 123.456;
-    let jsonc = JsoncObj::from(value);
+    let jsonc = JsoncObj::import(value);
     assert!(jsonc.is_type(Jtype::Float), "object not a float");
 
     let value = "toto titi tata";
-    let jsonc = JsoncObj::from(value);
+    let jsonc = JsoncObj::import(value);
     assert!(jsonc.is_type(Jtype::String), "object not a string");
 }
 
