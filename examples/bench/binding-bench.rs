@@ -281,7 +281,7 @@ pub fn binding_test_init(rootv4: AfbApiV4, jconf: JsoncObj) -> Result<&'static A
         .set_callback(Box::new(TimerVerbCtrl {}))
         .set_info("No argument")
         .set_usage("{'loop': ?,'tic':?ms}")
-        .set_sample("{'loop':1000,'tic':10}")
+        .add_sample("{'loop':1000,'tic':10}")
         .expect("invalid json")
         .finalize()?;
 
@@ -289,9 +289,9 @@ pub fn binding_test_init(rootv4: AfbApiV4, jconf: JsoncObj) -> Result<&'static A
         .set_callback(Box::new(PingCtrl {}))
         .set_info("No argument")
         .set_usage("{'loop': xxx}")
-        .set_sample("{'loop': 100}")
+        .add_sample("{'loop': 100}")
         .expect("invalid json")
-        .set_sample("{'loop': 1000}")
+        .add_sample("{'loop': 1000}")
         .expect("invalid json")
         .finalize()?;
 
@@ -299,9 +299,9 @@ pub fn binding_test_init(rootv4: AfbApiV4, jconf: JsoncObj) -> Result<&'static A
         .set_callback(Box::new(LazyCtrl {}))
         .set_info("Direct binary argument")
         .set_usage("{'loop': xxx}")
-        .set_sample("{'loop': 100}")
+        .add_sample("{'loop': 100}")
         .expect("invalid json")
-        .set_sample("{'loop': 1000}")
+        .add_sample("{'loop': 1000}")
         .expect("invalid json")
         .finalize()?;
 
@@ -309,9 +309,9 @@ pub fn binding_test_init(rootv4: AfbApiV4, jconf: JsoncObj) -> Result<&'static A
         .set_callback(Box::new(JsonCtrl {}))
         .set_info("Json argument conversion ")
         .set_usage("{'loop': xxx}")
-        .set_sample("{'loop': 100}")
+        .add_sample("{'loop': 100}")
         .expect("invalid json")
-        .set_sample("{'loop': 1000}")
+        .add_sample("{'loop': 1000}")
         .expect("invalid json")
         .finalize()?;
 

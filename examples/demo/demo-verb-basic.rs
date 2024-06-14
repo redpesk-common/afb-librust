@@ -49,7 +49,7 @@ pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbVerb, AfbError> {
         .set_context( MyCtxCb{_text: "toto", count:0})
         .set_info("My 1st demo verb")
         .set_usage("any json string")
-        .set_sample("{'skipail': 'IoT.bzh', 'location':'Lorient'}")?
+        .add_sample("{'skipail': 'IoT.bzh', 'location':'Lorient'}")?
         .finalize()?;
     Ok(verb)
 }

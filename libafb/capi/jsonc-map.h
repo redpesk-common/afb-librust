@@ -19,3 +19,5 @@
 #include <json-c/json_object.h>
 #include <json-c/json_tokener.h>
 #include <json-c/linkhash.h>
+
+typedef int (*json_object_sort_cb)(const void *, const void *);

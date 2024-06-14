@@ -307,6 +307,7 @@ pub extern "C" fn api_info_cb(
     let nullapi = unsafe { &mut *(nullptr as *mut AfbApi) };
     let nullverb = unsafe { &mut *(nullptr as *mut AfbVerb) };
     let request = AfbRequest::new(rqtv4, nullapi, nullverb);
+
     request.reply(jinfo, 0);
 }
 
@@ -983,7 +984,7 @@ impl AfbVerb {
     }
 
     #[track_caller]
-    pub fn set_sample<T>(&mut self, sample: T) -> Result<&mut Self, AfbError>
+    pub fn add_sample<T>(&mut self, sample: T) -> Result<&mut Self, AfbError>
     where
         JsoncObj: JsoncImport<T>,
     {
@@ -1939,7 +1940,7 @@ pub fn afb_error_info(errcode: i32) -> &'static str {
         0 => "Success",
         -9 => "Invalid Scope",
         -11 => "No Reply",
-        -17 => "Api already exist",
+        -17 => "Api/Verb already exist",
         -62 => "Watchdog expire",
         -110 => "Connection timeout",
         -2 => "File exist",
@@ -2146,7 +2147,6 @@ impl DoSubcallSync<AfbRqtV4> for AfbSubCall {
         let replies = [0 as cglue::afb_data_t; MAX_CALL_ARGS as usize];
 
         let rc = unsafe {
-            // err= afb_req_subcall_sync (glue->rqt.afb, apiname, verbname, (int)index, params, afb_req_subcall_catch_events, &status, &nreplies, replies);
             cglue::afb_req_subcall_sync(
                 rqtv4,
                 apiname.into_raw(),

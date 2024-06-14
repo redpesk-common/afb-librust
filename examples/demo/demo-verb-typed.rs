@@ -52,7 +52,7 @@ pub fn register(rootv4: AfbApiV4) -> Result<&'static AfbVerb, AfbError> {
         .set_callback(typed_callback)
         .set_info("My 2nd demo verb")
         .set_usage("any json string")
-        .set_sample("{'x': 1, 'y':99, 'name':'IoT.bzh'}")?
+        .add_sample("{'x': 1, 'y':99, 'name':'IoT.bzh'}")?
         .finalize()?;
 
     Ok(group)

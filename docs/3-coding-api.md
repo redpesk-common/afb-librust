@@ -180,7 +180,7 @@ AfbVerb::new("my-simple-verb")
         .set_callback(simple_callback)
         .set_info("My custom type demo verb")
         .set_usage("any json string")
-        .set_sample("{'lander': 'Brittany', 'location':'Europe'}")
+        .add_sample("{'lander': 'Brittany', 'location':'Europe'}")
         .expect("invalid json sample")
         .finalize()
 ```

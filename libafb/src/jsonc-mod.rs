@@ -92,19 +92,20 @@ pub struct JsoncObj {
 
 // minimal internal jsonc object to external crates
 pub type JsoncJso = cglue::json_object;
+pub type JsonSortCb = cglue::json_object_sort_cb;
 
 pub struct Jentry {
     pub key: String,
     pub obj: JsoncObj,
 }
 
-#[doc(hidden)]
 #[no_mangle]
 pub extern "C" fn free_jsonc_cb(jso: *mut std::ffi::c_void) {
-    unsafe { cglue::json_object_put(jso as *mut cglue::json_object) };
+    let jval= jso as *mut JsoncJso;
+    //println! ("free_jsonc_cb:{}", JsoncObj{jso: jval});
+    unsafe { cglue::json_object_put(jval) };
 }
 
-#[doc(hidden)]
 impl Drop for JsoncObj {
     fn drop(&mut self) {
         unsafe {
@@ -113,7 +114,6 @@ impl Drop for JsoncObj {
     }
 }
 
-#[doc(hidden)]
 impl Clone for JsoncObj {
     fn clone(&self) -> Self {
         unsafe {
@@ -154,24 +154,25 @@ impl fmt::Display for JsoncObj {
     }
 }
 
-pub trait DoPutJso<T> {
-    fn put_jso(jso: *mut cglue::json_object) -> Result<T, AfbError>;
+pub trait JsoncExport<T> {
+    fn from_jso(jso: *mut cglue::json_object) -> Result<T, AfbError>;
 }
 
-impl DoPutJso<String> for JsoncObj {
+impl JsoncExport<Jobject> for JsoncObj {
     #[track_caller]
-    fn put_jso(jso: *mut cglue::json_object) -> Result<String, AfbError> {
-        if unsafe { cglue::json_object_get_type(jso) } != cglue::json_type_json_type_string {
-            afb_error!("jsonc-get-type", "jsonc object is not a string",)
+    fn from_jso(jso: *mut cglue::json_object) -> Result<Jobject, AfbError> {
+        if jso as usize == 0 {
+            afb_error!("jsonc-get-key", "not object at key")
         } else {
-            Ok(JsoncObj::to_string(jso))
+
+            Ok(JsoncObj::get_jso_value(jso))
         }
     }
 }
 
-impl DoPutJso<&'static str> for JsoncObj {
+impl JsoncExport<&'static str> for JsoncObj {
     #[track_caller]
-    fn put_jso(jso: *mut cglue::json_object) -> Result<&'static str, AfbError> {
+    fn from_jso(jso: *mut cglue::json_object) -> Result<&'static str, AfbError> {
         if unsafe { cglue::json_object_get_type(jso) } != cglue::json_type_json_type_string {
             afb_error!("jsonc-get-type", "jsonc object is not a string",)
         } else {
@@ -180,9 +181,9 @@ impl DoPutJso<&'static str> for JsoncObj {
     }
 }
 
-impl DoPutJso<i64> for JsoncObj {
+impl JsoncExport<i64> for JsoncObj {
     #[track_caller]
-    fn put_jso(jso: *mut cglue::json_object) -> Result<i64, AfbError> {
+    fn from_jso(jso: *mut cglue::json_object) -> Result<i64, AfbError> {
         if unsafe { cglue::json_object_get_type(jso) } != cglue::json_type_json_type_int {
             afb_error!("jsonc-get-type", "jsonc object is not an integer",)
         } else {
@@ -191,9 +192,20 @@ impl DoPutJso<i64> for JsoncObj {
     }
 }
 
-impl DoPutJso<u64> for JsoncObj {
+impl JsoncExport<String> for JsoncObj {
     #[track_caller]
-    fn put_jso(jso: *mut cglue::json_object) -> Result<u64, AfbError> {
+    fn from_jso(jso: *mut cglue::json_object) -> Result<String, AfbError> {
+        if unsafe { cglue::json_object_get_type(jso) } != cglue::json_type_json_type_string {
+            afb_error!("jsonc-get-type", "jsonc object is not a string",)
+        } else {
+            Ok(JsoncObj::to_string(jso))
+        }
+    }
+}
+
+impl JsoncExport<u64> for JsoncObj {
+    #[track_caller]
+    fn from_jso(jso: *mut cglue::json_object) -> Result<u64, AfbError> {
         if unsafe { cglue::json_object_get_type(jso) } != cglue::json_type_json_type_int {
             afb_error!("jsonc-get-type", "jsonc object is not an unsigned",)
         } else {
@@ -202,9 +214,9 @@ impl DoPutJso<u64> for JsoncObj {
     }
 }
 
-impl DoPutJso<i32> for JsoncObj {
+impl JsoncExport<i32> for JsoncObj {
     #[track_caller]
-    fn put_jso(jso: *mut cglue::json_object) -> Result<i32, AfbError> {
+    fn from_jso(jso: *mut cglue::json_object) -> Result<i32, AfbError> {
         if unsafe { cglue::json_object_get_type(jso) } != cglue::json_type_json_type_int {
             afb_error!("jsonc-get-type", "jsonc object is not an integer",)
         } else {
@@ -213,9 +225,9 @@ impl DoPutJso<i32> for JsoncObj {
     }
 }
 
-impl DoPutJso<u32> for JsoncObj {
+impl JsoncExport<u32> for JsoncObj {
     #[track_caller]
-    fn put_jso(jso: *mut cglue::json_object) -> Result<u32, AfbError> {
+    fn from_jso(jso: *mut cglue::json_object) -> Result<u32, AfbError> {
         if unsafe { cglue::json_object_get_type(jso) } != cglue::json_type_json_type_int {
             afb_error!("jsonc-get-type", "jsonc object is not integer",)
         } else {
@@ -224,9 +236,9 @@ impl DoPutJso<u32> for JsoncObj {
     }
 }
 
-impl DoPutJso<i16> for JsoncObj {
+impl JsoncExport<i16> for JsoncObj {
     #[track_caller]
-    fn put_jso(jso: *mut cglue::json_object) -> Result<i16, AfbError> {
+    fn from_jso(jso: *mut cglue::json_object) -> Result<i16, AfbError> {
         if unsafe { cglue::json_object_get_type(jso) } != cglue::json_type_json_type_int {
             afb_error!("jsonc-get-type", "jsonc object is not an integer",)
         } else {
@@ -239,9 +251,9 @@ impl DoPutJso<i16> for JsoncObj {
     }
 }
 
-impl DoPutJso<u8> for JsoncObj {
+impl JsoncExport<u8> for JsoncObj {
     #[track_caller]
-    fn put_jso(jso: *mut cglue::json_object) -> Result<u8, AfbError> {
+    fn from_jso(jso: *mut cglue::json_object) -> Result<u8, AfbError> {
         if unsafe { cglue::json_object_get_type(jso) } != cglue::json_type_json_type_int {
             afb_error!("jsonc-get-type", "jsonc object is not an integer",)
         } else {
@@ -254,9 +266,9 @@ impl DoPutJso<u8> for JsoncObj {
     }
 }
 
-impl DoPutJso<i8> for JsoncObj {
+impl JsoncExport<i8> for JsoncObj {
     #[track_caller]
-    fn put_jso(jso: *mut cglue::json_object) -> Result<i8, AfbError> {
+    fn from_jso(jso: *mut cglue::json_object) -> Result<i8, AfbError> {
         if unsafe { cglue::json_object_get_type(jso) } != cglue::json_type_json_type_int {
             afb_error!("jsonc-get-type", "jsonc object is not an integer",)
         } else {
@@ -269,9 +281,9 @@ impl DoPutJso<i8> for JsoncObj {
     }
 }
 
-impl DoPutJso<u16> for JsoncObj {
+impl JsoncExport<u16> for JsoncObj {
     #[track_caller]
-    fn put_jso(jso: *mut cglue::json_object) -> Result<u16, AfbError> {
+    fn from_jso(jso: *mut cglue::json_object) -> Result<u16, AfbError> {
         if unsafe { cglue::json_object_get_type(jso) } != cglue::json_type_json_type_int {
             afb_error!("jsonc-get-type", "jsonc object is not an integer",)
         } else {
@@ -284,9 +296,9 @@ impl DoPutJso<u16> for JsoncObj {
     }
 }
 
-impl DoPutJso<bool> for JsoncObj {
+impl JsoncExport<bool> for JsoncObj {
     #[track_caller]
-    fn put_jso(jso: *mut cglue::json_object) -> Result<bool, AfbError> {
+    fn from_jso(jso: *mut cglue::json_object) -> Result<bool, AfbError> {
         if unsafe { cglue::json_object_get_type(jso) } != cglue::json_type_json_type_boolean {
             afb_error!("jsonc-get-type", "jsonc object is not boolean")
         } else {
@@ -295,9 +307,9 @@ impl DoPutJso<bool> for JsoncObj {
     }
 }
 
-impl DoPutJso<f64> for JsoncObj {
+impl JsoncExport<f64> for JsoncObj {
     #[track_caller]
-    fn put_jso(jso: *mut cglue::json_object) -> Result<f64, AfbError> {
+    fn from_jso(jso: *mut cglue::json_object) -> Result<f64, AfbError> {
         if unsafe { cglue::json_object_get_type(jso) } != cglue::json_type_json_type_double {
             afb_error!("jsonc-get-type", "jsonc object is not a float",)
         } else {
@@ -306,32 +318,21 @@ impl DoPutJso<f64> for JsoncObj {
     }
 }
 
-impl DoPutJso<Jobject> for JsoncObj {
-    #[track_caller]
-    fn put_jso(jso: *mut cglue::json_object) -> Result<Jobject, AfbError> {
-        if jso as usize == 0 {
-            afb_error!("jsonc-get-key", "not object at key")
-        } else {
-            Ok(JsoncObj::get_jso_value(jso))
-        }
-    }
-}
-
 #[doc(hidden)]
-pub trait DoGetJso<K> {
+pub trait ImportJso<K> {
     #[track_caller]
     fn get_jso(key: K, jso: *const cglue::json_object)
         -> Result<*mut cglue::json_object, AfbError>;
 }
 
-impl DoPutJso<JsoncObj> for JsoncObj {
+impl JsoncExport<JsoncObj> for JsoncObj {
     #[track_caller]
-    fn put_jso(jso: *mut cglue::json_object) -> Result<JsoncObj, AfbError> {
+    fn from_jso(jso: *mut cglue::json_object) -> Result<JsoncObj, AfbError> {
         JsoncObj::import(jso as *mut std::ffi::c_void)
     }
 }
 
-impl DoGetJso<&str> for JsoncObj {
+impl ImportJso<&str> for JsoncObj {
     #[track_caller]
     fn get_jso(
         key: &str,
@@ -357,7 +358,7 @@ impl DoGetJso<&str> for JsoncObj {
     }
 }
 
-impl DoGetJso<usize> for JsoncObj {
+impl ImportJso<usize> for JsoncObj {
     #[track_caller]
     fn get_jso(
         idx: usize,
@@ -374,14 +375,50 @@ impl DoGetJso<usize> for JsoncObj {
 }
 
 #[doc(hidden)]
-pub trait DoAddon<T> {
+pub trait JsonImport<T> {
     #[track_caller]
     fn add(&self, key: &str, value: T);
     fn insert(&self, idx: usize, value: T);
     fn append(&self, value: T);
 }
 
-impl DoAddon<bool> for JsoncObj {
+impl JsonImport<&JsoncObj> for JsoncObj {
+    #[track_caller]
+    fn add(&self, key: &str, object: &JsoncObj) {
+        let jso = unsafe { cglue::json_object_get(object.jso) };
+        self.add_to_object(key, jso);
+    }
+    #[track_caller]
+    fn insert(&self, idx: usize, object: &JsoncObj) {
+        let jso = unsafe { cglue::json_object_get(object.jso) };
+        self.insert_to_array(idx, jso);
+    }
+    #[track_caller]
+    fn append(&self, object: &JsoncObj) {
+        let jso = unsafe { cglue::json_object_get(object.jso) };
+        self.append_to_array(jso);
+    }
+}
+
+impl JsonImport<JsoncObj> for JsoncObj {
+    #[track_caller]
+    fn add(&self, key: &str, object: JsoncObj) {
+        let jso = unsafe { cglue::json_object_get(object.jso) };
+        self.add_to_object(key, jso);
+    }
+    #[track_caller]
+    fn append(&self, object: JsoncObj) {
+        let jso = unsafe { cglue::json_object_get(object.jso) };
+        self.append_to_array(jso);
+    }
+    #[track_caller]
+    fn insert(&self, idx: usize, object: JsoncObj) {
+        let jso = unsafe { cglue::json_object_get(object.jso) };
+        self.insert_to_array(idx, jso);
+    }
+}
+
+impl JsonImport<bool> for JsoncObj {
     #[track_caller]
     fn add(&self, key: &str, value: bool) {
         unsafe {
@@ -406,7 +443,7 @@ impl DoAddon<bool> for JsoncObj {
     }
 }
 
-impl DoAddon<f64> for JsoncObj {
+impl JsonImport<f64> for JsoncObj {
     #[track_caller]
     fn add(&self, key: &str, value: f64) {
         unsafe {
@@ -432,7 +469,7 @@ impl DoAddon<f64> for JsoncObj {
     }
 }
 
-impl DoAddon<i64> for JsoncObj {
+impl JsonImport<i64> for JsoncObj {
     #[track_caller]
     fn add(&self, key: &str, value: i64) {
         unsafe {
@@ -456,7 +493,7 @@ impl DoAddon<i64> for JsoncObj {
     }
 }
 
-impl DoAddon<u64> for JsoncObj {
+impl JsonImport<u64> for JsoncObj {
     #[track_caller]
     fn add(&self, key: &str, value: u64) {
         unsafe {
@@ -480,7 +517,7 @@ impl DoAddon<u64> for JsoncObj {
     }
 }
 
-impl DoAddon<i32> for JsoncObj {
+impl JsonImport<i32> for JsoncObj {
     #[track_caller]
     fn add(&self, key: &str, value: i32) {
         unsafe {
@@ -504,95 +541,95 @@ impl DoAddon<i32> for JsoncObj {
     }
 }
 
-impl DoAddon<u32> for JsoncObj {
+impl JsonImport<u32> for JsoncObj {
     #[track_caller]
     fn add(&self, key: &str, value: u32) {
-        DoAddon::add(self, key, value as i64)
+        JsonImport::add(self, key, value as i64)
     }
     #[track_caller]
     fn insert(&self, idx: usize, value: u32) {
-        DoAddon::insert(self, idx, value as i64)
+        JsonImport::insert(self, idx, value as i64)
     }
     #[track_caller]
     fn append(&self, value: u32) {
-        DoAddon::append(self, value as i64)
+        JsonImport::append(self, value as i64)
     }
 }
 
-impl DoAddon<u16> for JsoncObj {
+impl JsonImport<u16> for JsoncObj {
     #[track_caller]
     fn add(&self, key: &str, value: u16) {
-        DoAddon::add(self, key, value as u32)
+        JsonImport::add(self, key, value as u32)
     }
     #[track_caller]
     fn insert(&self, idx: usize, value: u16) {
-        DoAddon::insert(self, idx, value as u32)
+        JsonImport::insert(self, idx, value as u32)
     }
     #[track_caller]
     fn append(&self, value: u16) {
-        DoAddon::append(self, value as u32)
+        JsonImport::append(self, value as u32)
     }
 }
 
-impl DoAddon<i16> for JsoncObj {
+impl JsonImport<i16> for JsoncObj {
     #[track_caller]
     fn add(&self, key: &str, value: i16) {
-        DoAddon::add(self, key, value as i32)
+        JsonImport::add(self, key, value as i32)
     }
     #[track_caller]
     fn insert(&self, idx: usize, value: i16) {
-        DoAddon::insert(self, idx, value as i32)
+        JsonImport::insert(self, idx, value as i32)
     }
     #[track_caller]
     fn append(&self, value: i16) {
-        DoAddon::append(self, value as i32)
+        JsonImport::append(self, value as i32)
     }
 }
 
-impl DoAddon<u8> for JsoncObj {
+impl JsonImport<u8> for JsoncObj {
     #[track_caller]
     fn add(&self, key: &str, value: u8) {
-        DoAddon::add(self, key, value as u32)
+        JsonImport::add(self, key, value as u32)
     }
     #[track_caller]
     fn insert(&self, idx: usize, value: u8) {
-        DoAddon::insert(self, idx, value as u32)
+        JsonImport::insert(self, idx, value as u32)
     }
     #[track_caller]
     fn append(&self, value: u8) {
-        DoAddon::append(self, value as u32)
+        JsonImport::append(self, value as u32)
     }
 }
 
-impl DoAddon<i8> for JsoncObj {
+impl JsonImport<i8> for JsoncObj {
     #[track_caller]
     fn add(&self, key: &str, value: i8) {
-        DoAddon::add(self, key, value as i32)
+        JsonImport::add(self, key, value as i32)
     }
     #[track_caller]
     fn insert(&self, idx: usize, value: i8) {
-        DoAddon::insert(self, idx, value as i32)
+        JsonImport::insert(self, idx, value as i32)
     }
     #[track_caller]
     fn append(&self, value: i8) {
-        DoAddon::append(self, value as i32)
+        JsonImport::append(self, value as i32)
     }
 }
 
-impl DoAddon<usize> for JsoncObj {
+impl JsonImport<usize> for JsoncObj {
     #[track_caller]
     fn add(&self, key: &str, value: usize) {
-        DoAddon::add(self, key, value as i64)
+        JsonImport::add(self, key, value as i64)
     }
     fn insert(&self, idx: usize, value: usize) {
-        DoAddon::insert(self, idx, value as i64)
+        JsonImport::insert(self, idx, value as i64)
     }
     fn append(&self, value: usize) {
-        DoAddon::append(self, value as i64)
+        JsonImport::append(self, value as i64)
     }
 }
 
-impl DoAddon<&str> for JsoncObj {
+impl JsonImport<&str> for JsoncObj {
     #[track_caller]
     fn add(&self, key: &str, value: &str) {
         let sval = CString::new(value).expect("Invalid jsonc key string");
@@ -619,49 +656,19 @@ impl DoAddon<&str> for JsoncObj {
     }
 }
 
-impl DoAddon<&String> for JsoncObj {
+impl JsonImport<&String> for JsoncObj {
     #[track_caller]
     fn add(&self, key: &str, value: &String) {
-        DoAddon::add(self, key, value.as_str())
+        JsonImport::add(self, key, value.as_str())
     }
     #[track_caller]
     fn insert(&self, idx: usize, value: &String) {
-        DoAddon::insert(self, idx, value.as_str())
+        JsonImport::insert(self, idx, value.as_str())
     }
 
     #[track_caller]
     fn append(&self, value: &String) {
-        DoAddon::append(self, value.as_str())
-    }
-}
-
-impl DoAddon<&JsoncObj> for JsoncObj {
-    #[track_caller]
-    fn add(&self, key: &str, object: &JsoncObj) {
-        self.add_to_object(key, object.jso);
-    }
-    #[track_caller]
-    fn insert(&self, idx: usize, object: &JsoncObj) {
-        self.insert_to_array(idx, object.jso);
-    }
-    #[track_caller]
-    fn append(&self, object: &JsoncObj) {
-        self.append_to_array(object.jso);
-    }
-}
-
-impl DoAddon<JsoncObj> for JsoncObj {
-    #[track_caller]
-    fn add(&self, key: &str, object: JsoncObj) {
-        self.add_to_object(key, object.jso);
-    }
-    #[track_caller]
-    fn append(&self, object: JsoncObj) {
-        self.append_to_array(object.jso);
-    }
-    #[track_caller]
-    fn insert(&self, idx: usize, object: JsoncObj) {
-        self.insert_to_array(idx, object.jso);
+        JsonImport::append(self, value.as_str())
     }
 }
 
@@ -672,7 +679,33 @@ pub trait JsoncImport<T> {
 impl JsoncImport<JsoncObj> for JsoncObj {
     #[track_caller]
     fn import(value: JsoncObj) -> Result<Self, AfbError> {
-        Ok(value.clone())
+        Ok(value)
+    }
+}
+
+impl JsoncImport<*const *const JsoncJso> for JsoncObj {
+    #[track_caller]
+    fn import(jso: *const *const JsoncJso) -> Result<Self, AfbError> {
+        unsafe {
+            let jso = jso as *const *const cglue::json_object;
+            let jsonc = JsoncObj {
+                jso: cglue::json_object_get(*jso as *mut cglue::json_object),
+            };
+            return Ok(jsonc);
+        }
+    }
+}
+
+impl JsoncImport<*mut std::ffi::c_void> for JsoncObj {
+    #[track_caller]
+    fn import(value: *mut std::ffi::c_void) -> Result<Self, AfbError> {
+        let jso: &mut cglue::json_object = unsafe { &mut *(value as *mut cglue::json_object) };
+        unsafe {
+            let jsonc = JsoncObj {
+                jso: cglue::json_object_get(jso),
+            };
+            return Ok(jsonc);
+        }
     }
 }
 
@@ -690,34 +723,21 @@ impl JsoncImport<i64> for JsoncObj {
 
 impl JsoncImport<&JsonStr> for JsoncObj {
     #[track_caller]
-    fn import(value: &JsonStr) -> Result<Self, AfbError>  {
+    fn import(value: &JsonStr) -> Result<Self, AfbError> {
         match JsoncObj::parse(value.0) {
-            Err(error) => afb_error!("jsonc-import-json-text","(error={})", error),
+            Err(error) => afb_error!("jsonc-import-json-text", "(error={})", error),
             Ok(jsonc) => Ok(jsonc),
-        }
-    }
-}
-
-impl JsoncImport<*mut std::ffi::c_void> for JsoncObj {
-    #[track_caller]
-    fn import(value: *mut std::ffi::c_void) -> Result<Self, AfbError>  {
-        let jso: &mut cglue::json_object = unsafe { &mut *(value as *mut cglue::json_object) };
-        unsafe {
-            let jsonc = JsoncObj { jso: jso };
-            cglue::json_object_get(jsonc.jso);
-            return Ok(jsonc);
         }
     }
 }
 
 impl JsoncImport<f64> for JsoncObj {
     #[track_caller]
-    fn import(value: f64) -> Result<Self, AfbError>  {
+    fn import(value: f64) -> Result<Self, AfbError> {
         unsafe {
             let jsonc = JsoncObj {
                 jso: cglue::json_object_new_double(value),
             };
-            cglue::json_object_get(jsonc.jso);
             return Ok(jsonc);
         }
     }
@@ -734,7 +754,6 @@ impl JsoncImport<&str> for JsoncObj {
                 let jsonc = JsoncObj {
                     jso: cglue::json_object_new_string(sval.into_raw()),
                 };
-                cglue::json_object_get(jsonc.jso);
                 return Ok(jsonc);
             }
         }
@@ -749,7 +768,6 @@ impl JsoncImport<&String> for JsoncObj {
             let jsonc = JsoncObj {
                 jso: cglue::json_object_new_string(sval.into_raw()),
             };
-            cglue::json_object_get(jsonc.jso);
             return Ok(jsonc);
         }
     }
@@ -762,7 +780,6 @@ impl JsoncObj {
             let jsonc = JsoncObj {
                 jso: cglue::json_object_new_object(),
             };
-            cglue::json_object_get(jsonc.jso);
             return jsonc;
         }
     }
@@ -772,7 +789,6 @@ impl JsoncObj {
             let jsonc = JsoncObj {
                 jso: cglue::json_object_new_array(),
             };
-            cglue::json_object_get(jsonc.jso);
             return jsonc;
         }
     }
@@ -788,22 +804,22 @@ impl JsoncObj {
     #[track_caller]
     pub fn get_as<T>(&self) -> Result<T, AfbError>
     where
-        JsoncObj: DoPutJso<T>,
+        JsoncObj: JsoncExport<T>,
     {
-        Self::put_jso(self.jso)
+        Self::from_jso(self.jso)
     }
 
     #[track_caller]
     pub fn add<T>(&self, key: &str, value: T) -> Result<&Self, AfbError>
     where
-        JsoncObj: DoAddon<T>,
+        JsoncObj: JsonImport<T>,
     {
         unsafe {
             let result =
                 if cglue::json_object_is_type(self.jso, cglue::json_type_json_type_object) == 0 {
                     afb_error!("jsonc-add-fail", "jsonc target is not an object")
                 } else {
-                    DoAddon::add(self, key, value);
+                    JsonImport::add(self, key, value);
                     Ok(self)
                 };
             return result;
@@ -830,8 +846,18 @@ impl JsoncObj {
                     let slice: &str = cstring.to_str().unwrap();
                     result = Jobject::String(slice.to_owned());
                 }
-                Jtype::Array => result = Jobject::Array(JsoncObj { jso: jso }),
-                Jtype::Object => result = Jobject::Object(JsoncObj { jso: jso }),
+                Jtype::Array => {
+                    result = {
+                        Jobject::Array(JsoncObj {
+                            jso: cglue::json_object_get(jso),
+                        })
+                    }
+                }
+                Jtype::Object => {
+                    result = Jobject::Object(JsoncObj {
+                        jso: cglue::json_object_get(jso),
+                    });
+                }
                 Jtype::Null => result = Jobject::Null(),
                 _ => result = Jobject::Unknown("jsonc unknown type"),
             }
@@ -854,44 +880,44 @@ impl JsoncObj {
     #[track_caller]
     pub fn get<T>(&self, key: &str) -> Result<T, AfbError>
     where
-        JsoncObj: DoPutJso<T>,
+        JsoncObj: JsoncExport<T>,
     {
         match Self::get_jso(key, self.jso) {
             Err(error) => Err(error),
-            Ok(jso) => Self::put_jso(jso),
+            Ok(jso) => Self::from_jso(jso),
         }
     }
 
     #[track_caller]
     pub fn default<T>(&self, key: &str, default: T) -> Result<T, AfbError>
     where
-        JsoncObj: DoPutJso<T>,
+        JsoncObj: JsoncExport<T>,
     {
         match Self::get_jso(key, self.jso) {
             Err(_error) => Ok(default),
-            Ok(jso) => Self::put_jso(jso),
+            Ok(jso) => Self::from_jso(jso),
         }
     }
 
     #[track_caller]
     pub fn optional<T>(&self, key: &str) -> Result<Option<T>, AfbError>
     where
-        JsoncObj: DoPutJso<T>,
+        JsoncObj: JsoncExport<T>,
     {
         match Self::get_jso(key, self.jso) {
             Err(_error) => Ok(None),
-            Ok(jso) => Ok(Some(Self::put_jso(jso)?)),
+            Ok(jso) => Ok(Some(Self::from_jso(jso)?)),
         }
     }
 
     #[track_caller]
     pub fn index<T>(&self, index: usize) -> Result<T, AfbError>
     where
-        JsoncObj: DoPutJso<T>,
+        JsoncObj: JsoncExport<T>,
     {
         match Self::get_jso(index, self.jso) {
             Err(error) => Err(error),
-            Ok(jso) => Self::put_jso(jso),
+            Ok(jso) => Self::from_jso(jso),
         }
     }
 
@@ -907,16 +933,21 @@ impl JsoncObj {
     }
 
     #[track_caller]
+    pub fn len(&self) -> Result<usize, AfbError> {
+        self.count()
+    }
+
+    #[track_caller]
     pub fn insert<T>(&self, idx: usize, value: T) -> Result<&Self, AfbError>
     where
-        JsoncObj: DoAddon<T>,
+        JsoncObj: JsonImport<T>,
     {
         unsafe {
             let result =
                 if cglue::json_object_is_type(self.jso, cglue::json_type_json_type_array) == 0 {
                     afb_error!("jsonc-insert-fail", "jsonc target is not an array",)
                 } else {
-                    DoAddon::insert(self, idx, value);
+                    JsonImport::insert(self, idx, value);
                     Ok(self)
                 };
             return result;
@@ -926,14 +957,14 @@ impl JsoncObj {
     #[track_caller]
     pub fn append<T>(&self, value: T) -> Result<&Self, AfbError>
     where
-        JsoncObj: DoAddon<T>,
+        JsoncObj: JsonImport<T>,
     {
         unsafe {
             let result =
                 if cglue::json_object_is_type(self.jso, cglue::json_type_json_type_array) == 0 {
                     afb_error!("jsonc-append-fail", "jsonc target is not an array",)
                 } else {
-                    DoAddon::append(self, value);
+                    JsonImport::append(self, value);
                     Ok(self)
                 };
             return result;
@@ -942,8 +973,7 @@ impl JsoncObj {
 
     #[track_caller]
     pub fn into_raw(&self) -> *mut cglue::json_object {
-        unsafe { cglue::json_object_get(self.jso) };
-        self.jso
+        unsafe {cglue::json_object_get(self.jso)}
     }
 
     #[track_caller]
@@ -1026,6 +1056,20 @@ impl JsoncObj {
     }
 
     #[track_caller]
+    pub fn sort(&self, callback: JsonSortCb) -> Result<&Self, AfbError> {
+        unsafe {
+            let result =
+                if cglue::json_object_is_type(self.jso, cglue::json_type_json_type_array) == 0 {
+                    afb_error!("jsonc-sort-fail", "jsonc target is not an array")
+                } else {
+                    cglue::json_object_array_sort(self.jso, callback);
+                    Ok(self)
+                };
+            return result;
+        }
+    }
+
+    #[track_caller]
     pub fn equal(&mut self, jsonc: JsoncObj) -> Result<(), AfbError> {
         if unsafe { cglue::json_object_get_type(self.jso) }
             != unsafe { cglue::json_object_get_type(jsonc.jso) }
@@ -1061,12 +1105,13 @@ impl JsoncObj {
     pub fn parse(json_str: &str) -> Result<JsoncObj, AfbError> {
         unsafe {
             let tok = cglue::json_tokener_new();
+            let jso = cglue::json_tokener_parse_ex(
+                tok,
+                json_str.as_bytes().as_ptr() as *mut c_char,
+                json_str.len() as i32,
+            );
             let jsonc = JsoncObj {
-                jso: cglue::json_tokener_parse_ex(
-                    tok,
-                    json_str.as_bytes().as_ptr() as *mut c_char,
-                    json_str.len() as i32,
-                ),
+                jso: cglue::json_object_get(jso)
             };
 
             let jerr = cglue::json_tokener_get_error(tok);
@@ -1075,12 +1120,17 @@ impl JsoncObj {
             let result = if jerr != cglue::json_tokener_error_json_tokener_success {
                 afb_error!("jsonc-parse-fail", json_str)
             } else {
-                cglue::json_object_get(jsonc.jso);
                 Ok(jsonc)
             };
 
             cglue::json_tokener_free(tok);
             return result;
+        }
+    }
+
+    pub fn put(&self) {
+        unsafe {
+            cglue::json_object_put(self.jso);
         }
     }
 }

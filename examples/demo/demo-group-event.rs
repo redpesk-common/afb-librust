@@ -151,7 +151,7 @@ pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
         })
         .set_info("push query as event output")
         .set_usage("any json data")
-        .set_sample("{'skipail':'IoT.bzh'}")?
+        .add_sample("{'skipail':'IoT.bzh'}")?
         .set_permission(AfbPermission::new("acl:evt:push"))
         .finalize()?;
 

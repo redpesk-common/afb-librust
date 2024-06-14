@@ -361,6 +361,7 @@ extern "C" fn free_cstring_cb(context: *mut std::ffi::c_void) {
 // restore Rust Cstring, in order to make it disposable
 #[no_mangle]
 pub extern "C" fn free_box_cb(context: *mut std::ffi::c_void) {
+    println!("*** free_box_cb ***");
     let cbox = unsafe { Box::from_raw(context) };
     drop(cbox);
 }
@@ -867,7 +868,7 @@ impl ConvertResponse<JsoncObj> for AfbParams {
             typev4: unsafe { (*cglue::afbBindingV4r1_itfptr).type_json_c },
             buffer_ptr: data.into_raw() as *const _ as *mut std::ffi::c_void,
             buffer_len: 0, // auto
-            freecb: Some(free_box_cb),
+            freecb: Some(free_jsonc_cb),
         };
         AfbExportResponse::Converter(export)
     }
@@ -877,11 +878,11 @@ impl ConvertResponse<&JsoncObj> for AfbParams {
     #[track_caller]
     fn export(data: &JsoncObj) -> AfbExportResponse {
         let export = AfbExportData {
-            uid: "export:builtin-JsoncObj",
+            uid: "export:builtin-&JsoncObj",
             typev4: unsafe { (*cglue::afbBindingV4r1_itfptr).type_json_c },
-            buffer_ptr: (*data).into_raw() as *const _ as *mut std::ffi::c_void,
+            buffer_ptr: data.into_raw() as *const _ as *mut std::ffi::c_void,
             buffer_len: 0, // auto
-            freecb: None,
+            freecb: Some(free_jsonc_cb),
         };
         AfbExportResponse::Converter(export)
     }
@@ -1067,7 +1068,7 @@ impl AfbParams {
                 data.typev4,
                 data.buffer_ptr,
                 0, // opaque buffer for Rust object
-                Some(free_box_cb),
+                data.freecb,
                 data.buffer_ptr as *mut c_void,
             )
         };
