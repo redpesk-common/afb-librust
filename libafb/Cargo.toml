@@ -19,7 +19,7 @@ edition = "2021"
 bitflags = "2"
 
 [build-dependencies]
-system-deps = "2.0"
+system-deps = ">=7"
 bindgen = ">=0.69"
 cc = ">=1.0"
 
