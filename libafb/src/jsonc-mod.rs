@@ -24,6 +24,7 @@
 use crate::prelude::*;
 
 use std::ffi::{CStr, CString};
+use std::str;
 use std::fmt;
 use std::os::raw::c_char;
 
@@ -53,6 +54,14 @@ pub enum Jobject {
 #[track_caller]
 pub fn to_static_str(value: String) -> &'static str {
     Box::leak(value.into_boxed_str())
+}
+
+pub fn bytes_to_str<'a>(data: &'a [u8]) -> Result<&'a str, AfbError> {
+    let text = match str::from_utf8(data) {
+        Ok(value) => value,
+        Err(_) => return afb_error!("bytes_to_str", "not a valid UTF string"),
+    };
+    Ok(text)
 }
 
 // convert an hexadecimal string "[01,02,...,xx]" into an &[u8] slice
@@ -199,6 +208,17 @@ impl JsoncExport<String> for JsoncObj {
             afb_error!("jsonc-get-type", "jsonc object is not a string",)
         } else {
             Ok(JsoncObj::to_string(jso))
+        }
+    }
+}
+
+impl JsoncExport<Vec<u8>> for JsoncObj {
+    #[track_caller]
+    fn from_jso(jso: *mut cglue::json_object) -> Result<Vec<u8>, AfbError> {
+        if unsafe { cglue::json_object_get_type(jso) } != cglue::json_type_json_type_string {
+            afb_error!("jsonc-get-type", "jsonc object is not a string",)
+        } else {
+            Ok(JsoncObj::to_string(jso).as_bytes().to_vec())
         }
     }
 }
@@ -626,6 +646,32 @@ impl JsonImport<usize> for JsoncObj {
     }
     fn append(&self, value: usize) {
         JsonImport::append(self, value as i64)
+    }
+}
+impl JsonImport<&[u8]> for JsoncObj {
+    #[track_caller]
+    fn add(&self, key: &str, value: &[u8]) {
+        let sval = CString::new(value).expect("Invalid jsonc key bytes");
+        unsafe {
+            let object = cglue::json_object_new_string(sval.into_raw());
+            self.add_to_object(key, object);
+        }
+    }
+    #[track_caller]
+    fn append(&self, value: &[u8]) {
+        let sval = CString::new(value).expect("Invalid jsonc key bytes");
+        unsafe {
+            let object = cglue::json_object_new_string(sval.into_raw());
+            self.append_to_array(object);
+        }
+    }
+
+    fn insert(&self, idx: usize, value: &[u8]) {
+        let sval = CString::new(value).expect("Invalid jsonc key bytes");
+        unsafe {
+            let object = cglue::json_object_new_string(sval.into_raw());
+            self.insert_to_array(idx, object);
+        }
     }
 }
 
