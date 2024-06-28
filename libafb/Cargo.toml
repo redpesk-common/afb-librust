@@ -19,11 +19,7 @@ edition = "2021"
 bitflags = "2"
 
 [build-dependencies]
-<<<<<<< HEAD
-system-deps = ">=7"
-=======
 system-deps = ">=7.0"
->>>>>>> a836b30 (added json &[u8]/Vec<u8>)
 bindgen = ">=0.69"
 cc = ">=1.0"
 
