@@ -361,7 +361,6 @@ extern "C" fn free_cstring_cb(context: *mut std::ffi::c_void) {
 // restore Rust Cstring, in order to make it disposable
 #[no_mangle]
 pub extern "C" fn free_box_cb(context: *mut std::ffi::c_void) {
-    println!("*** free_box_cb ***");
     let cbox = unsafe { Box::from_raw(context) };
     drop(cbox);
 }
