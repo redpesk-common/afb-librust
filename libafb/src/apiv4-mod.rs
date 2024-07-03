@@ -2065,7 +2065,7 @@ impl DoSubcallSync<AfbApiV4> for AfbSubCall {
                 Ok(jerror) => jerror.to_string(),
                 Err(_) => format!("api:{:?} verb:{:?} status:{}({})", apiname, verbname, status, afb_error_info(status)),
             };
-            return Err(AfbError::new("rqt-subcalls", status, error));
+            return Err(AfbError::new("api-subcalls", status, error));
         }
         let datas = AfbRqtData::new(&replies, nreplies, status);
         Ok(datas)
@@ -2165,7 +2165,7 @@ impl DoSubcallSync<AfbRqtV4> for AfbSubCall {
                 Ok(jerror) => jerror.to_string(),
                 Err(_) => format!("api:{:?} verb:{:?} status:{}({})", apiname, verbname, status, afb_error_info(status)),
             };
-            return Err(AfbError::new("api-subcalls", status, error));
+            return Err(AfbError::new("rqt-subcalls", status, error));
         }
         // move const **array in something Rust may understand
         let datas = AfbRqtData::new(&replies, nreplies, status);
