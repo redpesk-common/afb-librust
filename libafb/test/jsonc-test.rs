@@ -18,6 +18,16 @@ fn parse_json () {
     assert! (a+a==b)
 }
 
+#[test]
+fn parse_hexa () {
+    let token = "[00,7d,fa,07,5e,4a]";
+    let mut buffer=[0u8;6];
+    hexa_to_bytes(token, &mut buffer).unwrap();
+    let hexa= bytes_to_hexa(&buffer);
+
+    assert! (hexa == token)
+}
+
 // ------------------------------------------------
 // testing object creation from rust type
 // -------------------------------------------------
@@ -27,15 +37,15 @@ fn new_json() {
     assert!(jsonc.is_type(Jtype::Object), "object invalid");
 
     let value = 4;
-    let jsonc = JsoncObj::import(value);
+    let jsonc = JsoncObj::import(value).unwrap();
     assert!(jsonc.is_type(Jtype::Int), "object not an int");
 
     let value = 123.456;
-    let jsonc = JsoncObj::import(value);
+    let jsonc = JsoncObj::import(value).unwrap();
     assert!(jsonc.is_type(Jtype::Float), "object not a float");
 
     let value = "toto titi tata";
-    let jsonc = JsoncObj::import(value);
+    let jsonc = JsoncObj::import(value).unwrap();
     assert!(jsonc.is_type(Jtype::String), "object not a string");
 }
 
@@ -110,7 +120,7 @@ fn insert_array() {
 fn expend_to_vec() {
     let token = "{'a':1,'b':'abc'}";
     let jvalue = JsoncObj::parse(token).unwrap();
-    let entries= jvalue.expand();
+    let entries= jvalue.expand().unwrap();
     for idx in 0 .. entries.len() {
         let entry= &entries[idx];
         println! ("key={}, value:{}", entry.key, entry.obj);

@@ -81,7 +81,7 @@ pub fn hexa_to_bytes<'a>(input: &str, buffer: &'a mut [u8]) -> Result<&'a [u8], 
             Err(_) => {
                 return afb_error!(
                     "string-ecode-hexa",
-                    "invalid hexa encoding syntax: '[01,ff,...]'"
+                    "invalid hexa encoding syntax: '[01,ff,...]' got:{}", input
                 )
             }
         }
