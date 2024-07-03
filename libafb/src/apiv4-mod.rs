@@ -2065,7 +2065,7 @@ impl DoSubcallSync<AfbApiV4> for AfbSubCall {
                 Ok(jerror) => jerror.to_string(),
                 Err(_) => format!("api:{:?} verb:{:?} status:{}({})", apiname, verbname, status, afb_error_info(status)),
             };
-            return Err(AfbError::new("api-subcalls", status, error));
+            return Err(AfbError::new("rqt-subcalls", status, error));
         }
         let datas = AfbRqtData::new(&replies, nreplies, status);
         Ok(datas)
@@ -2149,8 +2149,8 @@ impl DoSubcallSync<AfbRqtV4> for AfbSubCall {
         let rc = unsafe {
             cglue::afb_req_subcall_sync(
                 rqtv4,
-                apiname.into_raw(),
-                verbname.into_raw(),
+                apiname.clone().into_raw(),
+                verbname.clone().into_raw(),
                 params.arguments.len() as u32,
                 params.arguments.as_slice().as_ptr(),
                 cglue::afb_req_subcall_flags_afb_req_subcall_catch_events as i32,
@@ -2163,7 +2163,7 @@ impl DoSubcallSync<AfbRqtV4> for AfbSubCall {
             let replies = AfbRqtData::new(&replies, nreplies, status);
             let error = match replies.get::<JsoncObj>(0) {
                 Ok(jerror) => jerror.to_string(),
-                Err(_) => format!("status:{}({})", status, afb_error_info(status)),
+                Err(_) => format!("api:{:?} verb:{:?} status:{}({})", apiname, verbname, status, afb_error_info(status)),
             };
             return Err(AfbError::new("api-subcalls", status, error));
         }
