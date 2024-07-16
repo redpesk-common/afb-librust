@@ -369,7 +369,7 @@ impl ImportJso<&str> for JsoncObj {
                 &jslot as *const _ as *mut *mut cglue::json_object,
             ) == 0
             {
-                result = afb_error!("jconc-key-missing", key.to_string());
+                result = afb_error!("jsonc-key-missing", key.to_string());
             } else {
                 result = Ok(jslot);
             }
