@@ -24,7 +24,7 @@ From default config comment binding lines and add --ws-client binder option to r
 
   "binding": [
     // {
-    //     "uid": "rust-demo-binding",
+    //     "uid": "rust-samples-binding",
     //     "path": "-/home/fulup/.cargo/build/debug/examples/libafb_demo.so",
     //     "info": "RUST sample API binding (Rust)"
     // },
@@ -43,7 +43,7 @@ on remote binder add --ws-server to afb-binder
 * api-rust => the api to export
 
 ```bash
-afb-binder --ws-server='tcp:*:9999/api-rust' --config=examples/demo/etc/binding-config.json
+afb-binder --ws-server='tcp:*:9999/api-rust' --config=afb-samples/etc/binding-config.json
 ```
 
 Note:

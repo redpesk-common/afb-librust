@@ -27,7 +27,7 @@ At binding loading time afb-binder will call ```my_init_callback``` passing api 
 * ```api/info``` api introspection verb used with debug and monitoring.
 
 ```rust
-// check examples/demo/demo-binding.rs for full code
+// check afb-samples/demo-binding.rs for full code
 // Binding init callback started at binding load time before any API exist
 // -----------------------------------------
 pub fn binding_init(rootv4: AfbApiV4, jconf: AfbJsonObj) -> Result <&'static AfbApi, AfbError> {
@@ -121,7 +121,7 @@ To create a verb developer should:
 ***Warning: when defined user vcbdata struct/type should be unique to module namespace***
 
 ```rust
-// extract from examples/demo/demo-verb*.rs
+// extract from afb-samples/demo-verb*.rs
 AfbDataConverter!(simple_data, MySimpleType);
 use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug, Default)]

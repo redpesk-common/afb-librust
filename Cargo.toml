@@ -2,6 +2,7 @@
 resolver = "2"
 
 members = [
-    "libafb",
-    "examples",
+    "afb-librs",
+    "afb-samples",
+    "afb-tests",
 ]

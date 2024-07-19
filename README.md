@@ -27,7 +27,7 @@ Something cargo complains about ```stddef.h``` which is own by ```kernel-headers
 It is possible to run tests on this library by calling the following script.
 
 ```bash
-./examples/test/etc/binding-test.sh
+./afb-tests/etc/binding-test.sh
 ```
 
 ### Coverage
@@ -46,7 +46,7 @@ cargo install grcov
 Once the tools are all set-up you can call the test script with the coverage option.
 
 ```bash
-./examples/test/etc/binding-test.sh -c
+./afb-tests/etc/binding-test.sh
 ```
 
 At the end, the entry point of html coverage report is: `target/debug/coverage/index.html`.

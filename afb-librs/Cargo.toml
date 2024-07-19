@@ -14,7 +14,6 @@ publish = false
 build = "capi/build.rs"
 edition = "2021"
 
-
 [dependencies]
 bitflags = "2"
 
@@ -33,4 +32,4 @@ json-c  = "*"
 [lib]
 name = "afbv4"
 crate-type = ["lib"]
-path = "src/libafb-mod.rs"
+path = "src/@libafb-mod.rs"

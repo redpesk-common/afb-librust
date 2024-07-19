@@ -1,0 +1,18 @@
+[package]
+name = "afb_test"
+version = "0.1.0"
+authors = ["fulup@iot.bzh"]
+edition = "2021"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+afbv4= {path ="../afb-librs"}
+afb_samples = {path ="../afb-samples"}
+
+[[test]]
+# optional test use:  clear && cargo build --example afb_test
+name = "afb_tests"
+crate-type = ["cdylib"]
+path = "src/binding-test.rs"
+

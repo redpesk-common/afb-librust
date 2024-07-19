@@ -2,9 +2,9 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Native 'afb-demo'",
+            "name": "Native 'afb-samples'",
             "type": "lldb",
-            "preLaunchTask": "native-compile-demo",
+            "preLaunchTask": "native-compile-samples",
             "request": "launch",
             "program": "afb-binder",
             "env": {
@@ -13,7 +13,7 @@
             "args": [
                 "-vvv",
                 "--trap-faults=0",
-                "--config=examples/demo/etc/binding-demo.json"
+                "--config=afb-samples/demo/etc/binding-samples.json"
             ],
             "cwd": "${workspaceFolder}",
             "initCommands": [
@@ -33,7 +33,7 @@
             "args": [
                 "-vvv",
                 "--trap-faults=1",
-                "--config=examples/test/etc/binding-test-auto.json"
+                "--config=afb-tests/etc/binding-test-auto.json"
             ],
             "cwd": "${workspaceFolder}",
             "initCommands": [
@@ -54,7 +54,7 @@
             "args": [
                 "-vvv",
                 "--trap-faults=1",
-                "--config=examples/test/etc/binding-test-api.json",
+                "--config=afb-tests/etc/binding-test-api.json",
             ],
             "cwd": "${workspaceFolder}",
             "initCommands": [

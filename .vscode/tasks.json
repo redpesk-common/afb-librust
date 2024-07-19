@@ -10,32 +10,41 @@
             "group": "build"
         },
         {
-            "label": "native-compile-demo",
+            "label": "native-compile-samples",
             "type": "cargo",
             "command": "build",
             "dependsOn": "binding-native-build",
             "args": [
                 "--example",
-                "afb_demo"
+                "afb_samples"
             ],
             "problemMatcher": [
                 "$rustc"
             ],
-            "group": "build",
+            "group": "build"
         },
         {
             "label": "native-compile-test",
             "type": "cargo",
             "command": "build",
-            "dependsOn": "binding-native-demo",
+            "dependsOn": "binding-native-samples",
             "args": [
                 "--example",
-                "afb_test"
+                "afb_tests"
             ],
             "problemMatcher": [
                 "$rustc"
             ],
-            "group": "build",
+            "group": "build"
+        },
+        {
+            "type": "cargo",
+            "command": "clean",
+            "problemMatcher": [
+                "$rustc"
+            ],
+            "group": "clean",
+            "label": "rust: cargo clean"
         }
     ]
 }

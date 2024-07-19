@@ -1,0 +1,23 @@
+[package]
+name = "afb_samples"
+version = "0.1.0"
+authors = ["fulup@iot.bzh"]
+edition = "2021"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+afbv4= {path ="../afb-librs"}
+
+[lib]
+# demo type crate
+name = "afb_converter"
+crate-type = ["lib"]
+path = "converter/demo-converter.rs"
+
+[[example]]
+# main sample
+name = "afb_samples"
+crate-type = ["cdylib"]
+path = "src/@demo-binding.rs"
+

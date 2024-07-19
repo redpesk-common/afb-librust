@@ -55,7 +55,7 @@ export PATH="/usr/local/lib64:$PATH"
 clear
 
 if ! test -f "$CARGO_TARGET_DIR/debug/examples/libafb_demo.so"; then
-    cargo build --example afb_demo
+    cargo build --example afb_samples
     if test $? != 0; then
         echo "FATAL: fail to compile libafb sample"
         exit 1
@@ -63,14 +63,14 @@ if ! test -f "$CARGO_TARGET_DIR/debug/examples/libafb_demo.so"; then
 fi
 
 # rebuilt test binding
-cargo build  --example afb_test
+cargo build  --test afb_tests
 if test $? != 0; then
     echo "FATAL: fail to compile test suite"
     exit 1
 fi
 
 # start binder with test config
-afb-binder --config=examples/test/etc/binding-test-auto.json
+afb-binder -v --config=examples/test/etc/binding-test-auto.json $*
 
 if $COVERAGE; then
     # Create coverage report

@@ -10,8 +10,7 @@
 use afbv4::prelude::*;
 
 // mySimpleData type is within an external crate to allow sharing with other crate/binding/binder
-extern crate demo_converter;
-use self::demo_converter::MySimpleData;
+use afb_converter::*;
 
 fn typed_callback(request: &AfbRequest, args: &AfbRqtData, _ctx: &AfbCtxData) ->Result <(), AfbError>{
     // check arg0 match MySimpleData grammar
@@ -42,7 +41,7 @@ fn typed_callback(request: &AfbRequest, args: &AfbRqtData, _ctx: &AfbCtxData) ->
 pub fn register(rootv4: AfbApiV4) -> Result<&'static AfbVerb, AfbError> {
 
     // custom type should register once per binder
-    demo_converter::register(rootv4).expect("must register custom type");
+    afb_converter::register(rootv4).expect("must register custom type");
 
     // build verb name from Rust module name
     let mod_name = module_path!().split(':').last().unwrap();

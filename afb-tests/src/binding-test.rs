@@ -11,21 +11,18 @@
     html_favicon_url = "https://iot.bzh/images/defaults/favicon.ico"
 )]
 
-// import demo SimpleData converter.
-extern crate demo_converter;
-use self::demo_converter::MySimpleData;
-
 //import libafb dependencies
-extern crate afbv4;
+extern crate afb_samples;
 use afbv4::prelude::*;
+use afb_samples::MySimpleData;
 
 struct ASyncCallData {
     my_counter: u32,
 }
 
 // async response is s standard (AfbVerbRegister!) API/verb callback
-fn async_response_cb(api: &AfbApi, params: &AfbRqtData, ctx: &AfbCtxData) -> Result <(), AfbError> {
-    let ctx= ctx.get_mut::<ASyncCallData>()?;
+fn async_response_cb(api: &AfbApi, params: &AfbRqtData, ctx: &AfbCtxData) -> Result<(), AfbError> {
+    let ctx = ctx.get_mut::<ASyncCallData>()?;
     ctx.my_counter += 1;
 
     // we expect 1st argument to be json compatible
@@ -61,7 +58,14 @@ impl AfbApiControls for TapUserData {
         afb_log_msg!(Notice, api, "starting TAP testing");
 
         // testing subcall async
-        AfbSubCall::call_async(api, "rust-api", "ping", AFB_NO_DATA,async_response_cb, ASyncCallData{my_counter:0})?;
+        AfbSubCall::call_async(
+            api,
+            "rust-api",
+            "ping",
+            AFB_NO_DATA,
+            async_response_cb,
+            ASyncCallData { my_counter: 0 },
+        )?;
 
         // ------ Simple verb -----------
         let test0 = AfbTapTest::new("builtin-info", "rust-api", "info")
@@ -74,23 +78,20 @@ impl AfbApiControls for TapUserData {
 
         let test2 = AfbTapTest::new("jsonc-basic", "rust-api", "verb_basic")
             .set_info("Check json input param")
-            .add_arg(&JsonStr(
+            .add_arg(
                 "{'skipail':'IoT.bzh','location':'Lorient','lander':'Brittany'}",
-            ))?
+            )?
             .finalize()?;
 
         let test3 = AfbTapTest::new("jsonc-reply", "rust-api", "verb_basic")
             .set_info("Check json response")
-            .add_arg(&JsonStr(
-                "{'skipail':'Follijen','location':'PortLouis','lander':'Brittany'}",
-            ))
-            .expect("valid argument")
-            .add_expect(&JsonStr("{'LANDER':'BRITTANY'}"))
+            .add_arg("{'skipail':'Follijen','location':'PortLouis','lander':'Brittany'}")?
+            .add_expect("{'LANDER':'BRITTANY'}")?
             .finalize()?;
 
         let test4 = AfbTapTest::new("jsonc-typed", "rust-api", "verb_typed")
             .set_info("Check invalid typed input")
-            .add_arg(&JsonStr("{'x':1,'y':123,'name':'Skipail IoT.bzh'}"))?
+            .add_arg("{'x':1,'y':123,'name':'Skipail IoT.bzh'}")?
             .finalize()?;
 
         let test5 = AfbTapTest::new("MySimpleData", "rust-api", "verb_typed")
@@ -150,8 +151,9 @@ impl AfbApiControls for TapUserData {
             .set_status(-9)
             .finalize()?; // invalid scope
 
-        let loa2 =
-            AfbTapTest::new("loa-set-1", "rust-api", "loa_group/set").set_info("Set loa to 1").finalize()?;
+        let loa2 = AfbTapTest::new("loa-set-1", "rust-api", "loa_group/set")
+            .set_info("Set loa to 1")
+            .finalize()?;
 
         let loa3 = AfbTapTest::new("loa-check-1", "rust-api", "loa_group/check")
             .set_info("Check should work as session LOA now = 1")
@@ -185,7 +187,8 @@ impl AfbApiControls for TapUserData {
 
         // ------ Event Group -----------
         let event1 = AfbTapTest::new("event-subscribe", "rust-api", "event_group/subscribe")
-            .set_info("subscribe to event").finalize()?;
+            .set_info("subscribe to event")
+            .finalize()?;
 
         let event2 = AfbTapTest::new("event-push-one-listener", "rust-api", "event_group/push")
             .set_info("check event as 1 listener")
@@ -194,7 +197,8 @@ impl AfbApiControls for TapUserData {
             .finalize()?;
 
         let event3 = AfbTapTest::new("event-unsubscribe", "rust-api", "event_group/unsubscribe")
-            .set_info("Unsubscribe event").finalize()?;
+            .set_info("Unsubscribe event")
+            .finalize()?;
 
         let event4 = AfbTapTest::new("event-push-no-listener", "rust-api", "event_group/push")
             .set_info("push should not have any subscriber/session")
@@ -283,7 +287,7 @@ pub fn binding_test_init(rootv4: AfbApiV4, jconf: JsoncObj) -> Result<&'static A
     };
 
     // custom type should register once per binder
-    demo_converter::register(rootv4)?;
+    afb_converter::register(rootv4)?;
 
     afb_log_msg!(Notice, rootv4, "-- rootv4 {} loaded", uid);
     let api = AfbApi::new("tap-test")

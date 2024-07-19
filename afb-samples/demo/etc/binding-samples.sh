@@ -12,4 +12,4 @@ if test $? != 0; then
 fi
 
 # start binder with test config
-afb-binder --config=examples/demo/etc/binding-demo.json
+afb-binder --config=afb-samples/etc/binding-samples.json

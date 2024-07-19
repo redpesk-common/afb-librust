@@ -5,7 +5,7 @@
 Make sure that your dependencies are reachable from rust scripting engine, before starting your test.
 
 ```bash
-    afb-binder -vvv --config=examples/demo/etc/binding-config.json
+    afb-binder -vvv --config=afb-samples/etc/binding-config.json
     firefox localhost://1234/devtools
 ```
 
