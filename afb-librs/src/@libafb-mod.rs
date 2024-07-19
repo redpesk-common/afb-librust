@@ -44,11 +44,15 @@ pub mod jsonc;
 #[path = "./utilv4-mod.rs"]
 pub mod utilv4;
 
+#[path = "./testv4-mod.rs"]
+pub mod testv4;
+
 pub mod prelude {
     pub(crate) use crate::cglue;
     pub use crate::jsonc::*;
     pub use crate::apiv4::*;
     pub use crate::datav4::*;
     pub use crate::utilv4::*;
+    pub use crate::testv4::*;
     pub use std::any::Any;
 }
