@@ -25,12 +25,12 @@ From default config comment binding lines and add --ws-client binder option to r
   "binding": [
     // {
     //     "uid": "rust-samples-binding",
-    //     "path": "-/home/fulup/.cargo/build/debug/examples/libafb_demo.so",
+    //     "path": "-/home/fulup/.cargo/build/debug/examples/libafb_samples.so",
     //     "info": "RUST sample API binding (Rust)"
     // },
     {
         "uid": "tap-test-binding",
-        "path": "/home/fulup/.cargo/build/debug/examples/libafb_test.so",
+        "path": "/home/fulup/.cargo/build/debug/examples/libafb_tests.so",
         "info": "Rust testing sample binding API",
     }
   ],

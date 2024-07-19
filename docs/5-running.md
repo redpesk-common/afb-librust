@@ -47,7 +47,7 @@ afb-binder --config=config.json
     // one config per C/C++/Rust binding
     {
         "uid": "rust-api",
-        "path": "./target/$HOSTNAME/debug/examples/libafb_demo.so",
+        "path": "./target/$HOSTNAME/debug/examples/libafb_samples.so",
         "info": "RUST sample API binding (Rust)"
     }
   ],

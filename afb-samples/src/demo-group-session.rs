@@ -16,7 +16,7 @@ struct SessionUserData {
 }
 
 fn session_drop_cb(session: &mut SessionUserData) {
-    println!("*** session closing count={} ***", session.count);
+    afb_log_msg!(Debug, None, "session closing count={}", session.count);
 }
 
 fn create_callback(request: &AfbRequest, _args: &AfbRqtData, _ctx: &AfbCtxData)  -> Result <(), AfbError>  {

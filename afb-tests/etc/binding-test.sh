@@ -54,7 +54,7 @@ export LD_LIBRARY_PATH="/usr/local/lib64:$LD_LIBRARY_PATH"
 export PATH="/usr/local/lib64:$PATH"
 clear
 
-if ! test -f "$CARGO_TARGET_DIR/debug/examples/libafb_demo.so"; then
+if ! test -f "$CARGO_TARGET_DIR/debug/examples/libafb_samples.so"; then
     cargo build --example afb_samples
     if test $? != 0; then
         echo "FATAL: fail to compile libafb sample"
@@ -63,14 +63,14 @@ if ! test -f "$CARGO_TARGET_DIR/debug/examples/libafb_demo.so"; then
 fi
 
 # rebuilt test binding
-cargo build  --test afb_tests
+cargo build  --example afb_tests
 if test $? != 0; then
     echo "FATAL: fail to compile test suite"
     exit 1
 fi
 
 # start binder with test config
-afb-binder -v --config=examples/test/etc/binding-test-auto.json $*
+afb-binder --config=afb-tests/etc/binding-test-auto.json $* 2> /dev/null
 
 if $COVERAGE; then
     # Create coverage report

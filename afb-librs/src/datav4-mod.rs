@@ -34,7 +34,6 @@ use std::ffi::{c_void, CStr, CString};
 // alias few external types
 pub type AfbTypeV4 = cglue::afb_type_t;
 pub type AfbDataV4 = cglue::afb_data_t;
-pub type AfbJsonStr = JsonStr;
 pub type Cchar = ::std::os::raw::c_char;
 
 // trick to create a null parameter
@@ -78,7 +77,12 @@ macro_rules! AfbDataConverter {
                 let data = unsafe { &mut *(cbuffer as *mut $datat) };
                 match serde_json::to_string(data) {
                     Ok(output) => Ok(output),
-                    Err(error) => afb_error! (stringify!($uid), "{} {}", stringify!($datat), &error.to_string())
+                    Err(error) => afb_error!(
+                        stringify!($uid),
+                        "{} {}",
+                        stringify!($datat),
+                        &error.to_string()
+                    ),
                 }
             }
 
@@ -87,7 +91,12 @@ macro_rules! AfbDataConverter {
                 match serde_json::from_str::<$datat>(json_string) {
                     Ok(value) => Ok(Box::new(value)),
                     //Err(error) => Err(format!("{}::{} {}", stringify!($uid), stringify!($datat), error.to_string()))
-                    Err(error) => afb_error! (stringify!($uid), "{} {}", stringify!($datat), &error.to_string())
+                    Err(error) => afb_error!(
+                        stringify!($uid),
+                        "{} {}",
+                        stringify!($datat),
+                        &error.to_string()
+                    ),
                 }
             }
 
@@ -887,66 +896,39 @@ impl ConvertResponse<&JsoncObj> for AfbParams {
     }
 }
 
-impl ConvertResponse<&AfbJsonStr> for AfbParams {
-    #[track_caller]
-    fn export(data: &AfbJsonStr) -> AfbExportResponse {
-        // extract string from AfbJsonStr
-        let json_str = data.0;
+fn export_raw_string(data: &str) -> AfbExportResponse {
+    // build valid c-string from data
+    let cstring = CString::new(data).expect("Invalid data string");
+    let data_ptr = cstring.into_raw() as *const _ as *mut std::ffi::c_void;
 
-        // try to parse json, if invalid pass it as a string
-        let export = match JsoncObj::parse(json_str) {
-            Err(_error) => {
-                let cstring = CString::new(json_str as &str).expect("Invalid data string");
-                let data_ptr = cstring.into_raw() as *const _ as *mut std::ffi::c_void;
-                AfbExportData {
-                    uid: "export:builtin-stringz",
-                    typev4: unsafe { (*cglue::afbBindingV4r1_itfptr).type_stringz },
-                    buffer_ptr: data_ptr,
-                    buffer_len: json_str.len() + 1,
-                    freecb: Some(free_cstring_cb),
-                }
-            }
-            Ok(jsonc) => AfbExportData {
-                uid: "export:builtin-jsonc",
-                typev4: unsafe { (*cglue::afbBindingV4r1_itfptr).type_json_c },
-                buffer_ptr: jsonc.into_raw() as *const _ as *mut std::ffi::c_void,
-                buffer_len: 0,
-                freecb: Some(free_jsonc_cb),
-            },
-        };
-        AfbExportResponse::Converter(export)
-    }
+    let export = AfbExportData {
+        uid: "export:builtin-string",
+        typev4: unsafe { (*cglue::afbBindingV4r1_itfptr).type_stringz },
+        buffer_ptr: data_ptr,
+        buffer_len: data.len() + 1,
+        freecb: Some(free_cstring_cb),
+    };
+    AfbExportResponse::Converter(export)
 }
 
 impl ConvertResponse<&str> for AfbParams {
     #[track_caller]
     fn export(data: &str) -> AfbExportResponse {
-        // build valid c-string from data
-        let cstring = CString::new(data).expect("Invalid data string");
-        let data_ptr = cstring.into_raw() as *const _ as *mut std::ffi::c_void;
-
-        let export = AfbExportData {
-            uid: "export:builtin-string",
-            typev4: unsafe { (*cglue::afbBindingV4r1_itfptr).type_stringz },
-            buffer_ptr: data_ptr,
-            buffer_len: data.len() + 1,
-            freecb: Some(free_cstring_cb),
-        };
-        AfbExportResponse::Converter(export)
+        if data.starts_with('{') || data.starts_with('[') {
+            match JsoncObj::parse(data) {
+                Ok(jvalue) => Self::export(jvalue),
+                Err(_) => export_raw_string(data),
+            }
+        } else {
+            export_raw_string(data)
+        }
     }
 }
 
 impl ConvertResponse<String> for AfbParams {
     #[track_caller]
     fn export(data: String) -> AfbExportResponse {
-        Self::export(data.as_str())
-    }
-}
-
-impl ConvertResponse<&String> for AfbParams {
-    #[track_caller]
-    fn export(data: &String) -> AfbExportResponse {
-        Self::export(data.as_str())
+        export_raw_string(data.as_str())
     }
 }
 

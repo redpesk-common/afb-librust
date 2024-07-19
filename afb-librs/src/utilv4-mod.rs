@@ -1332,13 +1332,13 @@ impl AfbTapTest {
         }
     }
 
-    pub fn add_expect<T>(&mut self, data: T) -> &mut Self
+    pub fn add_expect<T>(&mut self, data: T) -> Result<&mut Self, AfbError>
     where
-        T: Into<JsoncObj>,
+       JsoncObj: JsoncImport<T>,
     {
-        let jsonc = data.into();
-        self.expect.push(jsonc);
-        self
+        let jvalue = JsoncObj::import(data)?;
+        self.expect.push(jvalue);
+        Ok(self)
     }
 
     pub fn get_group(&self) -> &AfbTapGroup {

@@ -29,7 +29,7 @@ afb-client -H localhost:1234/api rust-api info
 Example of batch autorun/autoexit mode
 
 ```bash
-afb-binder --config=examples/test/etc/binding-test-auto.json
+afb-binder --config=afb-tests/etc/binding-test-auto.json
 
 1..5 # autostart
 ok 1 - builtin-ping

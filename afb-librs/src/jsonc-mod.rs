@@ -39,7 +39,6 @@ pub enum Jtype {
     Null = cglue::json_type_json_type_null as isize,
     Unknown = -1,
 }
-pub struct JsonStr(pub &'static str);
 pub enum Jobject {
     String(String),
     Int(i64),
@@ -763,16 +762,6 @@ impl JsoncImport<i64> for JsoncObj {
                 jso: cglue::json_object_new_int64(value),
             };
             return Ok(jsonc);
-        }
-    }
-}
-
-impl JsoncImport<&JsonStr> for JsoncObj {
-    #[track_caller]
-    fn import(value: &JsonStr) -> Result<Self, AfbError> {
-        match JsoncObj::parse(value.0) {
-            Err(error) => afb_error!("jsonc-import-json-text", "(error={})", error),
-            Ok(jsonc) => Ok(jsonc),
         }
     }
 }

@@ -11,10 +11,9 @@
     html_favicon_url = "https://iot.bzh/images/defaults/favicon.ico"
 )]
 
-//import libafb dependencies
-extern crate afb_samples;
+// import libafb dependencies
 use afbv4::prelude::*;
-use afb_samples::MySimpleData;
+use afb_converter::MySimpleData;
 
 struct ASyncCallData {
     my_counter: u32,
@@ -95,7 +94,7 @@ impl AfbApiControls for TapUserData {
             .finalize()?;
 
         let test5 = AfbTapTest::new("MySimpleData", "rust-api", "verb_typed")
-            .set_info("Check invalid typed input")
+            .set_info("Check custom typed input")
             .add_arg(MySimpleData {
                 x: 256,
                 y: 1024,
@@ -107,27 +106,27 @@ impl AfbApiControls for TapUserData {
         // ------ SESSION Group -----------
         let rqt1 = AfbTapTest::new("session-check1", "rust-api", "session_group/reset")
             .set_info("Create a new session")
-            .add_expect(0)
+            .add_expect(0)?
             .finalize()?;
 
         let rqt2 = AfbTapTest::new("session-check2", "rust-api", "session_group/read")
             .set_info("Read session")
-            .add_expect(1)
+            .add_expect(1)?
             .finalize()?;
 
         let rqt3 = AfbTapTest::new("session-check3", "rust-api", "session_group/read")
             .set_info("Read session")
-            .add_expect(2)
+            .add_expect(2)?
             .finalize()?;
 
         let rqt4 = AfbTapTest::new("session-check4", "rust-api", "session_group/reset")
             .set_info("Reset session")
-            .add_expect(0)
+            .add_expect(0)?
             .finalize()?;
 
         let rqt5 = AfbTapTest::new("session-check5", "rust-api", "session_group/read")
             .set_info("Read new session")
-            .add_expect(1)
+            .add_expect(1)?
             .finalize()?;
 
         let rqt6 = AfbTapTest::new("session-check6", "rust-api", "session_group/drop")
@@ -193,7 +192,7 @@ impl AfbApiControls for TapUserData {
         let event2 = AfbTapTest::new("event-push-one-listener", "rust-api", "event_group/push")
             .set_info("check event as 1 listener")
             .add_arg("{'info': 'some data event'}")?
-            .add_expect(1) // on listener
+            .add_expect(1)? // on listener
             .finalize()?;
 
         let event3 = AfbTapTest::new("event-unsubscribe", "rust-api", "event_group/unsubscribe")
