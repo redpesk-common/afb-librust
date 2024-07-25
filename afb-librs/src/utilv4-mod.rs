@@ -869,7 +869,7 @@ impl AfbSchedJob {
 
     // delete job post handle and attached callback context
     pub fn terminate(&self) {
-        let _ = unsafe { Box::from_raw(self as *const _ as *mut std::ffi::c_void) };
+        let _ = unsafe { Box::from_raw(self as *const _ as *mut AfbSchedJob) };
     }
 
     pub fn finalize(&mut self) -> &Self {
