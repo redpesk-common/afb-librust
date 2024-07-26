@@ -187,6 +187,7 @@ impl MakeError<String> for AfbError {
     }
 }
 
+#[derive(Clone)]
 pub struct DbgInfo {
     pub name: &'static str,
     pub file: &'static str,
@@ -194,6 +195,8 @@ pub struct DbgInfo {
     pub column: u32,
 }
 
+
+#[derive(Clone)]
 pub struct AfbError {
     uid: String,
     info: String,
