@@ -98,6 +98,7 @@ fn timer_callback(_timer: &AfbTimer, _decount: u32, ctx: &AfbCtxData) -> Result<
 
     let count = context.ctx.incr_counter();
     let _listener = context.ctx.event.push(count);
+    ctx.free::<UserContext>();
     Ok(())
 }
 

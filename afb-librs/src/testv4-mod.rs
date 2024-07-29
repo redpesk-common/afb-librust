@@ -62,11 +62,13 @@ fn test_async_call_cb(_api: &AfbApi, args: &AfbRqtData, ctx: &AfbCtxData) -> Res
     let data = &shared_ctx.0;
     let cvar = &shared_ctx.1;
 
-    let mut ctx = data.lock().unwrap();
+    let mut ret = data.lock().unwrap();
 
-    ctx.args = Some(args.clone());
+    ret.args = Some(args.clone());
 
     cvar.notify_one();
+
+    ctx.free::<Arc<(Mutex<TestAsyncCallCtx>, Condvar)>>();
 
     Ok(())
 }

@@ -57,6 +57,8 @@ fn timer_callback(timer: &AfbTimer, decount: u32, ctx: &AfbCtxData) -> Result<()
         decount
     );
     let _count = context.ctx.event.push(context.ctx.get_counter());
+
+    ctx.free::<UserVcbData>();
     Ok(())
 }
 
@@ -112,6 +114,7 @@ fn jobpost_callback(
 
     response.push(&params.jsonc)?;
     request.reply(response, signal);
+    args.free::<JobPostData>();
     Ok(())
 }
 
