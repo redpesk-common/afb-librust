@@ -692,6 +692,11 @@ impl AfbRqtData {
     }
 
     #[track_caller]
+    pub fn without_data(status: i32) -> Self {
+        AfbRqtData::new(&[0 as cglue::afb_data_t; 0], 0, status)
+    }
+
+    #[track_caller]
     pub fn unref(&self) {
         for idx in 0..self.count as usize {
             let data = self.argsv4[idx];
@@ -820,6 +825,13 @@ impl AfbRqtData {
         jsonc.add("status", self.status).unwrap();
         jsonc.add("response", jdata).unwrap();
         jsonc
+    }
+}
+
+impl Clone for AfbRqtData {
+    fn clone(&self) -> Self {
+        self.addref();
+        AfbRqtData { count: self.count, status: self.status, argsv4:  self.argsv4.clone()}
     }
 }
 

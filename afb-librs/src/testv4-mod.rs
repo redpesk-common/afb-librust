@@ -21,47 +21,12 @@
  * $RP_END_LICENSE$
  */
 use crate::prelude::*;
-use std::sync::{Arc, Condvar, Mutex};
 use std::collections::HashMap;
+use std::sync::{Arc, Condvar, Mutex};
+use std::time::Duration;
 
 const AUTOSTART: &str = "autostart";
 const TIMEOUT: u32 = 5;
-
-// TAP test
-struct TapJobData {
-    test: *const AfbTapTest,
-}
-
-fn tap_job_callback(
-    job: &AfbSchedJob,
-    signal: i32,
-    _args: &AfbCtxData,
-    ctx: &AfbCtxData,
-) -> Result<(), AfbError> {
-    let context = ctx.get_ref::<TapJobData>()?;
-
-    let test = unsafe { &mut *(context.test as *mut AfbTapTest) };
-    let suite = test.get_suite();
-    let event = suite.get_event();
-
-    let jsonc = JsoncObj::new();
-    jsonc.add("index", test.index).unwrap();
-    jsonc.add("test", test.uid).unwrap();
-    event.push(jsonc);
-
-    if signal == 0 {
-        // subcall start
-        let _ignore = test.call_sync();
-    } else {
-        // force a timeout response
-        let no_data = [0 as cglue::afb_data_t; 0];
-        let reply = AfbRqtData::new(&no_data, 0, -62);
-        let response = test.check_response(reply);
-        test.done(response);
-    }
-    job.terminate(); // jobpost is rebuilt for each test
-    Ok(())
-}
 
 pub struct AfbTapResponse {
     pub status: i32,
@@ -84,6 +49,26 @@ pub struct AfbTapTest {
     pub index: usize,
     semaphore: Arc<(Mutex<u32>, Condvar)>,
     group: *const AfbTapGroup,
+}
+
+struct TestAsyncCallCtx {
+    // Returned arguments of the verb
+    args: Option<AfbRqtData>,
+}
+
+// Function called at the end of a verb execution, in async
+fn test_async_call_cb(_api: &AfbApi, args: &AfbRqtData, ctx: &AfbCtxData) -> Result<(), AfbError> {
+    let shared_ctx = ctx.get_ref::<Arc<(Mutex<TestAsyncCallCtx>, Condvar)>>()?;
+    let data = &shared_ctx.0;
+    let cvar = &shared_ctx.1;
+
+    let mut ctx = data.lock().unwrap();
+
+    ctx.args = Some(args.clone());
+
+    cvar.notify_one();
+
+    Ok(())
 }
 
 impl AfbTapTest {
@@ -168,7 +153,7 @@ impl AfbTapTest {
 
     pub fn add_expect<T>(&mut self, data: T) -> Result<&mut Self, AfbError>
     where
-       JsoncObj: JsoncImport<T>,
+        JsoncObj: JsoncImport<T>,
     {
         let jvalue = JsoncObj::import(data)?;
         self.expect.push(jvalue);
@@ -184,7 +169,7 @@ impl AfbTapTest {
         group.get_suite()
     }
 
-    fn check_response(&self, reply: AfbRqtData) -> AfbTapResponse {
+    fn check_response(&self, reply: &AfbRqtData) -> AfbTapResponse {
         let api = self.get_suite().get_api();
 
         if reply.get_status() != self.status {
@@ -236,33 +221,61 @@ impl AfbTapTest {
         }
     }
 
-    fn call_sync(&mut self) {
+    /// Call the configured verb with an optional timeout
+    fn call_with_timeout(&mut self, timeout_s: u32) {
         let api = self.get_suite().get_api();
-
         afb_log_msg!(
             Info,
             api,
-            "callsync idx:{} tap->uid:{} afb-api->'/{}/{}'",
+            "call_with_timeout idx:{} tap->uid:{} afb-api->'/{}/{}' timeout_s: {}",
             self.index,
             self.uid,
             self.api,
-            self.verb
+            self.verb,
+            timeout_s
         );
 
-        let result = AfbSubCall::call_sync(api, self.api, self.verb, self.params.clone());
-        let response = match result {
-            // Err(error) => AfbTapResponse {
-            //     status: error.get_status(),
-            //     diagnostic: error.to_string(),
-            // }
-            Err(error) => {
-                let no_data = [0 as cglue::afb_data_t; 0];
-                let response = AfbRqtData::new(&no_data, 0, error.get_status());
-                self.check_response(response)
+        let ctx = TestAsyncCallCtx { args: None };
+        let shared_ctx = Arc::new((Mutex::new(ctx), Condvar::new()));
+
+        let response = AfbSubCall::call_async(
+            api,
+            self.api,
+            self.verb,
+            self.params.clone(),
+            test_async_call_cb,
+            shared_ctx.clone(),
+        );
+        if let Err(error) = response {
+            let response = self.check_response(&AfbRqtData::without_data(error.get_status()));
+            self.done(response);
+            return;
+        }
+
+        let response = {
+            let (lock, cvar) = &*shared_ctx;
+            let mut ctx = lock.lock().unwrap();
+
+            if timeout_s > 0 {
+                // if a timeout is defined, we wait with timeout on the condition variable
+                let result = cvar
+                    .wait_timeout(ctx, Duration::from_millis((timeout_s * 1000) as u64))
+                    .unwrap();
+                if result.1.timed_out() {
+                    self.check_response(&AfbRqtData::without_data(-62))
+                } else {
+                    let ctx = result.0;
+                    let reply = ctx.args.as_ref().unwrap();
+                    self.check_response(reply)
+                }
+            } else {
+                while ctx.args.is_none() {
+                    ctx = cvar.wait(ctx).unwrap();
+                }
+                let reply = ctx.args.as_ref().unwrap();
+                self.check_response(reply)
             }
-            Ok(response) => self.check_response(response),
         };
-        // decrease group test count and return result
         self.done(response);
     }
 
@@ -309,16 +322,18 @@ impl AfbTapTest {
     }
     #[track_caller]
     pub fn jobpost(&mut self) -> Result<(), AfbError> {
-        let semaphore = Arc::clone(&self.semaphore);
-        let (lock, cvar) = &*semaphore;
-        let mut done = match lock.lock() {
-            Err(_error) => {
-                return afb_error!("fail-group-wait", "fail waiting on tap group={}", self.uid)
-            }
-            Ok(mutex) => mutex,
-        };
-        *done = 1;
-        cvar.notify_one();
+        {
+            let semaphore = Arc::clone(&self.semaphore);
+            let (lock, cvar) = &*semaphore;
+            let mut done = match lock.lock() {
+                Err(_error) => {
+                    return afb_error!("fail-group-wait", "fail waiting on tap group={}", self.uid)
+                }
+                Ok(mutex) => mutex,
+            };
+            *done = 1;
+            cvar.notify_one();
+        }
 
         // use group timeout as default
         let timeout = if self.timeout == 0 {
@@ -327,21 +342,8 @@ impl AfbTapTest {
             self.timeout
         };
 
-        match AfbSchedJob::new(self.uid)
-            .set_exec_watchdog(timeout as i32)
-            .set_callback(tap_job_callback)
-            .set_context(TapJobData { test: self })
-            .post(self.delay as i64, AFB_NO_DATA)
-        {
-            Err(_error) => {
-                let response = AfbTapResponse {
-                    status: -1,
-                    diagnostic: "Fail to post job".to_owned(),
-                };
-                self.done(response);
-            }
-            Ok(_job) => {}
-        };
+        self.call_with_timeout(timeout);
+
         Ok(())
     }
 
@@ -453,14 +455,14 @@ impl AfbTapGroup {
         };
 
         // launch test and wait for completion
-        test.jobpost().unwrap();
+        test.jobpost()?;
 
         // wait for jobpost completion before moving to next one
         let mut next = test.get_next();
 
         // callback return normaly or timeout
         while let Some(test) = next {
-            test.jobpost().unwrap();
+            test.jobpost()?;
             next = test.get_next();
         }
         Ok(())
