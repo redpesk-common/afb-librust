@@ -13,7 +13,7 @@
             "args": [
                 "-vvv",
                 "--trap-faults=0",
-                "--config=afb-samples/demo/etc/binding-samples.json"
+                "--config=afb-samples/etc/binding-samples.json"
             ],
             "cwd": "${workspaceFolder}",
             "initCommands": [
