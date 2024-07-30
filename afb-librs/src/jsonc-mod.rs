@@ -1138,6 +1138,7 @@ impl JsoncObj {
         Ok(())
     }
 
+    #[track_caller]
     pub fn equal(&self, uid: &str, jexpected: JsoncObj, tag: Jequal) -> Result<(), AfbError> {
         match jexpected.get_type() {
             Jtype::Array => {
