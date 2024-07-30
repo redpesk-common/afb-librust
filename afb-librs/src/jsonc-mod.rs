@@ -1146,9 +1146,10 @@ impl JsoncObj {
                 if ! self.is_type(Jtype::Array) {
                     return afb_error!(
                         uid,
-                        "jsonc-match invalid type received:{:?} expected:{:?}",
+                        "jsonc-match invalid type received:{:?} expected:{:?} value:{}",
                         self.get_type(),
-                        jexpected.get_type()
+                        jexpected.get_type(),
+                        self
                     );
                 }
                 for idx in 0..self.count()? {
@@ -1163,9 +1164,10 @@ impl JsoncObj {
                 if ! self.is_type(Jtype::Object) {
                     return afb_error!(
                         uid,
-                        "jsonc-match invalid type received:{:?} expected:{:?}",
+                        "jsonc-match invalid type received:{:?} expected:{:?} value:{}",
                         self.get_type(),
-                        jexpected.get_type()
+                        jexpected.get_type(),
+                        self
                     );
                 }
                 let received = self.expand()?;
@@ -1226,9 +1228,10 @@ impl JsoncObj {
                 if expected_type != self.get_type() {
                     return afb_error!(
                         uid,
-                        "jsonc-match invalid type received:{:?} expected:{:?}",
+                        "jsonc-match invalid type received:{:?} expected:{:?} value:{}",
                         self.get_type(),
-                        jexpected.get_type()
+                        jexpected.get_type(),
+                        self
                     );
                 }
 
