@@ -1139,8 +1139,6 @@ impl JsoncObj {
     }
 
     pub fn equal(&self, uid: &str, jexpected: JsoncObj, tag: Jequal) -> Result<(), AfbError> {
-
-        println! ("*** uid:{} self:{} expected:{}", uid, self, jexpected);
         match jexpected.get_type() {
             Jtype::Array => {
                 // loop recursively on array slot
