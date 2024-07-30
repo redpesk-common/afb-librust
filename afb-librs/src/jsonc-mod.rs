@@ -24,11 +24,11 @@
 use crate::prelude::*;
 
 use std::ffi::{CStr, CString};
-use std::str;
 use std::fmt;
 use std::os::raw::c_char;
+use std::str;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Jtype {
     Array = cglue::json_type_json_type_array as isize,
     String = cglue::json_type_json_type_string as isize,
@@ -48,6 +48,12 @@ pub enum Jobject {
     Array(JsoncObj),
     Null(),
     Unknown(&'static str),
+}
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum Jequal {
+    Full,
+    Partial,
 }
 
 #[track_caller]
@@ -80,7 +86,8 @@ pub fn hexa_to_bytes<'a>(input: &str, buffer: &'a mut [u8]) -> Result<&'a [u8], 
             Err(_) => {
                 return afb_error!(
                     "string-ecode-hexa",
-                    "invalid hexa encoding syntax: '[01,ff,...]' got:{}", input
+                    "invalid hexa encoding syntax: '[01,ff,...]' got:{}",
+                    input
                 )
             }
         }
@@ -92,6 +99,14 @@ pub fn hexa_to_bytes<'a>(input: &str, buffer: &'a mut [u8]) -> Result<&'a [u8], 
 #[track_caller]
 pub fn bytes_to_hexa(buffer: &[u8]) -> String {
     format!("{:02x?}", buffer).replace(" ", "")
+}
+
+fn cmp_entry<'a>(value: &'a Jentry, expect: &Jentry) -> Option<&'a Jentry> {
+    if value.key == expect.key {
+        Some(value)
+    } else {
+        None
+    }
 }
 
 pub struct JsoncObj {
@@ -109,7 +124,7 @@ pub struct Jentry {
 
 #[no_mangle]
 pub extern "C" fn free_jsonc_cb(jso: *mut std::ffi::c_void) {
-    let jval= jso as *mut JsoncJso;
+    let jval = jso as *mut JsoncJso;
     //println! ("free_jsonc_cb:{}", JsoncObj{jso: jval});
     unsafe { cglue::json_object_put(jval) };
 }
@@ -172,7 +187,6 @@ impl JsoncExport<Jobject> for JsoncObj {
         if jso as usize == 0 {
             afb_error!("jsonc-get-key", "not object at key")
         } else {
-
             Ok(JsoncObj::get_jso_value(jso))
         }
     }
@@ -1008,7 +1022,7 @@ impl JsoncObj {
 
     #[track_caller]
     pub fn into_raw(&self) -> *mut cglue::json_object {
-        unsafe {cglue::json_object_get(self.jso)}
+        unsafe { cglue::json_object_get(self.jso) }
     }
 
     #[track_caller]
@@ -1105,19 +1119,6 @@ impl JsoncObj {
     }
 
     #[track_caller]
-    pub fn equal(&mut self, jsonc: JsoncObj) -> Result<(), AfbError> {
-        if unsafe { cglue::json_object_get_type(self.jso) }
-            != unsafe { cglue::json_object_get_type(jsonc.jso) }
-        {
-            afb_error!("jsonc::equal", "jtype diverge")
-        } else if self.to_string() != jsonc.to_string() {
-            afb_error!(",jsonc::equal", "jtype not equal")
-        } else {
-            Ok(())
-        }
-    }
-
-    #[track_caller]
     pub fn contains(&mut self, jtok: JsoncObj) -> Result<(), AfbError> {
         let jvec = jtok.expand()?;
         for entry in &jvec {
@@ -1136,6 +1137,144 @@ impl JsoncObj {
         }
         Ok(())
     }
+
+    pub fn equal(&self, uid: &str, jexpected: JsoncObj, tag: Jequal) -> Result<(), AfbError> {
+
+        println! ("*** uid:{} self:{} expected:{}", uid, self, jexpected);
+        match jexpected.get_type() {
+            Jtype::Array => {
+                // loop recursively on array slot
+                if ! self.is_type(Jtype::Array) {
+                    return afb_error!(
+                        uid,
+                        "jsonc-match invalid type received:{:?} expected:{:?}",
+                        self.get_type(),
+                        jexpected.get_type()
+                    );
+                }
+                for idx in 0..self.count()? {
+                    let receive_slot = self.index::<JsoncObj>(idx)?;
+                    let expected_slot = jexpected.index(idx)?;
+                    let uid_slot = format!("{}:{}", uid, idx);
+                    receive_slot.equal(&uid_slot, expected_slot, tag)?;
+                }
+            }
+            Jtype::Object => {
+                // move jsonc into a rust array and iterate on key/value pairs
+                if ! self.is_type(Jtype::Object) {
+                    return afb_error!(
+                        uid,
+                        "jsonc-match invalid type received:{:?} expected:{:?}",
+                        self.get_type(),
+                        jexpected.get_type()
+                    );
+                }
+                let received = self.expand()?;
+                let expected = jexpected.expand()?;
+
+                match tag {
+                    Jequal::Partial => {
+                        for idx in 0..expected.len() {
+                            let expected_entry = &expected[idx];
+                            let received_entry =
+                                match received.iter().find_map(|s| cmp_entry(s, expected_entry)) {
+                                    None => {
+                                        return afb_error!(
+                                            uid,
+                                            format!(
+                                                "jsonc-match fail to find key:{} query:{}",
+                                                expected_entry.key, self
+                                            )
+                                        )
+                                    }
+                                    Some(value) => value,
+                                };
+                            received_entry.obj.equal(
+                                &expected_entry.key,
+                                expected_entry.obj.clone(),
+                                tag,
+                            )?;
+                        }
+                    }
+
+                    Jequal::Full => {
+                        for idx in 0..received.len() {
+                            let received_entry = &received[idx];
+                            let expected_entry =
+                                match expected.iter().find_map(|s| cmp_entry(s, received_entry)) {
+                                    None => {
+                                        return afb_error!(
+                                            uid,
+                                            format!(
+                                                "jsonc-match fail to find key:{} expected:{}",
+                                                received_entry.key, jexpected
+                                            )
+                                        )
+                                    }
+                                    Some(value) => value,
+                                };
+                            received_entry.obj.equal(
+                                &expected_entry.key,
+                                expected_entry.obj.clone(),
+                                tag,
+                            )?;
+                        }
+                    }
+                }
+            }
+
+            expected_type => {
+                if expected_type != self.get_type() {
+                    return afb_error!(
+                        uid,
+                        "jsonc-match invalid type received:{:?} expected:{:?}",
+                        self.get_type(),
+                        jexpected.get_type()
+                    );
+                }
+
+                let equal = match expected_type {
+                    Jtype::Bool => {
+                        let rec = self.get_as::<bool>()?;
+                        let exp = jexpected.get_as::<bool>()?;
+
+                        rec == exp
+                    }
+                    Jtype::Int => {
+                        let rec = self.get_as::<i64>()?;
+                        let exp = jexpected.get_as::<i64>()?;
+
+                        rec == exp
+                    }
+                    Jtype::Float => {
+                        let rec = self.get_as::<f64>()?;
+                        let exp = jexpected.get_as::<f64>()?;
+
+                        rec == exp
+                    }
+                    Jtype::String => {
+                        let rec = self.get_as::<String>()?;
+                        let exp = jexpected.get_as::<String>()?;
+
+                        rec == exp
+                    }
+                    _ => false,
+                };
+
+                if !equal {
+                    return afb_error!(
+                        uid,
+                        "jsonc-match invalid value received:{} expected:{}",
+                        self,
+                        jexpected
+                    );
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     #[track_caller]
     pub fn parse(json_str: &str) -> Result<JsoncObj, AfbError> {
         unsafe {
@@ -1146,7 +1285,7 @@ impl JsoncObj {
                 json_str.len() as i32,
             );
             let jsonc = JsoncObj {
-                jso: cglue::json_object_get(jso)
+                jso: cglue::json_object_get(jso),
             };
 
             let jerr = cglue::json_tokener_get_error(tok);

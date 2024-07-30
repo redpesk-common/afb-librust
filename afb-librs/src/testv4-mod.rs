@@ -201,7 +201,7 @@ impl AfbTapTest {
                     let jtest = if jexpect.is_type(Jtype::Object) {
                         jvalue.contains(jexpect.clone())
                     } else {
-                        jvalue.equal(jexpect.clone())
+                        jvalue.equal(self.uid, jexpect.clone(), Jequal::Full)
                     };
 
                     match jtest {
