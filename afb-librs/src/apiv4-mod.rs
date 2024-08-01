@@ -953,7 +953,7 @@ impl AfbVerb {
             _count: 0,
             name: uid,
             info: "",
-            verbosity: 0,
+            verbosity: 255, // Fulup should be replace with something smarter
             permission: AfbPermission::new(0),
             usage: None,
             samples: JsoncObj::array(),
