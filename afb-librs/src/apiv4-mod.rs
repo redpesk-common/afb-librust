@@ -72,7 +72,7 @@ macro_rules! AfbBindingRegister {
             ctlarg: *mut std::ffi::c_void,
             api_data: *mut std::ffi::c_void,
         ) -> i32 {
-            let jconf= match afbv4::apiv4::afb_binding_get_config(apiv4, ctlid, ctlarg, api_data) {
+            let jconf = match afbv4::apiv4::afb_binding_get_config(apiv4, ctlid, ctlarg, api_data) {
                 Ok(config) => config,
                 Err(error) => {
                     let dbg = error.get_dbg();
@@ -85,7 +85,7 @@ macro_rules! AfbBindingRegister {
                         dbg.line,
                         dbg.column
                     );
-                    return AFB_ABORT
+                    return AFB_ABORT;
                 }
             };
 
@@ -1084,11 +1084,29 @@ impl fmt::Display for AfbVerb {
     }
 }
 
-#[derive(Clone)]
 pub struct AfbRequest {
     _rqtv4: cglue::afb_req_t,
     api: &'static AfbApi,
     verb: &'static AfbVerb,
+}
+
+impl Clone for AfbRequest {
+    fn clone(&self) -> Self {
+        AfbRequest {
+            _rqtv4: unsafe { cglue::afb_req_addref(self._rqtv4) },
+            verb: self.verb,
+            api: self.api,
+        }
+    }
+}
+
+#[doc(hidden)]
+impl<'a> Drop for AfbRequest {
+    fn drop(&mut self) {
+        unsafe {
+            cglue::afb_req_unref(self._rqtv4);
+        }
+    }
 }
 
 // Rust dynamic object are fat pointer and should be encapculated before passing to C
@@ -1223,17 +1241,13 @@ impl AfbRequest {
     }
 
     pub fn add_ref(&self) -> Self {
-        unsafe {
-            cglue::afb_req_addref(self._rqtv4);
-        }
         self.clone()
     }
 
-    pub fn un_ref(&self) -> Self {
+    pub fn un_ref(&self) {
         unsafe {
             cglue::afb_req_unref(self._rqtv4);
         }
-        self.clone()
     }
 
     pub fn reply<T>(&self, args: T, status: i32)
@@ -1256,15 +1270,6 @@ impl AfbRequest {
                 params.arguments.as_slice().as_ptr(),
             )
         };
-    }
-}
-
-#[doc(hidden)]
-impl<'a> Drop for AfbRequest {
-    fn drop(&mut self) {
-        unsafe {
-            cglue::afb_req_unref(self._rqtv4);
-        }
     }
 }
 
@@ -2063,7 +2068,13 @@ impl DoSubcallSync<AfbApiV4> for AfbSubCall {
             let replies = AfbRqtData::new(&replies, nreplies, status);
             let error = match replies.get::<JsoncObj>(0) {
                 Ok(jerror) => jerror.to_string(),
-                Err(_) => format!("api:{:?} verb:{:?} status:{}({})", apiname, verbname, status, afb_error_info(status)),
+                Err(_) => format!(
+                    "api:{:?} verb:{:?} status:{}({})",
+                    apiname,
+                    verbname,
+                    status,
+                    afb_error_info(status)
+                ),
             };
             return Err(AfbError::new("api-subcalls", status, error));
         }
@@ -2163,7 +2174,13 @@ impl DoSubcallSync<AfbRqtV4> for AfbSubCall {
             let replies = AfbRqtData::new(&replies, nreplies, status);
             let error = match replies.get::<JsoncObj>(0) {
                 Ok(jerror) => jerror.to_string(),
-                Err(_) => format!("api:{:?} verb:{:?} status:{}({})", apiname, verbname, status, afb_error_info(status)),
+                Err(_) => format!(
+                    "api:{:?} verb:{:?} status:{}({})",
+                    apiname,
+                    verbname,
+                    status,
+                    afb_error_info(status)
+                ),
             };
             return Err(AfbError::new("rqt-subcalls", status, error));
         }
