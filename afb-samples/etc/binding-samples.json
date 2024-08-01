@@ -11,7 +11,7 @@
         "uid": "rust-api",
         "path": "${CARGO_TARGET_DIR}debug/examples/libafb_samples.so",
         "info": "RUST sample API binding (Rust)",
-        "verbosity": 9
+        "verbosity": 0
     }
   ],
 

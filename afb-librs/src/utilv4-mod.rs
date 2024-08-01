@@ -361,7 +361,7 @@ impl DoSendLog<&AfbRequest> for AfbLogMsg {
 
     fn get_verbosity(rqt: &AfbRequest) -> i32 {
         let verb = rqt.get_verb();
-        verb.get_verbosity()
+        verb.get_verbosity(rqt)
     }
 }
 
@@ -419,8 +419,8 @@ impl DoSendLog<AfbRqtV4> for AfbLogMsg {
     ) {
         unsafe { cglue::afb_req_verbose(rqtv4, level, file, line as i32, funcname, format) }
     }
-    fn get_verbosity(_rqt: AfbRqtV4) -> i32 {
-        255 // Fulup TBD
+    fn get_verbosity(rqt: AfbRqtV4) -> i32 {
+        unsafe {cglue::afb_req_logmask(rqt)}
     }
 }
 
@@ -436,6 +436,7 @@ impl DoSendLog<&AfbEvent> for AfbLogMsg {
         let apiv4 = event.get_apiv4();
         unsafe { cglue::afb_api_verbose(apiv4, level, file, line as i32, funcname, format) }
     }
+
     fn get_verbosity(event: &AfbEvent) -> i32 {
         event.get_verbosity()
     }
@@ -452,8 +453,8 @@ impl DoSendLog<AfbApiV4> for AfbLogMsg {
     ) {
         unsafe { cglue::afb_api_verbose(apiv4, level, file, line as i32, funcname, format) }
     }
-    fn get_verbosity(_unused: AfbApiV4) -> i32 {
-        255 // Fulup TBD should match binder -vvv
+    fn get_verbosity(apiv4: AfbApiV4) -> i32 {
+        unsafe {cglue::afb_api_logmask(apiv4)}
     }
 }
 

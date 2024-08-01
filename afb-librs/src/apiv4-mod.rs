@@ -710,7 +710,7 @@ impl AfbApi {
             info: "",
             class: "",
             version: "",
-            verbosity: AfbLogLevel::Notice as i32,
+            verbosity: 0,
             permission: AfbPermission::new(0),
             do_concurrency: true,
             ctrlbox: None,
@@ -775,7 +775,11 @@ impl AfbApi {
     }
 
     pub fn get_verbosity(&self) -> i32 {
-        self.verbosity
+        if self.verbosity == 0 {
+            unsafe { cglue::afb_api_logmask(self.get_apiv4()) }
+        } else {
+            self.verbosity
+        }
     }
 
     pub fn add_verb(&mut self, verb: &AfbVerb) -> &mut Self {
@@ -953,7 +957,7 @@ impl AfbVerb {
             _count: 0,
             name: uid,
             info: "",
-            verbosity: 255, // Fulup should be replace with something smarter
+            verbosity: 0,
             permission: AfbPermission::new(0),
             usage: None,
             samples: JsoncObj::array(),
@@ -1012,8 +1016,12 @@ impl AfbVerb {
         self
     }
 
-    pub fn get_verbosity(&self) -> i32 {
-        self.verbosity
+    pub fn get_verbosity(&self, rqt: &AfbRequest) -> i32 {
+        if self.verbosity == 0 {
+            unsafe {cglue::afb_req_logmask(rqt.get_rqtv4())}
+        } else {
+            self.verbosity
+        }
     }
 
     pub fn set_callback(&mut self, callback: RqtCallback) -> &mut Self {
