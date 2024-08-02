@@ -31,7 +31,7 @@ use std::panic::Location;
 
 const MAX_ERROR_LEN: usize = 256;
 pub fn get_perror() -> String {
-    get_strerror(unsafe{*cglue::__errno_location()})
+    get_strerror(unsafe { *cglue::__errno_location() })
 }
 
 pub fn get_strerror(code: i32) -> String {
@@ -264,6 +264,21 @@ impl fmt::Debug for AfbError {
     }
 }
 
+// convert syslog (0-7) level to Afb verbosity mask model
+pub fn verbosity_to_mask(level: i32) -> Result<u32, AfbError> {
+    let mut mask = AfbLogLevel::from_syslog_level(level.abs() as u32)? as u32;
+    if level > 0 {
+        for sys_level in [1, 2, 3, 4, 5, 6, 7] {
+            if level as u32 >= mask {
+                mask = mask | AfbLogLevel::from_syslog_level(sys_level)? as u32;
+            } else {
+                break;
+            }
+        }
+    }
+    Ok(mask)
+}
+
 pub struct AfbLogMsg {}
 pub trait DoSendLog<T> {
     fn print_log(
@@ -274,7 +289,7 @@ pub trait DoSendLog<T> {
         funcname: *const Cchar,
         format: *const Cchar,
     );
-    fn get_verbosity(handle: T) -> i32;
+    fn get_verbosity(handle: T) -> u32;
 }
 
 impl<'a> DoSendLog<&AfbEventMsg<'a>> for AfbLogMsg {
@@ -298,7 +313,7 @@ impl<'a> DoSendLog<&AfbEventMsg<'a>> for AfbLogMsg {
         }
     }
 
-    fn get_verbosity(event: &AfbEventMsg) -> i32 {
+    fn get_verbosity(event: &AfbEventMsg) -> u32 {
         let handle = event.get_handler();
         handle.get_verbosity()
     }
@@ -316,7 +331,7 @@ impl<'a> DoSendLog<&AfbTimer> for AfbLogMsg {
         unsafe { cglue::afb_verbose(level, file, line as i32, funcname, format) }
     }
 
-    fn get_verbosity(timer: &AfbTimer) -> i32 {
+    fn get_verbosity(timer: &AfbTimer) -> u32 {
         timer.get_verbosity()
     }
 }
@@ -333,7 +348,7 @@ impl<'a> DoSendLog<&AfbSchedJob> for AfbLogMsg {
         unsafe { cglue::afb_verbose(level, file, line as i32, funcname, format) }
     }
 
-    fn get_verbosity(job: &AfbSchedJob) -> i32 {
+    fn get_verbosity(job: &AfbSchedJob) -> u32 {
         job.get_verbosity()
     }
 }
@@ -359,7 +374,7 @@ impl DoSendLog<&AfbRequest> for AfbLogMsg {
         }
     }
 
-    fn get_verbosity(rqt: &AfbRequest) -> i32 {
+    fn get_verbosity(rqt: &AfbRequest) -> u32 {
         let verb = rqt.get_verb();
         verb.get_verbosity(rqt)
     }
@@ -386,7 +401,7 @@ impl<'a> DoSendLog<&AfbApi> for AfbLogMsg {
         }
     }
 
-    fn get_verbosity(api: &AfbApi) -> i32 {
+    fn get_verbosity(api: &AfbApi) -> u32 {
         api.get_verbosity()
     }
 }
@@ -403,7 +418,7 @@ impl DoSendLog<Option<u32>> for AfbLogMsg {
         unsafe { cglue::afb_verbose(level, file, line as i32, funcname, format) }
     }
 
-    fn get_verbosity(_unused: Option<u32>) -> i32 {
+    fn get_verbosity(_unused: Option<u32>) -> u32 {
         255 // Fulup TBD should match binder -vvv
     }
 }
@@ -419,8 +434,8 @@ impl DoSendLog<AfbRqtV4> for AfbLogMsg {
     ) {
         unsafe { cglue::afb_req_verbose(rqtv4, level, file, line as i32, funcname, format) }
     }
-    fn get_verbosity(rqt: AfbRqtV4) -> i32 {
-        unsafe {cglue::afb_req_logmask(rqt)}
+    fn get_verbosity(rqt: AfbRqtV4) -> u32 {
+        unsafe { cglue::afb_req_logmask(rqt) as u32 }
     }
 }
 
@@ -437,7 +452,7 @@ impl DoSendLog<&AfbEvent> for AfbLogMsg {
         unsafe { cglue::afb_api_verbose(apiv4, level, file, line as i32, funcname, format) }
     }
 
-    fn get_verbosity(event: &AfbEvent) -> i32 {
+    fn get_verbosity(event: &AfbEvent) -> u32 {
         event.get_verbosity()
     }
 }
@@ -453,8 +468,8 @@ impl DoSendLog<AfbApiV4> for AfbLogMsg {
     ) {
         unsafe { cglue::afb_api_verbose(apiv4, level, file, line as i32, funcname, format) }
     }
-    fn get_verbosity(apiv4: AfbApiV4) -> i32 {
-        unsafe {cglue::afb_api_logmask(apiv4)}
+    fn get_verbosity(apiv4: AfbApiV4) -> u32 {
+        unsafe { cglue::afb_api_logmask(apiv4) as u32}
     }
 }
 
@@ -480,39 +495,66 @@ impl DoMessage<&str> for AfbLogMsg {
     }
 }
 
+#[repr(u32)]
+#[derive(Debug, Clone, Copy)]
 pub enum AfbLogLevel {
-    Error = cglue::afb_syslog_levels_AFB_SYSLOG_LEVEL_ERROR as isize,
-    Debug = cglue::afb_syslog_levels_AFB_SYSLOG_LEVEL_DEBUG as isize,
-    Notice = cglue::afb_syslog_levels_AFB_SYSLOG_LEVEL_NOTICE as isize,
-    Critical = cglue::afb_syslog_levels_AFB_SYSLOG_LEVEL_CRITICAL as isize,
-    Warning = cglue::afb_syslog_levels_AFB_SYSLOG_LEVEL_WARNING as isize,
-    Emergency = cglue::afb_syslog_levels_AFB_SYSLOG_LEVEL_EMERGENCY as isize,
-    Info = cglue::afb_syslog_levels_AFB_SYSLOG_LEVEL_INFO as isize,
-    Unknown = -1,
+    Emergency = 1,
+    Alert = 2,
+    Critical = 4,
+    Error = 8,
+    Warning = 16,
+    Notice = 32,
+    Info = 64,
+    Debug = 128,
+}
+
+impl AfbLogLevel {
+    pub fn to_afb_mask(&self) -> u32 {
+        *self as u32
+    }
+
+    pub fn from_syslog_level(level: u32) -> Result<AfbLogLevel, AfbError> {
+        let level = match level {
+            cglue::afb_syslog_levels_AFB_SYSLOG_LEVEL_ERROR => AfbLogLevel::Error,
+            cglue::afb_syslog_levels_AFB_SYSLOG_LEVEL_DEBUG => AfbLogLevel::Debug,
+            cglue::afb_syslog_levels_AFB_SYSLOG_LEVEL_NOTICE => AfbLogLevel::Notice,
+            cglue::afb_syslog_levels_AFB_SYSLOG_LEVEL_CRITICAL => AfbLogLevel::Critical,
+            cglue::afb_syslog_levels_AFB_SYSLOG_LEVEL_WARNING => AfbLogLevel::Warning,
+            cglue::afb_syslog_levels_AFB_SYSLOG_LEVEL_EMERGENCY => AfbLogLevel::Emergency,
+            cglue::afb_syslog_levels_AFB_SYSLOG_LEVEL_INFO => AfbLogLevel::Info,
+            cglue::afb_syslog_levels_AFB_SYSLOG_LEVEL_ALERT => AfbLogLevel::Alert,
+            _ => return afb_error!("afb-log-level", "invalid level:{} should be 0-7", level),
+        };
+        Ok(level)
+    }
+
+    pub fn to_syslog_level(&self) -> u32 {
+        let level = match self {
+            AfbLogLevel::Error => cglue::afb_syslog_levels_AFB_SYSLOG_LEVEL_ERROR,
+            AfbLogLevel::Debug => cglue::afb_syslog_levels_AFB_SYSLOG_LEVEL_DEBUG,
+            AfbLogLevel::Notice => cglue::afb_syslog_levels_AFB_SYSLOG_LEVEL_NOTICE,
+            AfbLogLevel::Critical => cglue::afb_syslog_levels_AFB_SYSLOG_LEVEL_CRITICAL,
+            AfbLogLevel::Warning => cglue::afb_syslog_levels_AFB_SYSLOG_LEVEL_WARNING,
+            AfbLogLevel::Emergency => cglue::afb_syslog_levels_AFB_SYSLOG_LEVEL_EMERGENCY,
+            AfbLogLevel::Info => cglue::afb_syslog_levels_AFB_SYSLOG_LEVEL_INFO,
+            AfbLogLevel::Alert => cglue::afb_syslog_levels_AFB_SYSLOG_LEVEL_ALERT,
+        };
+        level
+    }
 }
 
 impl AfbLogMsg {
-    pub fn get_level(log_level: AfbLogLevel) -> i32 {
-        let level = match log_level {
-            AfbLogLevel::Debug => AfbLogLevel::Debug,
-            AfbLogLevel::Info => AfbLogLevel::Info,
-            AfbLogLevel::Notice => AfbLogLevel::Notice,
-            AfbLogLevel::Critical => AfbLogLevel::Critical,
-            AfbLogLevel::Error => AfbLogLevel::Error,
-            AfbLogLevel::Warning => AfbLogLevel::Warning,
-            AfbLogLevel::Emergency => AfbLogLevel::Emergency,
-            _ => AfbLogLevel::Unknown,
-        };
-        level as i32
-    }
-
     pub fn verbosity_satisfied<H>(level: AfbLogLevel, handle: H) -> bool
     where
         AfbLogMsg: DoSendLog<H>,
     {
-        let log_level = AfbLogMsg::get_level(level);
+        let log_level = level as u32;
         let verbosity = Self::get_verbosity(handle);
-        verbosity >= log_level
+        if (verbosity & log_level) != 0 {
+            true
+        } else {
+            false
+        }
     }
 
     pub fn push_log<H, T>(level: AfbLogLevel, handle: H, format: T, info: Option<&DbgInfo>)
@@ -520,8 +562,7 @@ impl AfbLogMsg {
         AfbLogMsg: DoMessage<T>,
         AfbLogMsg: DoSendLog<H>,
     {
-        //let level = Self::verbosity(handle);
-        let log_level = AfbLogMsg::get_level(level);
+        let log_level = level.to_syslog_level();
         let message = Self::as_string(format);
 
         match info {
@@ -607,7 +648,7 @@ pub struct AfbTimer {
     decount: u32,
     period: u32,
     autounref: i32,
-    verbosity: i32,
+    verbosity: u32,
 }
 
 impl AfbTimer {
@@ -626,12 +667,12 @@ impl AfbTimer {
         Box::leak(timer_box)
     }
 
-    pub fn set_verbosity(&mut self, value: i32) -> &mut Self {
-        self.verbosity = value;
-        self
+    pub fn set_verbosity(&mut self, value: i32) -> Result<&mut Self, AfbError> {
+        self.verbosity = verbosity_to_mask(value)?;
+        Ok(self)
     }
 
-    pub fn get_verbosity(&self) -> i32 {
+    pub fn get_verbosity(&self) -> u32 {
         self.verbosity
     }
 
@@ -769,7 +810,7 @@ pub struct AfbSchedJob {
     info: &'static str,
     group: usize,
     watchdog: i32,
-    verbosity: i32,
+    verbosity: u32,
     callback: JobCallback,
     context: AfbCtxData,
 }
@@ -781,19 +822,19 @@ impl AfbSchedJob {
             info: "",
             group: 0,
             watchdog: 0,
-            verbosity: 255,
+            verbosity: 0,
             callback: job_default_cb,
             context: AfbCtxData::new(AFB_NO_DATA),
         });
         Box::leak(job_box)
     }
 
-    pub fn set_verbosity(&mut self, value: i32) -> &mut Self {
-        self.verbosity = value;
-        self
+    pub fn set_verbosity(&mut self, value: i32) -> Result<&mut Self, AfbError> {
+        self.verbosity = verbosity_to_mask(value)?;
+        Ok(self)
     }
 
-    pub fn get_verbosity(&self) -> i32 {
+    pub fn get_verbosity(&self) -> u32 {
         self.verbosity
     }
 

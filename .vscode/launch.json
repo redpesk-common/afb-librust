@@ -11,7 +11,7 @@
                 "LD_LIBRARY_PATH": "/usr/local/lib64"
             },
             "args": [
-                "-vvv",
+                "-vv",
                 "--trap-faults=0",
                 "--config=afb-samples/etc/binding-samples.json"
             ],

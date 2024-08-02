@@ -67,7 +67,7 @@ pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
         .set_info("session demo group")
         .set_prefix(mod_name)
         .set_permission(AfbPermission::new("acl:evt"))
-        .set_verbosity(3)
+        .set_verbosity(3)?
         .add_verb(create)
         .add_verb(drop)
         .add_verb(read)

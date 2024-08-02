@@ -485,9 +485,7 @@ pub extern "C" fn api_controls_cb(
                     let verb_ref = unsafe { &mut *(*slot as *mut AfbVerb) };
 
                     // use api verbosity is higger than verb one
-                    if verb_ref.verbosity < 0 {
-                        verb_ref.verbosity = verb_ref.verbosity * -1;
-                    } else if api_ref.verbosity > verb_ref.verbosity {
+                    if api_ref.verbosity > verb_ref.verbosity {
                         verb_ref.verbosity = api_ref.verbosity;
                     }
 
@@ -525,9 +523,7 @@ pub extern "C" fn api_controls_cb(
                 for slot in &api_ref.evthandlers {
                     let event_ref = unsafe { &mut *(*slot as *mut AfbEvtHandler) };
                     // use api verbosity is higger than verb one
-                    if event_ref.verbosity < 0 {
-                        event_ref.verbosity = event_ref.verbosity * -1;
-                    } else if api_ref.verbosity > event_ref.verbosity {
+                    if api_ref.verbosity > event_ref.verbosity {
                         event_ref.verbosity = api_ref.verbosity;
                     }
                     status = event_ref.register(apiv4);
@@ -548,9 +544,7 @@ pub extern "C" fn api_controls_cb(
                 for slot in &api_ref.events {
                     let event_ref = unsafe { &mut *(*slot as *mut AfbEvent) };
                     // use api verbosity is higger than verb one
-                    if event_ref.verbosity < 0 {
-                        event_ref.verbosity = event_ref.verbosity * -1;
-                    } else if api_ref.verbosity > event_ref.verbosity {
+                    if api_ref.verbosity > event_ref.verbosity {
                         event_ref.verbosity = api_ref.verbosity;
                     }
                     status = event_ref.register(apiv4);
@@ -683,7 +677,7 @@ pub struct AfbApi {
     version: &'static str,
     permission: &'static AfbPermission,
     class: &'static str,
-    verbosity: i32,
+    verbosity: u32,
     do_info: bool,
     do_ping: bool,
     do_seal: bool,
@@ -769,14 +763,14 @@ impl AfbApi {
         self
     }
 
-    pub fn set_verbosity(&mut self, value: i32) -> &mut Self {
-        self.verbosity = value;
-        self
+    pub fn set_verbosity(&mut self, value: i32) -> Result<&mut Self, AfbError> {
+        self.verbosity = verbosity_to_mask(value)?;
+        Ok(self)
     }
 
-    pub fn get_verbosity(&self) -> i32 {
+    pub fn get_verbosity(&self) -> u32 {
         if self.verbosity == 0 {
-            unsafe { cglue::afb_api_logmask(self.get_apiv4()) }
+            unsafe { cglue::afb_api_logmask(self.get_apiv4()) as u32 }
         } else {
             self.verbosity
         }
@@ -942,7 +936,7 @@ pub struct AfbVerb {
     name: &'static str,
     info: &'static str,
     permission: &'static AfbPermission,
-    verbosity: i32,
+    verbosity: u32,
     usage: Option<&'static str>,
     samples: JsoncObj,
     actions: JsoncObj,
@@ -1011,14 +1005,14 @@ impl AfbVerb {
         }
     }
 
-    pub fn set_verbosity(&mut self, value: i32) -> &mut Self {
-        self.verbosity = value;
-        self
+    pub fn set_verbosity(&mut self, value: i32) -> Result<&mut Self, AfbError> {
+        self.verbosity = verbosity_to_mask(value)?;
+        Ok(self)
     }
 
-    pub fn get_verbosity(&self, rqt: &AfbRequest) -> i32 {
+    pub fn get_verbosity(&self, rqt: &AfbRequest) -> u32 {
         if self.verbosity == 0 {
-            unsafe {cglue::afb_req_logmask(rqt.get_rqtv4())}
+            unsafe { cglue::afb_req_logmask(rqt.get_rqtv4()) as u32 }
         } else {
             self.verbosity
         }
@@ -1313,7 +1307,7 @@ impl<'a> AfbEventMsg<'a> {
         }
     }
 
-    pub fn get_verbosity(&self) -> i32 {
+    pub fn get_verbosity(&self) -> u32 {
         self.handler.get_verbosity()
     }
 
@@ -1436,7 +1430,7 @@ fn evt_default_cb(
 pub struct AfbEvtHandler {
     _uid: &'static str,
     _count: usize,
-    verbosity: i32,
+    verbosity: u32,
     pattern: &'static str,
     info: &'static str,
     callback: EvtCallback,
@@ -1467,12 +1461,12 @@ impl AfbEvtHandler {
         self
     }
 
-    pub fn set_verbosity(&mut self, value: i32) -> &mut Self {
-        self.verbosity = value;
-        self
+    pub fn set_verbosity(&mut self, value: i32) -> Result<&mut Self, AfbError> {
+        self.verbosity = verbosity_to_mask(value)?;
+        Ok(self)
     }
 
-    pub fn get_verbosity(&self) -> i32 {
+    pub fn get_verbosity(&self) -> u32 {
         self.verbosity
     }
 
@@ -1548,7 +1542,7 @@ pub struct AfbEvent {
     _uid: &'static str,
     _evtv4: AfbEvtV4,
     _apiv4: AfbApiV4,
-    verbosity: i32,
+    verbosity: u32,
 }
 
 impl AfbEvent {
@@ -1562,7 +1556,7 @@ impl AfbEvent {
         Box::leak(evt_box)
     }
 
-    pub fn get_verbosity(&self) -> i32 {
+    pub fn get_verbosity(&self) -> u32 {
         self.verbosity
     }
 
@@ -1706,7 +1700,7 @@ pub struct AfbGroup {
     prefix: &'static str,
     info: &'static str,
     permission: &'static AfbPermission,
-    verbosity: i32,
+    verbosity: u32,
     separator: &'static str,
     verbs: Vec<*const AfbVerb>,
     events: Vec<*const AfbEvent>,
@@ -1749,9 +1743,9 @@ impl AfbGroup {
         self
     }
 
-    pub fn set_verbosity(&mut self, value: i32) -> &mut Self {
-        self.verbosity = value;
-        self
+    pub fn set_verbosity(&mut self, value: i32) -> Result<&mut Self, AfbError> {
+        self.verbosity = verbosity_to_mask(value)?;
+        Ok(self)
     }
 
     pub fn add_verb(&mut self, verb: &AfbVerb) -> &mut Self {
@@ -1775,9 +1769,7 @@ impl AfbGroup {
             let verb_ref = unsafe { &mut *(*slot as *mut AfbVerb) };
 
             // use group verbosity is higger than verb one
-            if verb_ref.verbosity < 0 {
-                verb_ref.verbosity = verb_ref.verbosity * -1;
-            } else if self.verbosity > verb_ref.verbosity {
+            if self.verbosity > verb_ref.verbosity {
                 verb_ref.verbosity = self.verbosity;
             }
 

@@ -103,7 +103,7 @@ pub fn binding_init(rootv4: AfbApiV4, jconf: JsoncObj) -> Result<&'static AfbApi
         .set_callback(Box::new(ApiUserData {
             _any_data: "skipail",
         }))
-        .set_verbosity(verbosity)
+        .set_verbosity(verbosity)?
         .add_verb(verb_probe::register(rootv4)?)
         .add_verb(verb_basic::register(rootv4)?)
         .add_verb(verb_typed::register(rootv4)?)

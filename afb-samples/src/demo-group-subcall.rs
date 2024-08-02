@@ -109,7 +109,7 @@ pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
         .set_info("timer demo api group")
         .set_prefix(mod_name)
         //.set_permission(AfbPermission::new("acl:evt"))
-        .set_verbosity(3)
+        .set_verbosity(3)?
         .add_verb(sync_call)
         .add_verb(async_call)
         .finalize()?;
