@@ -58,7 +58,6 @@ fn main() {
         .allowlist_type("afb_epoll_.*")
         .allowlist_type("afb_req_subcall_flags")
         .allowlist_var("afbBinding.*")
-        .blocklist_item("__BindgenBitfieldUnit")
         .blocklist_item("json_object")
         // generate libafb wrapper
         .generate()
