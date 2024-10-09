@@ -1060,7 +1060,7 @@ impl AfbParams {
                 &data_handle as *const _ as *mut cglue::afb_data_t,
                 data.typev4,
                 data.buffer_ptr,
-                0, // opaque buffer for Rust object
+                data.buffer_len,
                 data.freecb,
                 data.buffer_ptr as *mut c_void,
             )
