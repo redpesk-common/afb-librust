@@ -17,6 +17,13 @@
 use std::process::Command;
 
 fn main() {
+    let c_std = std::env::var("C_STD").unwrap_or_else(|_| "gnu2x".to_string());
+
+    let fallback_defines = [
+        "-D__builtin_c23_va_start=__builtin_va_start",
+        "-Dnullptr=NULL",
+    ];
+
     // ============== LIBAFB C interface =====================
     let header = "
         // -----------------------------------------------------------------------
@@ -35,9 +42,17 @@ fn main() {
     // invalidate the built crate whenever the wrapper changes
     println!("cargo:rerun-if-changed=capi/libafb-map.h");
 
+    // expand static inline libafb macro -> C23
+    let cmd = format!(
+        "gcc -std={}  -D__builtin_c23_va_start=__builtin_va_start -Dnullptr=0  -E capi/libafb-map.h \
+         | sed 's/static *inline//' \
+         | sed '/^#/d' \
+         | sed '/^$/d' > capi/_libafb-map.c",
+        c_std
+    );
     // expand static inline libafb macro
-    let output=Command::new("bash")
-        .args(["-c","gcc -E capi/libafb-map.h |sed 's/static *inline//'|sed '/^#/d'| sed '/^$/d' >capi/_libafb-map.c"])
+    let output = Command::new("bash")
+        .args(["-c", &cmd])
         .output()
         .expect("fail to excec gcc -E capi/_libafb-map.h");
     assert!(output.status.success());
@@ -59,6 +74,9 @@ fn main() {
         .allowlist_type("afb_req_subcall_flags")
         .allowlist_var("afbBinding.*")
         .blocklist_item("json_object")
+        .clang_arg(format!("-std={}", c_std))
+        .clang_args(fallback_defines)
+        .clang_arg("-Wno-unknown-attributes")
         // generate libafb wrapper
         .generate()
         .expect("Unable to generate libafb");
@@ -74,6 +92,9 @@ fn main() {
         .file("capi/_libafb-map.c")
         .include("/usr/local/include")
         .include("/usr/include/linux")
+        .flag(&format!("-std={}", c_std))
+        .flag("-D__builtin_c23_va_start=__builtin_va_start")
+        .flag("-Dnullptr=0")
         .compile("afb-glue");
 
     // ============== JSONC-C interface =====================
@@ -117,6 +138,10 @@ fn main() {
         .blocklist_item("json_object_set_serializer")
         .blocklist_item("json_tokener_srec")
         .blocklist_item("json_object_delete_fn")
+        .clang_arg(format!("-std={}", c_std))
+        .clang_arg("-D__builtin_c23_va_start=__builtin_va_start")
+        .clang_arg("-Dnullptr=0")
+        .clang_arg("-Wno-unknown-attributes")
         // generate jsonc wrapper
         .generate()
         .expect("Unable to generate jsonc");

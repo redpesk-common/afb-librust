@@ -18,9 +18,9 @@ request.drop_session() // delete l'object session
 ## Compilation bugs
 
 Something cargo complains about ```stddef.h``` which is own by ```kernel-headers```
- * install kernel-headers
- * install clang
 
+* install kernel-headers
+* install clang
 
 ## Tests
 

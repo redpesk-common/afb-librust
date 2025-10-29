@@ -190,7 +190,6 @@ pub struct DbgInfo {
     pub column: u32,
 }
 
-
 #[derive(Clone)]
 pub struct AfbError {
     uid: String,
@@ -216,7 +215,7 @@ impl AfbError {
     pub fn get_info(&self) -> String {
         self.info.to_owned()
     }
-    pub fn get_dbg<'a>(&'a self) -> &DbgInfo {
+    pub fn get_dbg<'a>(&'a self) -> &'a DbgInfo {
         &self.dbg_info
     }
 
@@ -469,7 +468,7 @@ impl DoSendLog<AfbApiV4> for AfbLogMsg {
         unsafe { cglue::afb_api_verbose(apiv4, level, file, line as i32, funcname, format) }
     }
     fn get_verbosity(apiv4: AfbApiV4) -> u32 {
-        unsafe { cglue::afb_api_logmask(apiv4) as u32}
+        unsafe { cglue::afb_api_logmask(apiv4) as u32 }
     }
 }
 

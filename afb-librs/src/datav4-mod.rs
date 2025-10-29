@@ -240,7 +240,7 @@ impl AfbCtxData {
     }
 
     #[track_caller]
-    pub fn get_lock<T>(&self) -> Result<AfbCtxLock<&mut T>, AfbError>
+    pub fn get_lock<T>(&self) -> Result<AfbCtxLock<'_, &mut T>, AfbError>
     where
         T: 'static,
     {
@@ -495,7 +495,7 @@ pub struct AfbConverter {
 impl AfbConverter {
     // create a new converter type within libafb
     #[track_caller]
-    pub fn new(uid: &'static str) -> Result<&mut Self, AfbError> {
+    pub fn new(uid: &'static str) -> Result<&'static mut Self, AfbError> {
         // register new type within libafb
         let cuid = CString::new(uid)
             .expect("Invalid converter uid key")
@@ -584,7 +584,7 @@ impl AfbConverter {
 }
 
 #[track_caller]
-pub fn get_type(uid: &'static str) -> Result<&mut AfbConverter, AfbError> {
+pub fn get_type(uid: &'static str) -> Result<&'static mut AfbConverter, AfbError> {
     let typev4: cglue::afb_type_t = 0 as cglue::afb_type_t;
     let cuid = CString::new(uid).expect("Invalid converter uid key");
 
@@ -831,7 +831,11 @@ impl AfbRqtData {
 impl Clone for AfbRqtData {
     fn clone(&self) -> Self {
         self.addref();
-        AfbRqtData { count: self.count, status: self.status, argsv4:  self.argsv4.clone()}
+        AfbRqtData {
+            count: self.count,
+            status: self.status,
+            argsv4: self.argsv4.clone(),
+        }
     }
 }
 
