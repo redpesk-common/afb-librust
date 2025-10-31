@@ -47,7 +47,7 @@ pub fn register(rootv4: AfbApiV4) -> Result<&'static AfbVerb, AfbError> {
     afb_converter::register(rootv4).expect("must register custom type");
 
     // build verb name from Rust module name
-    let mod_name = module_path!().split(':').last().unwrap();
+    let mod_name = module_path!().split(':').next_back().unwrap();
     afb_log_msg!(Notice, rootv4, "Registering verb={}", mod_name);
 
     let group = AfbVerb::new(mod_name)

@@ -13,6 +13,9 @@
 use afbv4::prelude::*;
 use std::cell::Cell;
 use std::sync::Arc;
+
+#[allow(clippy::arc_with_non_send_sync)]
+#[allow(clippy::upper_case_acronyms)]
 enum Action {
     SUBSCRIBE,
     UNSUBSCRIBE,
@@ -104,15 +107,16 @@ fn timer_callback(_timer: &AfbTimer, _decount: u32, ctx: &AfbCtxData) -> Result<
     Ok(())
 }
 
+#[allow(clippy::arc_with_non_send_sync)]
 pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
     // build verb name from Rust module name
-    let mod_name = module_path!().split(':').last().unwrap();
+    let mod_name = module_path!().split(':').next_back().unwrap();
     afb_log_msg!(Notice, apiv4, "Registering verb={}", mod_name);
 
     let event = AfbEvent::new("pub-sub-event");
     let ctxdata = Arc::new(UserData {
         counter: Cell::new(0),
-        event: event,
+        event,
     });
 
     AfbTimer::new("sensor_simulator")

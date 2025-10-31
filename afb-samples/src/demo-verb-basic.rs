@@ -34,15 +34,13 @@ fn verb_cb(request: &AfbRequest, args: &AfbRqtData, ctx: &AfbCtxData) -> Result<
     };
 
     // if data export fail send an error report
-    if let Err(error) = reply() {
-        return Err(error);
-    }
+    reply()?;
     Ok(())
 }
 
 pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbVerb, AfbError> {
     // build verb name from Rust module name
-    let mod_name = module_path!().split(':').last().unwrap();
+    let mod_name = module_path!().split(':').next_back().unwrap();
     afb_log_msg!(Notice, apiv4, "Registering verb={}", mod_name);
 
     let verb = AfbVerb::new(mod_name)

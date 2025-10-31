@@ -61,7 +61,7 @@ pub fn to_static_str(value: String) -> &'static str {
     Box::leak(value.into_boxed_str())
 }
 
-pub fn bytes_to_str<'a>(data: &'a [u8]) -> Result<&'a str, AfbError> {
+pub fn bytes_to_str(data: &[u8]) -> Result<&str, AfbError> {
     let text = match str::from_utf8(data) {
         Ok(value) => value,
         Err(_) => return afb_error!("bytes_to_str", "not a valid UTF string"),
@@ -91,7 +91,7 @@ pub fn hexa_to_bytes<'a>(input: &str, buffer: &'a mut [u8]) -> Result<&'a [u8], 
                 )
             }
         }
-        idx = idx + 1;
+        idx += 1;
     }
     Ok(&buffer[0..idx])
 }
@@ -140,10 +140,10 @@ impl Drop for JsoncObj {
 impl Clone for JsoncObj {
     fn clone(&self) -> Self {
         unsafe {
-            let jsonc = JsoncObj {
+            // Clone by bumping refcount
+            JsoncObj {
                 jso: cglue::json_object_get(self.jso),
-            };
-            return jsonc;
+            }
         }
     }
 }
@@ -153,7 +153,7 @@ impl fmt::Display for JsoncObj {
         let cstring;
         unsafe {
             // warning: no ';'
-            let jso = &mut *(self.jso as *mut cglue::json_object);
+            let jso = self.jso;
             let cbuffer = if format.alternate() {
                 // {:#}
                 cglue::json_object_to_json_string_ext(
@@ -178,12 +178,14 @@ impl fmt::Display for JsoncObj {
 }
 
 pub trait JsoncExport<T> {
-    fn from_jso(jso: *mut cglue::json_object) -> Result<T, AfbError>;
+    /// # Safety
+    /// Caller must ensure `jso` is a valid pointer coming from json-c.
+    unsafe fn from_jso(jso: *mut cglue::json_object) -> Result<T, AfbError>;
 }
 
 impl JsoncExport<Jobject> for JsoncObj {
     #[track_caller]
-    fn from_jso(jso: *mut cglue::json_object) -> Result<Jobject, AfbError> {
+    unsafe fn from_jso(jso: *mut cglue::json_object) -> Result<Jobject, AfbError> {
         if jso as usize == 0 {
             afb_error!("jsonc-get-key", "not object at key")
         } else {
@@ -194,8 +196,8 @@ impl JsoncExport<Jobject> for JsoncObj {
 
 impl JsoncExport<&'static str> for JsoncObj {
     #[track_caller]
-    fn from_jso(jso: *mut cglue::json_object) -> Result<&'static str, AfbError> {
-        if unsafe { cglue::json_object_get_type(jso) } != cglue::json_type_json_type_string {
+    unsafe fn from_jso(jso: *mut cglue::json_object) -> Result<&'static str, AfbError> {
+        if cglue::json_object_get_type(jso) != cglue::json_type_json_type_string {
             afb_error!("jsonc-get-type", "jsonc object is not a string",)
         } else {
             Ok(to_static_str(JsoncObj::to_string(jso)))
@@ -205,19 +207,19 @@ impl JsoncExport<&'static str> for JsoncObj {
 
 impl JsoncExport<i64> for JsoncObj {
     #[track_caller]
-    fn from_jso(jso: *mut cglue::json_object) -> Result<i64, AfbError> {
-        if unsafe { cglue::json_object_get_type(jso) } != cglue::json_type_json_type_int {
+    unsafe fn from_jso(jso: *mut cglue::json_object) -> Result<i64, AfbError> {
+        if cglue::json_object_get_type(jso) != cglue::json_type_json_type_int {
             afb_error!("jsonc-get-type", "jsonc object is not an integer",)
         } else {
-            Ok(unsafe { cglue::json_object_get_int64(jso) })
+            Ok(cglue::json_object_get_int64(jso))
         }
     }
 }
 
 impl JsoncExport<String> for JsoncObj {
     #[track_caller]
-    fn from_jso(jso: *mut cglue::json_object) -> Result<String, AfbError> {
-        if unsafe { cglue::json_object_get_type(jso) } != cglue::json_type_json_type_string {
+    unsafe fn from_jso(jso: *mut cglue::json_object) -> Result<String, AfbError> {
+        if cglue::json_object_get_type(jso) != cglue::json_type_json_type_string {
             afb_error!("jsonc-get-type", "jsonc object is not a string",)
         } else {
             Ok(JsoncObj::to_string(jso))
@@ -227,8 +229,8 @@ impl JsoncExport<String> for JsoncObj {
 
 impl JsoncExport<Vec<u8>> for JsoncObj {
     #[track_caller]
-    fn from_jso(jso: *mut cglue::json_object) -> Result<Vec<u8>, AfbError> {
-        if unsafe { cglue::json_object_get_type(jso) } != cglue::json_type_json_type_string {
+    unsafe fn from_jso(jso: *mut cglue::json_object) -> Result<Vec<u8>, AfbError> {
+        if cglue::json_object_get_type(jso) != cglue::json_type_json_type_string {
             afb_error!("jsonc-get-type", "jsonc object is not a string",)
         } else {
             Ok(JsoncObj::to_string(jso).as_bytes().to_vec())
@@ -238,45 +240,45 @@ impl JsoncExport<Vec<u8>> for JsoncObj {
 
 impl JsoncExport<u64> for JsoncObj {
     #[track_caller]
-    fn from_jso(jso: *mut cglue::json_object) -> Result<u64, AfbError> {
-        if unsafe { cglue::json_object_get_type(jso) } != cglue::json_type_json_type_int {
+    unsafe fn from_jso(jso: *mut cglue::json_object) -> Result<u64, AfbError> {
+        if cglue::json_object_get_type(jso) != cglue::json_type_json_type_int {
             afb_error!("jsonc-get-type", "jsonc object is not an unsigned",)
         } else {
-            Ok(unsafe { cglue::json_object_get_int64(jso) } as u64)
+            Ok(cglue::json_object_get_int64(jso) as u64)
         }
     }
 }
 
 impl JsoncExport<i32> for JsoncObj {
     #[track_caller]
-    fn from_jso(jso: *mut cglue::json_object) -> Result<i32, AfbError> {
-        if unsafe { cglue::json_object_get_type(jso) } != cglue::json_type_json_type_int {
+    unsafe fn from_jso(jso: *mut cglue::json_object) -> Result<i32, AfbError> {
+        if cglue::json_object_get_type(jso) != cglue::json_type_json_type_int {
             afb_error!("jsonc-get-type", "jsonc object is not an integer",)
         } else {
-            Ok(unsafe { cglue::json_object_get_int(jso) })
+            Ok(cglue::json_object_get_int(jso))
         }
     }
 }
 
 impl JsoncExport<u32> for JsoncObj {
     #[track_caller]
-    fn from_jso(jso: *mut cglue::json_object) -> Result<u32, AfbError> {
-        if unsafe { cglue::json_object_get_type(jso) } != cglue::json_type_json_type_int {
+    unsafe fn from_jso(jso: *mut cglue::json_object) -> Result<u32, AfbError> {
+        if cglue::json_object_get_type(jso) != cglue::json_type_json_type_int {
             afb_error!("jsonc-get-type", "jsonc object is not integer",)
         } else {
-            Ok(unsafe { cglue::json_object_get_int(jso) as u32 })
+            Ok(cglue::json_object_get_int(jso) as u32)
         }
     }
 }
 
 impl JsoncExport<i16> for JsoncObj {
     #[track_caller]
-    fn from_jso(jso: *mut cglue::json_object) -> Result<i16, AfbError> {
-        if unsafe { cglue::json_object_get_type(jso) } != cglue::json_type_json_type_int {
+    unsafe fn from_jso(jso: *mut cglue::json_object) -> Result<i16, AfbError> {
+        if cglue::json_object_get_type(jso) != cglue::json_type_json_type_int {
             afb_error!("jsonc-get-type", "jsonc object is not an integer",)
         } else {
-            let value = unsafe { cglue::json_object_get_int(jso) };
-            if value > std::i16::MAX as i32 || value < std::i16::MIN as i32 {
+            let value = cglue::json_object_get_int(jso);
+            if value > i16::MAX as i32 || value < i16::MIN as i32 {
                 return afb_error!("jsonc::get<i16>", "multiplier should be i16 get:{}", value);
             }
             Ok(value as i16)
@@ -286,12 +288,12 @@ impl JsoncExport<i16> for JsoncObj {
 
 impl JsoncExport<u8> for JsoncObj {
     #[track_caller]
-    fn from_jso(jso: *mut cglue::json_object) -> Result<u8, AfbError> {
-        if unsafe { cglue::json_object_get_type(jso) } != cglue::json_type_json_type_int {
+    unsafe fn from_jso(jso: *mut cglue::json_object) -> Result<u8, AfbError> {
+        if cglue::json_object_get_type(jso) != cglue::json_type_json_type_int {
             afb_error!("jsonc-get-type", "jsonc object is not an integer",)
         } else {
-            let value = unsafe { cglue::json_object_get_int(jso) };
-            if value > std::u8::MAX as i32 || value < std::u8::MIN as i32 {
+            let value = cglue::json_object_get_int(jso);
+            if value > u8::MAX as i32 || value < u8::MIN as i32 {
                 return afb_error!("jsonc::get<u8>", "multiplier should be u8 get:{}", value);
             }
             Ok(value as u8)
@@ -301,12 +303,12 @@ impl JsoncExport<u8> for JsoncObj {
 
 impl JsoncExport<i8> for JsoncObj {
     #[track_caller]
-    fn from_jso(jso: *mut cglue::json_object) -> Result<i8, AfbError> {
-        if unsafe { cglue::json_object_get_type(jso) } != cglue::json_type_json_type_int {
+    unsafe fn from_jso(jso: *mut cglue::json_object) -> Result<i8, AfbError> {
+        if cglue::json_object_get_type(jso) != cglue::json_type_json_type_int {
             afb_error!("jsonc-get-type", "jsonc object is not an integer",)
         } else {
-            let value = unsafe { cglue::json_object_get_int(jso) };
-            if value > std::i8::MAX as i32 || value < std::i8::MIN as i32 {
+            let value = cglue::json_object_get_int(jso);
+            if value > i8::MAX as i32 || value < i8::MIN as i32 {
                 return afb_error!("jsonc::get<i8>", "multiplier should be i8 get:{}", value);
             }
             Ok(value as i8)
@@ -316,12 +318,12 @@ impl JsoncExport<i8> for JsoncObj {
 
 impl JsoncExport<u16> for JsoncObj {
     #[track_caller]
-    fn from_jso(jso: *mut cglue::json_object) -> Result<u16, AfbError> {
-        if unsafe { cglue::json_object_get_type(jso) } != cglue::json_type_json_type_int {
+    unsafe fn from_jso(jso: *mut cglue::json_object) -> Result<u16, AfbError> {
+        if cglue::json_object_get_type(jso) != cglue::json_type_json_type_int {
             afb_error!("jsonc-get-type", "jsonc object is not an integer",)
         } else {
-            let value = unsafe { cglue::json_object_get_int(jso) };
-            if value > std::u16::MAX as i32 || value < std::u16::MIN as i32 {
+            let value = cglue::json_object_get_int(jso);
+            if value > u16::MAX as i32 || value < u16::MIN as i32 {
                 return afb_error!("jsonc::get<u16>", "multiplier should be u16 get:{}", value);
             }
             Ok(value as u16)
@@ -331,22 +333,22 @@ impl JsoncExport<u16> for JsoncObj {
 
 impl JsoncExport<bool> for JsoncObj {
     #[track_caller]
-    fn from_jso(jso: *mut cglue::json_object) -> Result<bool, AfbError> {
-        if unsafe { cglue::json_object_get_type(jso) } != cglue::json_type_json_type_boolean {
+    unsafe fn from_jso(jso: *mut cglue::json_object) -> Result<bool, AfbError> {
+        if cglue::json_object_get_type(jso) != cglue::json_type_json_type_boolean {
             afb_error!("jsonc-get-type", "jsonc object is not boolean")
         } else {
-            Ok(unsafe { cglue::json_object_get_boolean(jso) != 0 })
+            Ok(cglue::json_object_get_boolean(jso) != 0)
         }
     }
 }
 
 impl JsoncExport<f64> for JsoncObj {
     #[track_caller]
-    fn from_jso(jso: *mut cglue::json_object) -> Result<f64, AfbError> {
-        if unsafe { cglue::json_object_get_type(jso) } != cglue::json_type_json_type_double {
+    unsafe fn from_jso(jso: *mut cglue::json_object) -> Result<f64, AfbError> {
+        if cglue::json_object_get_type(jso) != cglue::json_type_json_type_double {
             afb_error!("jsonc-get-type", "jsonc object is not a float",)
         } else {
-            Ok(unsafe { cglue::json_object_get_double(jso) })
+            Ok(cglue::json_object_get_double(jso))
         }
     }
 }
@@ -360,11 +362,13 @@ pub trait ImportJso<K> {
 
 impl JsoncExport<JsoncObj> for JsoncObj {
     #[track_caller]
-    fn from_jso(jso: *mut cglue::json_object) -> Result<JsoncObj, AfbError> {
+    unsafe fn from_jso(jso: *mut cglue::json_object) -> Result<JsoncObj, AfbError> {
+        // Safety: `jso` must come from json-c and be a valid pointer.
         JsoncObj::import(jso as *mut std::ffi::c_void)
     }
 }
 
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 impl ImportJso<&str> for JsoncObj {
     #[track_caller]
     fn get_jso(
@@ -374,7 +378,7 @@ impl ImportJso<&str> for JsoncObj {
         let skey = CString::new(key).expect("Invalid jsonc key string");
         let result;
         unsafe {
-            let jslot: *mut cglue::json_object = 0 as *mut cglue::json_object;
+            let jslot: *mut cglue::json_object = std::ptr::null_mut();
 
             if cglue::json_object_object_get_ex(
                 jso,
@@ -387,10 +391,11 @@ impl ImportJso<&str> for JsoncObj {
                 result = Ok(jslot);
             }
         }
-        return result;
+        result
     }
 }
 
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 impl ImportJso<usize> for JsoncObj {
     #[track_caller]
     fn get_jso(
@@ -398,7 +403,8 @@ impl ImportJso<usize> for JsoncObj {
         jso: *const cglue::json_object,
     ) -> Result<*mut cglue::json_object, AfbError> {
         unsafe {
-            if idx > cglue::json_object_array_length(jso) {
+            // Index must be strictly less than length
+            if idx >= cglue::json_object_array_length(jso) {
                 afb_error!("jsonc-array-size", "jsonc array index out of bound")
             } else {
                 Ok(cglue::json_object_array_get_idx(jso, idx))
@@ -742,15 +748,16 @@ impl JsoncImport<JsoncObj> for JsoncObj {
     }
 }
 
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 impl JsoncImport<*const *const JsoncJso> for JsoncObj {
     #[track_caller]
     fn import(jso: *const *const JsoncJso) -> Result<Self, AfbError> {
+        debug_assert!(!jso.is_null(), "Jsonc::import: jso must not be null");
         unsafe {
-            let jso = jso as *const *const cglue::json_object;
             let jsonc = JsoncObj {
                 jso: cglue::json_object_get(*jso as *mut cglue::json_object),
             };
-            return Ok(jsonc);
+            Ok(jsonc)
         }
     }
 }
@@ -763,7 +770,7 @@ impl JsoncImport<*mut std::ffi::c_void> for JsoncObj {
             let jsonc = JsoncObj {
                 jso: cglue::json_object_get(jso),
             };
-            return Ok(jsonc);
+            Ok(jsonc)
         }
     }
 }
@@ -775,7 +782,7 @@ impl JsoncImport<i64> for JsoncObj {
             let jsonc = JsoncObj {
                 jso: cglue::json_object_new_int64(value),
             };
-            return Ok(jsonc);
+            Ok(jsonc)
         }
     }
 }
@@ -787,7 +794,7 @@ impl JsoncImport<f64> for JsoncObj {
             let jsonc = JsoncObj {
                 jso: cglue::json_object_new_double(value),
             };
-            return Ok(jsonc);
+            Ok(jsonc)
         }
     }
 }
@@ -803,7 +810,7 @@ impl JsoncImport<&str> for JsoncObj {
                 let jsonc = JsoncObj {
                     jso: cglue::json_object_new_string(sval.into_raw()),
                 };
-                return Ok(jsonc);
+                Ok(jsonc)
             }
         }
     }
@@ -817,8 +824,14 @@ impl JsoncImport<&String> for JsoncObj {
             let jsonc = JsoncObj {
                 jso: cglue::json_object_new_string(sval.into_raw()),
             };
-            return Ok(jsonc);
+            Ok(jsonc)
         }
+    }
+}
+
+impl Default for JsoncObj {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -826,19 +839,19 @@ impl JsoncObj {
     #[track_caller]
     pub fn new() -> JsoncObj {
         unsafe {
-            let jsonc = JsoncObj {
+            // New empty object
+            JsoncObj {
                 jso: cglue::json_object_new_object(),
-            };
-            return jsonc;
+            }
         }
     }
     #[track_caller]
     pub fn array() -> JsoncObj {
         unsafe {
-            let jsonc = JsoncObj {
+            // New empty array
+            JsoncObj {
                 jso: cglue::json_object_new_array(),
-            };
-            return jsonc;
+            }
         }
     }
 
@@ -855,7 +868,8 @@ impl JsoncObj {
     where
         JsoncObj: JsoncExport<T>,
     {
-        Self::from_jso(self.jso)
+        // Safety: `self.jso` comes from json-c and lives as long as `self`
+        unsafe { Self::from_jso(self.jso) }
     }
 
     #[track_caller]
@@ -864,36 +878,28 @@ impl JsoncObj {
         JsoncObj: JsonImport<T>,
     {
         unsafe {
-            let result =
-                if cglue::json_object_is_type(self.jso, cglue::json_type_json_type_object) == 0 {
-                    afb_error!("jsonc-add-fail", "jsonc target is not an object")
-                } else {
-                    JsonImport::add(self, key, value);
-                    Ok(self)
-                };
-            return result;
+            if cglue::json_object_is_type(self.jso, cglue::json_type_json_type_object) == 0 {
+                afb_error!("jsonc-add-fail", "jsonc target is not an object")
+            } else {
+                JsonImport::add(self, key, value);
+                Ok(self)
+            }
         }
     }
 
     #[track_caller]
+    #[allow(clippy::not_unsafe_ptr_arg_deref)]
     pub fn get_jso_value(jso: *mut cglue::json_object) -> Jobject {
         let result;
         unsafe {
             match JsoncObj::get_jso_type(jso) {
-                Jtype::Bool => {
-                    result = Jobject::Bool(if cglue::json_object_get_boolean(jso) == 0 {
-                        false
-                    } else {
-                        true
-                    })
-                }
+                Jtype::Bool => result = Jobject::Bool(cglue::json_object_get_boolean(jso) != 0),
                 Jtype::Int => result = Jobject::Int(cglue::json_object_get_int64(jso)),
                 Jtype::Float => result = Jobject::Float(cglue::json_object_get_double(jso)),
                 Jtype::String => {
                     let cbuffer = cglue::json_object_get_string(jso);
                     let cstring = CStr::from_ptr(cbuffer);
-                    let slice: &str = cstring.to_str().unwrap();
-                    result = Jobject::String(slice.to_owned());
+                    result = Jobject::String(cstring.to_str().unwrap().to_owned());
                 }
                 Jtype::Array => {
                     result = {
@@ -911,19 +917,18 @@ impl JsoncObj {
                 _ => result = Jobject::Unknown("jsonc unknown type"),
             }
         }
-        return result;
+        result
     }
 
     #[track_caller]
+    #[allow(clippy::not_unsafe_ptr_arg_deref)]
     pub fn to_string(jso: *mut cglue::json_object) -> String {
-        let result;
         unsafe {
+            // Convert json-c string to owned Rust String
             let cbuffer = cglue::json_object_get_string(jso);
             let cstring = CStr::from_ptr(cbuffer);
-            let slice: &str = cstring.to_str().unwrap();
-            result = slice.to_owned();
+            cstring.to_str().unwrap().to_owned()
         }
-        return result;
     }
 
     #[track_caller]
@@ -933,7 +938,7 @@ impl JsoncObj {
     {
         match Self::get_jso(key, self.jso) {
             Err(error) => Err(error),
-            Ok(jso) => Self::from_jso(jso),
+            Ok(jso) => unsafe { Self::from_jso(jso) },
         }
     }
 
@@ -944,7 +949,7 @@ impl JsoncObj {
     {
         match Self::get_jso(key, self.jso) {
             Err(_error) => Ok(default),
-            Ok(jso) => Self::from_jso(jso),
+            Ok(jso) => unsafe { Self::from_jso(jso) },
         }
     }
 
@@ -955,7 +960,7 @@ impl JsoncObj {
     {
         match Self::get_jso(key, self.jso) {
             Err(_error) => Ok(None),
-            Ok(jso) => Ok(Some(Self::from_jso(jso)?)),
+            Ok(jso) => Ok(Some(unsafe { Self::from_jso(jso)? })),
         }
     }
 
@@ -966,7 +971,7 @@ impl JsoncObj {
     {
         match Self::get_jso(index, self.jso) {
             Err(error) => Err(error),
-            Ok(jso) => Self::from_jso(jso),
+            Ok(jso) => unsafe { Self::from_jso(jso) },
         }
     }
 
@@ -986,20 +991,24 @@ impl JsoncObj {
         self.count()
     }
 
+    /// Convenience sibling for Clippy `len_without_is_empty`
+    #[track_caller]
+    pub fn is_empty(&self) -> Result<bool, AfbError> {
+        Ok(self.count()? == 0)
+    }
+
     #[track_caller]
     pub fn insert<T>(&self, idx: usize, value: T) -> Result<&Self, AfbError>
     where
         JsoncObj: JsonImport<T>,
     {
         unsafe {
-            let result =
-                if cglue::json_object_is_type(self.jso, cglue::json_type_json_type_array) == 0 {
-                    afb_error!("jsonc-insert-fail", "jsonc target is not an array",)
-                } else {
-                    JsonImport::insert(self, idx, value);
-                    Ok(self)
-                };
-            return result;
+            if cglue::json_object_is_type(self.jso, cglue::json_type_json_type_array) == 0 {
+                afb_error!("jsonc-insert-fail", "jsonc target is not an array")
+            } else {
+                JsonImport::insert(self, idx, value);
+                Ok(self)
+            }
         }
     }
 
@@ -1009,14 +1018,12 @@ impl JsoncObj {
         JsoncObj: JsonImport<T>,
     {
         unsafe {
-            let result =
-                if cglue::json_object_is_type(self.jso, cglue::json_type_json_type_array) == 0 {
-                    afb_error!("jsonc-append-fail", "jsonc target is not an array",)
-                } else {
-                    JsonImport::append(self, value);
-                    Ok(self)
-                };
-            return result;
+            if cglue::json_object_is_type(self.jso, cglue::json_type_json_type_array) == 0 {
+                afb_error!("jsonc-append-fail", "jsonc target is not an array")
+            } else {
+                JsonImport::append(self, value);
+                Ok(self)
+            }
         }
     }
 
@@ -1049,13 +1056,7 @@ impl JsoncObj {
 
     #[track_caller]
     pub fn is_type(&self, jtype: Jtype) -> bool {
-        unsafe {
-            if cglue::json_object_is_type(self.jso, jtype as u32) != 0 {
-                true
-            } else {
-                false
-            }
-        }
+        unsafe { cglue::json_object_is_type(self.jso, jtype as u32) != 0 }
     }
 
     #[track_caller]
@@ -1089,7 +1090,7 @@ impl JsoncObj {
 
         let mut jvec = Vec::new();
         let mut entry = unsafe { (*cglue::json_object_get_object(self.jso)).head };
-        while entry != 0 as *mut cglue::lh_entry {
+        while !entry.is_null() {
             let key = unsafe {
                 CStr::from_ptr((*entry).k as *const Cchar)
                     .to_owned()
@@ -1098,7 +1099,7 @@ impl JsoncObj {
                     .to_owned()
             };
             let obj = unsafe { JsoncObj::import((*entry).v as *mut std::ffi::c_void) }?;
-            jvec.push(Jentry { key: key, obj: obj });
+            jvec.push(Jentry { key, obj });
             entry = unsafe { (*entry).next };
         }
         Ok(jvec)
@@ -1107,14 +1108,12 @@ impl JsoncObj {
     #[track_caller]
     pub fn sort(&self, callback: JsonSortCb) -> Result<&Self, AfbError> {
         unsafe {
-            let result =
-                if cglue::json_object_is_type(self.jso, cglue::json_type_json_type_array) == 0 {
-                    afb_error!("jsonc-sort-fail", "jsonc target is not an array")
-                } else {
-                    cglue::json_object_array_sort(self.jso, callback);
-                    Ok(self)
-                };
-            return result;
+            if cglue::json_object_is_type(self.jso, cglue::json_type_json_type_array) == 0 {
+                afb_error!("jsonc-sort-fail", "jsonc target is not an array")
+            } else {
+                cglue::json_object_array_sort(self.jso, callback);
+                Ok(self)
+            }
         }
     }
 
@@ -1175,8 +1174,7 @@ impl JsoncObj {
 
                 match tag {
                     Jequal::Partial => {
-                        for idx in 0..expected.len() {
-                            let expected_entry = &expected[idx];
+                        for expected_entry in &expected {
                             let received_entry =
                                 match received.iter().find_map(|s| cmp_entry(s, expected_entry)) {
                                     None => {
@@ -1199,8 +1197,7 @@ impl JsoncObj {
                     }
 
                     Jequal::Full => {
-                        for idx in 0..received.len() {
-                            let received_entry = &received[idx];
+                        for received_entry in &received {
                             let expected_entry =
                                 match expected.iter().find_map(|s| cmp_entry(s, received_entry)) {
                                     None => {
@@ -1300,7 +1297,7 @@ impl JsoncObj {
             };
 
             cglue::json_tokener_free(tok);
-            return result;
+            result
         }
     }
 

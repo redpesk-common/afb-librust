@@ -6,6 +6,8 @@
  * License: $RP_BEGIN_LICENSE$ SPDX:MIT https://opensource.org/licenses/MIT $RP_END_LICENSE$
  */
 
+#![allow(clippy::arc_with_non_send_sync)]
+
 // import libafb dependencies
 use afbv4::prelude::*;
 use std::cell::Cell;
@@ -34,7 +36,6 @@ struct EvtUserData {
 
 /// each verb share a common data type nevertheless as each verb get its own implementation
 /// it is necessary to add an extra share structure with Rc/Arc to effectively share event/counter
-
 impl UserCtxData {
     fn incr_counter(&self) -> u32 {
         self.counter.set(self.counter.get() + 1);
@@ -121,14 +122,14 @@ fn event_get_callback(
 // prefix group of event verbs and attach a default privilege
 pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
     // build verb name from Rust module name
-    let mod_name = module_path!().split(':').last().unwrap();
+    let mod_name = module_path!().split(':').next_back().unwrap();
     afb_log_msg!(Notice, apiv4, "Registering group={}", mod_name);
 
     // create event and build share Arc context data
     let event = AfbEvent::new("demo-event").finalize()?;
     let ctxdata = Arc::new(UserCtxData {
         counter: Cell::new(0),
-        event: event,
+        event,
     });
 
     let simple_event_handler = AfbEvtHandler::new("handler-1")

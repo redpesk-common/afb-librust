@@ -106,7 +106,10 @@ fn equal_partial_json() -> Result<(), AfbError> {
     let jquery = JsoncObj::parse(query).unwrap();
     let jexpect = JsoncObj::parse(expect).unwrap();
 
-    if let Ok(_) = jquery.equal("tst_equal_fail", jexpect.clone(), Jequal::Full) {
+    if jquery
+        .equal("tst_equal_fail", jexpect.clone(), Jequal::Full)
+        .is_ok()
+    {
         return afb_error!("tst_equal_fail", "this test should have fail");
     }
 
@@ -214,8 +217,7 @@ fn expend_to_vec() {
     let token = "{'a':1,'b':'abc'}";
     let jvalue = JsoncObj::parse(token).unwrap();
     let entries = jvalue.expand().unwrap();
-    for idx in 0..entries.len() {
-        let entry = &entries[idx];
+    for entry in &entries {
         println!("key={}, value:{}", entry.key, entry.obj);
     }
 }
@@ -230,7 +232,7 @@ fn hexa_converter() {
 
     let buffer = hexa_to_bytes(input, &mut buffer).unwrap();
 
-    let result = bytes_to_hexa(&buffer);
+    let result = bytes_to_hexa(buffer);
     assert!(input == result);
 }
 
@@ -269,8 +271,8 @@ fn get_from_object() {
 
     let labels = ["slot1", "slot2", "slot3", "slot4", "slot5"];
     println!("Loop on jsonc object= {}", jsonc);
-    for key in 0..labels.len() {
-        match jsonc.get(labels[key]).unwrap() {
+    for label in &labels {
+        match jsonc.get(label).unwrap() {
             Jobject::Int(value) => assert!(value == value1, "slot1/value diverge"),
             Jobject::Float(value) => assert!(value == value2, "slot2/value diverge"),
             Jobject::String(value) => assert!(value == value3, "slot2/value diverge"),

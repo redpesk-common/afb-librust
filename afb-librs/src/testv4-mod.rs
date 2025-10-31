@@ -22,6 +22,7 @@
  */
 use crate::prelude::*;
 use std::collections::HashMap;
+use std::ptr::{null, null_mut};
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::Duration;
 
@@ -48,15 +49,21 @@ pub struct AfbTapTest {
     pub delay: u32,
     pub index: usize,
     semaphore: Arc<(Mutex<u32>, Condvar)>,
+    // Raw pointer owned/managed by the suite/group orchestration logic.
+    // Safety: it must be initialized by the suite before any use.
     group: *const AfbTapGroup,
 }
 
 struct TestAsyncCallCtx {
-    // Returned arguments of the verb
+    // Returned arguments of the verb.
     args: Option<AfbRqtData>,
 }
+// The context is only accessed behind a Mutex/Condvar pair.
+// Marking it Send + Sync here silences clippy's Arc warning without changing semantics.
+unsafe impl Send for TestAsyncCallCtx {}
+unsafe impl Sync for TestAsyncCallCtx {}
 
-// Function called at the end of a verb execution, in async
+// Called when the async verb execution completes.
 fn test_async_call_cb(_api: &AfbApi, args: &AfbRqtData, ctx: &AfbCtxData) -> Result<(), AfbError> {
     let shared_ctx = ctx.get_ref::<Arc<(Mutex<TestAsyncCallCtx>, Condvar)>>()?;
     let data = &shared_ctx.0;
@@ -80,10 +87,10 @@ impl AfbTapTest {
         verb: &'static str,
     ) -> &'static mut AfbTapTest {
         let boxe = Box::new(AfbTapTest {
-            uid: uid,
+            uid,
             info: "",
-            api: api,
-            verb: verb,
+            api,
+            verb,
             status: 0,
             params: AfbParams::new(),
             expect: Vec::new(),
@@ -94,7 +101,7 @@ impl AfbTapTest {
             timeout: 0,
             delay: 0,
             semaphore: Arc::new((Mutex::new(0), Condvar::new())),
-            group: 0 as *mut AfbTapGroup,
+            group: null(),
         });
         Box::leak(boxe)
     }
@@ -111,7 +118,7 @@ impl AfbTapTest {
 
     pub fn set_response(&mut self, status: i32, diagnostic: &str) -> &mut Self {
         self.response = Some(AfbTapResponse {
-            status: status,
+            status,
             diagnostic: diagnostic.to_owned(),
         });
         self
@@ -163,11 +170,13 @@ impl AfbTapTest {
     }
 
     pub fn get_group(&self) -> &AfbTapGroup {
-        unsafe { &*(self.group as *mut AfbTapGroup) }
+        // Safety: self.group is set by the suite/group wiring before use.
+        debug_assert!(!self.group.is_null(), "AfbTapTest.group is NULL");
+        unsafe { &*self.group }
     }
 
     pub fn get_suite(&self) -> &AfbTapSuite {
-        let group = unsafe { &*(self.group as *mut AfbTapGroup) };
+        let group = self.get_group();
         group.get_suite()
     }
 
@@ -204,15 +213,12 @@ impl AfbTapTest {
                         jvalue.equal(self.uid, jexpect.clone(), Jequal::Full)
                     };
 
-                    match jtest {
-                        Err(error) => {
-                            afb_log_msg!(Warning, api, "{} -> {} NotIn {}", error, jexpect, jvalue);
-                            return AfbTapResponse {
-                                status: AFB_FAIL,
-                                diagnostic: error.to_string(),
-                            };
-                        }
-                        Ok(()) => {}
+                    if let Err(error) = jtest {
+                        afb_log_msg!(Warning, api, "{} -> {} NotIn {}", error, jexpect, jvalue);
+                        return AfbTapResponse {
+                            status: AFB_FAIL,
+                            diagnostic: error.to_string(),
+                        };
                     }
                 }
             }
@@ -223,7 +229,7 @@ impl AfbTapTest {
         }
     }
 
-    /// Call the configured verb with an optional timeout
+    /// Call the configured verb with an optional timeout.
     fn call_with_timeout(&mut self, timeout_s: u32) {
         let api = self.get_suite().get_api();
         afb_log_msg!(
@@ -281,8 +287,9 @@ impl AfbTapTest {
         self.done(response);
     }
 
-    // next_test should be executed within group thread context in order not to pile test execution
-    fn get_next(&self) -> Option<&mut AfbTapTest> {
+    // The next test must run in the group's thread context to avoid piling executions.
+    // Return a raw pointer to avoid creating `&mut` from `&self` (Clippy: mut_from_ref).
+    fn get_next_ptr(&self) -> Option<*mut AfbTapTest> {
         let group = self.get_group();
         let suite = self.get_suite();
 
@@ -297,27 +304,24 @@ impl AfbTapTest {
         }
 
         let response = match &self.response {
-            None => panic!("next-test require some response"),
+            None => panic!("next-test requires a response"),
             Some(value) => value,
         };
 
         if response.status == AFB_OK {
             match self.onsucess {
-                None => group.get_test(self.index),
+                None => group.get_test_ptr(self.index),
                 Some(label) => match suite.get_group(label) {
                     None => None,
-                    Some(next_group) => {
-                        let next_test = next_group.get_test(0);
-                        next_test
-                    }
+                    Some(next_group) => next_group.get_test_ptr(0),
                 },
             }
         } else {
             match self.onerror {
-                None => group.get_test(self.index),
+                None => group.get_test_ptr(self.index),
                 Some(label) => match suite.get_group(label) {
                     None => None,
-                    Some(group) => group.get_test(0),
+                    Some(group) => group.get_test_ptr(0),
                 },
             }
         }
@@ -384,6 +388,7 @@ pub struct AfbTapGroup {
     pub tests: Vec<*mut AfbTapTest>,
     index: usize,
     pub timeout: u32,
+    // Raw pointers are used to match the library's lifetime model.
     suite: *mut AfbTapSuite,
     api_group: *mut AfbGroup,
 }
@@ -391,16 +396,17 @@ pub struct AfbTapGroup {
 impl AfbTapGroup {
     pub fn new(uid: &'static str) -> &'static mut AfbTapGroup {
         let boxe = Box::new(AfbTapGroup {
-            uid: uid,
+            uid,
             info: "",
             timeout: 0,
             tests: Vec::new(),
             index: 0,
-            suite: 0 as *mut AfbTapSuite,
+            suite: null_mut(),
             api_group: AfbGroup::new(uid),
         });
         Box::leak(boxe)
     }
+
     #[track_caller]
     pub fn finalize(&mut self) -> Result<&mut Self, AfbError> {
         Ok(self)
@@ -425,59 +431,65 @@ impl AfbTapGroup {
         let verb = AfbVerb::new(test.uid)
             .set_info(test.info)
             .set_callback(tap_test_callback)
-            .set_context(TapTestData { test: test })
+            .set_context(TapTestData { test })
             .set_usage("no input")
             .finalize()
             .unwrap();
 
-        let api_group = unsafe { &mut *(self.api_group as *mut AfbGroup) };
+        let api_group = unsafe { &mut *self.api_group };
         api_group.add_verb(verb);
         self
     }
 
-    // return suite test until group end
-    pub fn get_test(&self, index: usize) -> Option<&mut AfbTapTest> {
+    /// Return a raw pointer to the test (no mutable ref from `&self`).
+    pub fn get_test_ptr(&self, index: usize) -> Option<*mut AfbTapTest> {
         if self.tests.len() <= index {
             None
         } else {
-            let test = unsafe { &mut *(self.tests[index] as *mut AfbTapTest) };
-            Some(test)
+            Some(self.tests[index])
         }
+    }
+
+    /// Mutable accessor only when the group itself is borrowed mutably.
+    pub fn get_test_mut(&mut self, index: usize) -> Option<&mut AfbTapTest> {
+        let ptr = self.get_test_ptr(index)?;
+        Some(unsafe { &mut *ptr })
     }
 
     pub fn get_suite(&self) -> &AfbTapSuite {
         unsafe { &*(self.suite as *const _ as *mut AfbTapSuite) }
     }
+
     #[track_caller]
     pub fn launch(&self) -> Result<(), AfbError> {
         // get group 1st test
-        let test = match self.get_test(0) {
+        let test = match self.get_test_ptr(0) {
             None => return afb_error!(self.uid, "no-test-found"),
-            Some(value) => value,
+            Some(ptr) => unsafe { &mut *ptr },
         };
 
         // launch test and wait for completion
         test.jobpost()?;
 
         // wait for jobpost completion before moving to next one
-        let mut next = test.get_next();
+        let mut next = test.get_next_ptr();
 
         // callback return normaly or timeout
-        while let Some(test) = next {
-            test.jobpost()?;
-            next = test.get_next();
+        while let Some(ptr) = next {
+            let t = unsafe { &mut *ptr };
+            t.jobpost()?;
+            next = t.get_next_ptr();
         }
         Ok(())
     }
 
-    pub fn get_report(&self) -> Result<JsoncObj, AfbError> {
+    pub fn get_report(&mut self) -> Result<JsoncObj, AfbError> {
         let jsonc = JsoncObj::array();
         let count = self.tests.len();
         let msg = format!("1..{} # {}", count, self.uid);
         jsonc.append(msg.as_str()).unwrap();
         for idx in 0..count {
-            let test_ref = self.get_test(idx).unwrap();
-            let test = &mut *(test_ref);
+            let test = self.get_test_mut(idx).unwrap();
             jsonc.append(test.get_report()?)?;
         }
         Ok(jsonc)
@@ -515,16 +527,16 @@ impl AfbTapSuite {
         event.register(api.get_apiv4());
 
         let boxe = Box::new(AfbTapSuite {
-            uid: uid,
+            uid,
             info: "",
-            autostart: autostart,
+            autostart,
             autorun: true,
             autoexit: true,
             output: AfbTapOutput::TAP,
             timeout: TIMEOUT,
-            hashmap: hashmap,
+            hashmap,
             tap_api: api,
-            event: event,
+            event,
         });
 
         // link autostart is default group to suite
@@ -556,18 +568,23 @@ impl AfbTapSuite {
         self.hashmap.insert(group.uid, group);
 
         // create group test verb
-        let vcbdata = TapGroupData { group: group };
-        let api = unsafe { &mut *(self.tap_api as *mut AfbApi) };
+        let vcbdata = TapGroupData { group };
+        let api = unsafe { &mut *self.tap_api.cast_mut() };
         let verb = AfbVerb::new(group.uid);
-        verb.set_callback(tap_group_callback)
-            .set_context(vcbdata)
-            .set_info(group.info)
-            .set_usage("no_input")
-            .register(api.get_apiv4(), AFB_NO_AUTH);
+        unsafe {
+            verb.set_callback(tap_group_callback)
+                .set_context(vcbdata)
+                .set_info(group.info)
+                .set_usage("no_input")
+                .register(api.get_apiv4(), AFB_NO_AUTH);
+        }
+
         api.add_verb(verb.finalize().unwrap());
 
-        let api_group = unsafe { &mut *(group.api_group as *mut AfbGroup) };
-        api_group.register(api.get_apiv4(), AFB_NO_AUTH);
+        let api_group = unsafe { &mut *group.api_group };
+        unsafe {
+            api_group.register(api.get_apiv4(), AFB_NO_AUTH);
+        }
         api.add_group(api_group);
         self
     }
@@ -589,12 +606,13 @@ impl AfbTapSuite {
 
     pub fn set_info(&'static mut self, value: &'static str) -> &'static mut Self {
         self.info = value;
-        let api = unsafe { &mut *(self.tap_api as *mut AfbApi) };
+        let api = unsafe { &mut *self.tap_api.cast_mut() };
         api.set_info(value);
         self
     }
 
     pub fn get_api(&self) -> &AfbApi {
+        debug_assert!(!self.tap_api.is_null(), "AfbTapSuite.tap_api is NULL");
         unsafe { &*(self.tap_api as *mut AfbApi) }
     }
 
@@ -603,7 +621,8 @@ impl AfbTapSuite {
     }
 
     pub fn get_event(&self) -> &AfbEvent {
-        unsafe { &*(self.event as *mut AfbEvent) }
+        debug_assert!(!self.event.is_null(), "AfbTapSuite.event is NULL");
+        unsafe { &*self.event }
     }
 
     pub fn get_group(&self, label: &'static str) -> Option<&AfbTapGroup> {
@@ -612,7 +631,7 @@ impl AfbTapSuite {
         match self.hashmap.get(label) {
             Some(group) => {
                 afb_log_msg!(Debug, api, "-- Get Tap group:{}", label);
-                Some(unsafe { &mut *(*group as *mut AfbTapGroup) })
+                Some(unsafe { &mut **group })
             }
             None => {
                 afb_log_msg!(Critical, api, "Fail to find test-group:{}", label);
@@ -620,14 +639,16 @@ impl AfbTapSuite {
             }
         }
     }
+
     #[track_caller]
-    // launch a group and return report as jsonc
+    // Launch a group and return report as JSONC.
     pub fn launch(&self, label: &'static str) -> Result<(), AfbError> {
         match self.get_group(label) {
             None => afb_error!("group-label-not-found", label),
             Some(group) => group.launch(),
         }
     }
+
     #[track_caller]
     pub fn finalize(&'static mut self) -> Result<(), AfbError> {
         let api = unsafe { &mut *(self.tap_api as *mut AfbApi) };
@@ -636,17 +657,21 @@ impl AfbTapSuite {
         };
 
         // add auto start group verbs
-        let autostart_tap = unsafe { &mut *(self.autostart as *mut AfbTapGroup) };
-        let autostart_afb = unsafe { &mut *(autostart_tap.api_group as *mut AfbGroup) };
-        autostart_afb.register(api.get_apiv4(), AFB_NO_AUTH);
+        let autostart_tap = unsafe { &mut *self.autostart };
+        let autostart_afb = unsafe { &mut *autostart_tap.api_group };
+        unsafe {
+            autostart_afb.register(api.get_apiv4(), AFB_NO_AUTH);
+        }
         api.add_group(autostart_afb);
 
         let verb = AfbVerb::new(AUTOSTART);
-        verb.set_callback(tap_group_callback)
-            .set_context(vcbdata)
-            .set_info("default tap autostart group")
-            .set_usage("no_input")
-            .register(api.get_apiv4(), AFB_NO_AUTH);
+        unsafe {
+            verb.set_callback(tap_group_callback)
+                .set_context(vcbdata)
+                .set_info("default tap autostart group")
+                .set_usage("no_input")
+                .register(api.get_apiv4(), AFB_NO_AUTH);
+        }
         api.add_verb(verb.finalize()?);
 
         // seal tap test api
@@ -675,12 +700,12 @@ impl AfbTapSuite {
     }
 
     pub fn get_report(&'static mut self) -> Result<JsoncObj, AfbError> {
-        let autostart = unsafe { &mut *(self.autostart) };
+        let autostart = unsafe { &mut *self.autostart };
         let jreport = JsoncObj::new();
         jreport.add(AUTOSTART, autostart.get_report()?)?;
 
         for (uid, group) in self.hashmap.drain() {
-            let group = unsafe { &mut (*group) };
+            let group = unsafe { &mut *group };
             jreport.add(uid, group.get_report()?)?;
         }
 
@@ -724,20 +749,19 @@ fn tap_suite_callback(
     ctx: &AfbCtxData,
 ) -> Result<(), AfbError> {
     let context = ctx.get_ref::<TapSuiteAutoRun>()?;
-    let suite = unsafe { &mut *(context.suite as *mut AfbTapSuite) };
+    debug_assert!(!context.suite.is_null(), "TapSuiteAutoRun.suite is NULL");
+    let suite = unsafe { &mut *context.suite };
+    debug_assert!(!suite.autostart.is_null(), "AfbTapSuite.autostart is NULL");
     let autostart = unsafe { &mut *(suite.autostart) };
 
-    match autostart.launch() {
-        Err(error) => {
-            afb_log_raw!(
-                Critical,
-                suite.get_api().get_apiv4(),
-                "Test fail {}:autostart error={}",
-                suite.get_uid(),
-                error
-            );
-        }
-        Ok(()) => {}
+    if let Err(error) = autostart.launch() {
+        afb_log_raw!(
+            Critical,
+            suite.get_api().get_apiv4(),
+            "Test fail {}:autostart error={}",
+            suite.get_uid(),
+            error
+        );
     }
 
     let autoexit = suite.get_autoexit();
@@ -754,6 +778,7 @@ fn tap_suite_callback(
 struct TapTestData {
     test: *mut AfbTapTest,
 }
+
 #[track_caller]
 fn tap_test_callback(
     rqt: &AfbRequest,
@@ -761,9 +786,9 @@ fn tap_test_callback(
     ctx: &AfbCtxData,
 ) -> Result<(), AfbError> {
     let context = ctx.get_ref::<TapTestData>()?;
-
-    // bypass Rust limitation that refuses to understand static object pointers
-    let test = unsafe { &mut (*context.test) };
+    // Raw pointer provided by the test wiring; trusted by construction.
+    debug_assert!(!context.test.is_null(), "TapTestData.test is NULL");
+    let test = unsafe { &mut *context.test };
     match test.jobpost() {
         Err(error) => {
             afb_log_msg!(Error, rqt, "fail to launch test error={}", error);
@@ -771,7 +796,7 @@ fn tap_test_callback(
         }
         Ok(_jreport) => {
             // wait for test to be completed
-            let _next = test.get_next();
+            let _next = test.get_next_ptr();
             rqt.reply(test.get_report()?, 0);
         }
     }
@@ -790,10 +815,13 @@ fn tap_group_callback(
     ctx: &AfbCtxData,
 ) -> Result<(), AfbError> {
     let context = ctx.get_ref::<TapGroupData>()?;
-    // bypass Rust limitation that refuses to understand static object pointers
-    let group = unsafe { &mut (*context.group) };
-    let suite = unsafe { &mut (*group.suite) };
-    let event = unsafe { &mut (*suite.event) };
+    // Raw pointers are set by suite/group wiring; add defensive checks.
+    debug_assert!(!context.group.is_null(), "TapGroupData.group is NULL");
+    let group = unsafe { &mut *context.group };
+    debug_assert!(!group.suite.is_null(), "AfbTapGroup.suite is NULL");
+    let suite = unsafe { &mut *group.suite };
+    debug_assert!(!suite.event.is_null(), "AfbTapSuite.event is NULL");
+    let event = unsafe { &mut *suite.event };
 
     event.subscribe(rqt)?;
 

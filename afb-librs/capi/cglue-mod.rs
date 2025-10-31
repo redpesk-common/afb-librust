@@ -26,6 +26,9 @@
 #![allow(non_snake_case)]
 #![allow(dead_code)]
 #![allow(unused_imports)]
+#![allow(clippy::ptr_offset_with_cast)]
+#![allow(clippy::type_complexity)]
+#![allow(clippy::useless_transmute)]
 include!("_libafb-map.rs");
 
 // hack to force RUST to export afbBinding mandatory entry points
