@@ -10,7 +10,11 @@
 use afbv4::prelude::*;
 
 // note: in production a unique API/verb should do both timer creation and event subscription
-fn hello_stop_cb(request: &AfbRequest, _args: &AfbRqtData, _ctx: &AfbCtxData)  -> Result <(), AfbError> {
+fn hello_stop_cb(
+    request: &AfbRequest,
+    _args: &AfbRqtData,
+    _ctx: &AfbCtxData,
+) -> Result<(), AfbError> {
     match AfbSubCall::call_sync(request, "helloworld-event", "unsubscribe", AFB_NO_DATA) {
         Err(error) => {
             afb_log_msg!(Error, request, &error);
@@ -22,14 +26,25 @@ fn hello_stop_cb(request: &AfbRequest, _args: &AfbRqtData, _ctx: &AfbCtxData)  -
 }
 
 // async subcall response behaves as any other API/verb callback
-fn hello_response_cb(request: &AfbRequest, _params: &AfbRqtData, _ctx: &AfbCtxData)  -> Result <(), AfbError> {
-    request.reply("subscribe helloworld done (check log in afb-binder console)", 0);
+fn hello_response_cb(
+    request: &AfbRequest,
+    _params: &AfbRqtData,
+    _ctx: &AfbCtxData,
+) -> Result<(), AfbError> {
+    request.reply(
+        "subscribe helloworld done (check log in afb-binder console)",
+        0,
+    );
     Ok(())
 }
 
 // Start helloworld timer in synchronous mode and for the fun subscribe to event in asynchronous mode
 // note: in production a unique API/verb should do both timer creation and event subscription
-fn hello_start_cb(request: &AfbRequest, _args: &AfbRqtData, _ctx: &AfbCtxData)  -> Result <(), AfbError> {
+fn hello_start_cb(
+    request: &AfbRequest,
+    _args: &AfbRqtData,
+    _ctx: &AfbCtxData,
+) -> Result<(), AfbError> {
     AfbSubCall::call_sync(request, "helloworld-event", "startTimer", AFB_NO_DATA)?;
 
     AfbSubCall::call_async(
@@ -61,7 +76,7 @@ pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
         .set_usage("no input")
         .finalize()?;
 
-    let group=AfbGroup::new(mod_name)
+    let group = AfbGroup::new(mod_name)
         .set_info("timer demo api group")
         .set_prefix(mod_name)
         .set_permission(AfbPermission::new("acl:evt"))

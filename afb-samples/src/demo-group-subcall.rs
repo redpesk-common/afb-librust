@@ -16,7 +16,11 @@ struct AsyncResponseCtx {
     my_counter: u32,
 }
 
-fn async_response_verb(request: &AfbRequest, params: &AfbRqtData, ctx: &AfbCtxData) -> Result <(), AfbError> {
+fn async_response_verb(
+    request: &AfbRequest,
+    params: &AfbRqtData,
+    ctx: &AfbCtxData,
+) -> Result<(), AfbError> {
     let context = ctx.get_mut::<AsyncResponseCtx>()?;
     context.my_counter += 1;
 
@@ -46,14 +50,18 @@ fn async_response_verb(request: &AfbRequest, params: &AfbRqtData, ctx: &AfbCtxDa
     Ok(())
 }
 
-fn async_call_verb(request: &AfbRequest, _args: &AfbRqtData, _ctx: &AfbCtxData) ->Result <(), AfbError>{
+fn async_call_verb(
+    request: &AfbRequest,
+    _args: &AfbRqtData,
+    _ctx: &AfbCtxData,
+) -> Result<(), AfbError> {
     match AfbSubCall::call_async(
         request,
         "loop-test",
         "ping",
         AFB_NO_DATA,
         async_response_verb,
-        AsyncResponseCtx{my_counter: 99}
+        AsyncResponseCtx { my_counter: 99 },
     ) {
         Err(error) => {
             afb_log_msg!(Error, request, &error);
@@ -63,7 +71,11 @@ fn async_call_verb(request: &AfbRequest, _args: &AfbRqtData, _ctx: &AfbCtxData) 
     Ok(())
 }
 
-fn sync_call_verb(request: &AfbRequest, _args: &AfbRqtData, _ctx: &AfbCtxData) -> Result <(), AfbError> {
+fn sync_call_verb(
+    request: &AfbRequest,
+    _args: &AfbRqtData,
+    _ctx: &AfbCtxData,
+) -> Result<(), AfbError> {
     match AfbSubCall::call_sync(request, "loop-test", "ping", AFB_NO_DATA) {
         Err(error) => {
             afb_log_msg!(Error, request, &error);
@@ -85,7 +97,12 @@ pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
 
     match AfbApi::new("loop-test").finalize() {
         Ok(api_test) => {
-            afb_log_msg!(Notice, apiv4, "Loopback api uid={} started", api_test.get_uid());
+            afb_log_msg!(
+                Notice,
+                apiv4,
+                "Loopback api uid={} started",
+                api_test.get_uid()
+            );
         }
         Err(error) => {
             afb_log_msg!(Critical, apiv4, "Fail to register api error={}", error);
@@ -105,7 +122,7 @@ pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
         .set_usage("no input")
         .finalize()?;
 
-    let group= AfbGroup::new(mod_name)
+    let group = AfbGroup::new(mod_name)
         .set_info("timer demo api group")
         .set_prefix(mod_name)
         //.set_permission(AfbPermission::new("acl:evt"))

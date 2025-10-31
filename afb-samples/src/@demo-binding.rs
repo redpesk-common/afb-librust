@@ -74,12 +74,7 @@ impl AfbApiControls for ApiUserData {
     // the API is created and ready. At this level user may subcall api(s) declare as dependencies
     fn start(&mut self, api: &AfbApi) -> Result<(), AfbError> {
         let _api_data = self; // self matches api_data
-        afb_log_msg!(
-            Notice,
-            api,
-            "--api-started api={}",
-            api.get_uid()
-        );
+        afb_log_msg!(Notice, api, "--api-started api={}", api.get_uid());
         Ok(())
     }
 

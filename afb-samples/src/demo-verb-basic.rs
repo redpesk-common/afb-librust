@@ -14,7 +14,7 @@ struct MyCtxCb {
     count: u32,
 }
 
-fn verb_cb (request: &AfbRequest, args: &AfbRqtData, ctx: &AfbCtxData) -> Result<(), AfbError> {
+fn verb_cb(request: &AfbRequest, args: &AfbRqtData, ctx: &AfbCtxData) -> Result<(), AfbError> {
     let jquery = args.get::<JsoncObj>(0)?;
     afb_log_msg!(Notice, request, "query:{}", jquery);
 
@@ -46,8 +46,11 @@ pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbVerb, AfbError> {
     afb_log_msg!(Notice, apiv4, "Registering verb={}", mod_name);
 
     let verb = AfbVerb::new(mod_name)
-        .set_callback (verb_cb)
-        .set_context( MyCtxCb{_text: "toto", count:0})
+        .set_callback(verb_cb)
+        .set_context(MyCtxCb {
+            _text: "toto",
+            count: 0,
+        })
         .set_info("My 1st demo verb")
         .set_usage("any json string")
         .add_sample("{'skipail': 'IoT.bzh', 'location':'Lorient'}")?

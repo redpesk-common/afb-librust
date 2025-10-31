@@ -14,24 +14,32 @@ use afbv4::prelude::*;
 // -- loa/reset: reset loa to zero
 // --loa/check: request a loa>=1 to accept the request
 
-fn set_loa_cb(request: &AfbRequest, _args: &AfbRqtData, _ctx: &AfbCtxData)  -> Result <(), AfbError> {
+fn set_loa_cb(request: &AfbRequest, _args: &AfbRqtData, _ctx: &AfbCtxData) -> Result<(), AfbError> {
     match request.set_loa(1) {
-        Err(error) => request.reply (afb_add_trace!(error), -1),
-        Ok(loa) => request.reply(format!("LOA set to {}", loa), 0)
+        Err(error) => request.reply(afb_add_trace!(error), -1),
+        Ok(loa) => request.reply(format!("LOA set to {}", loa), 0),
     }
     Ok(())
 }
 
-fn reset_loa_cb(request: &AfbRequest, _args: &AfbRqtData, _ctx: &AfbCtxData)  -> Result <(), AfbError> {
+fn reset_loa_cb(
+    request: &AfbRequest,
+    _args: &AfbRqtData,
+    _ctx: &AfbCtxData,
+) -> Result<(), AfbError> {
     match request.set_loa(0) {
-        Err(error) => request.reply (afb_add_trace!(error), -1),
-        Ok(loa) => request.reply(format!("LOA reset to {}", loa), 0)
+        Err(error) => request.reply(afb_add_trace!(error), -1),
+        Ok(loa) => request.reply(format!("LOA reset to {}", loa), 0),
     }
     request.reply("LOA reset to 0", 0);
     Ok(())
 }
 
-fn check_loa_cb(request: &AfbRequest, _args: &AfbRqtData, _ctx: &AfbCtxData)  -> Result <(), AfbError>  {
+fn check_loa_cb(
+    request: &AfbRequest,
+    _args: &AfbRqtData,
+    _ctx: &AfbCtxData,
+) -> Result<(), AfbError> {
     request.reply("Protected API with LOA>=1 OK", 0);
     Ok(())
 }
@@ -62,7 +70,7 @@ pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
         .set_permission(AfbPermission::new(1))
         .finalize()?;
 
-    let group=AfbGroup::new(mod_name)
+    let group = AfbGroup::new(mod_name)
         .set_info("LOA demo group")
         .set_prefix(mod_name)
         .set_permission(AfbPermission::new("acl:loa"))

@@ -26,8 +26,8 @@ pub struct MySimpleData {
     pub y: i32,
 }
 
-pub fn register(_binding: AfbApiV4) -> Result<(),AfbError> {
+pub fn register(_binding: AfbApiV4) -> Result<(), AfbError> {
     // Custom type should be registered at binding startup time
-   simple_data::register()?;
-   Ok(())
+    simple_data::register()?;
+    Ok(())
 }

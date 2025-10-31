@@ -21,7 +21,10 @@
  * $RP_END_LICENSE$
  */
 
-#![doc(html_logo_url = "https://iot.bzh/images/defaults/company/512-479-max-transp.png", html_favicon_url = "https://iot.bzh/images/defaults/favicon.ico")]
+#![doc(
+    html_logo_url = "https://iot.bzh/images/defaults/company/512-479-max-transp.png",
+    html_favicon_url = "https://iot.bzh/images/defaults/favicon.ico"
+)]
 extern crate bitflags;
 
 #[cfg(test)]
@@ -48,11 +51,11 @@ pub mod utilv4;
 pub mod testv4;
 
 pub mod prelude {
-    pub(crate) use crate::cglue;
-    pub use crate::jsonc::*;
     pub use crate::apiv4::*;
+    pub(crate) use crate::cglue;
     pub use crate::datav4::*;
-    pub use crate::utilv4::*;
+    pub use crate::jsonc::*;
     pub use crate::testv4::*;
+    pub use crate::utilv4::*;
     pub use std::any::Any;
 }

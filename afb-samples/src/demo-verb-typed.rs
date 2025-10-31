@@ -12,7 +12,11 @@ use afbv4::prelude::*;
 // mySimpleData type is within an external crate to allow sharing with other crate/binding/binder
 use afb_converter::*;
 
-fn typed_callback(request: &AfbRequest, args: &AfbRqtData, _ctx: &AfbCtxData) ->Result <(), AfbError>{
+fn typed_callback(
+    request: &AfbRequest,
+    args: &AfbRqtData,
+    _ctx: &AfbCtxData,
+) -> Result<(), AfbError> {
     // check arg0 match MySimpleData grammar
     let input = args.get::<&MySimpleData>(0)?;
 
@@ -39,7 +43,6 @@ fn typed_callback(request: &AfbRequest, args: &AfbRqtData, _ctx: &AfbCtxData) ->
 }
 
 pub fn register(rootv4: AfbApiV4) -> Result<&'static AfbVerb, AfbError> {
-
     // custom type should register once per binder
     afb_converter::register(rootv4).expect("must register custom type");
 
@@ -47,7 +50,7 @@ pub fn register(rootv4: AfbApiV4) -> Result<&'static AfbVerb, AfbError> {
     let mod_name = module_path!().split(':').last().unwrap();
     afb_log_msg!(Notice, rootv4, "Registering verb={}", mod_name);
 
-    let group= AfbVerb::new(mod_name)
+    let group = AfbVerb::new(mod_name)
         .set_callback(typed_callback)
         .set_info("My 2nd demo verb")
         .set_usage("any json string")
@@ -56,4 +59,3 @@ pub fn register(rootv4: AfbApiV4) -> Result<&'static AfbVerb, AfbError> {
 
     Ok(group)
 }
-

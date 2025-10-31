@@ -42,33 +42,43 @@ impl UserCtxData {
     }
 }
 
-
 // attach to session (one per client)
 AfbSessionRegister!(SessionUserData);
 struct SessionUserData {
     count: u32,
 }
 
-
-fn subscribe_callback(request: &AfbRequest, _args: &AfbRqtData, ctx: &AfbCtxData)  -> Result <(), AfbError> {
+fn subscribe_callback(
+    request: &AfbRequest,
+    _args: &AfbRqtData,
+    ctx: &AfbCtxData,
+) -> Result<(), AfbError> {
     let userdata = ctx.get_ref::<EvtUserData>()?;
 
-    let _session= SessionUserData::set(request, SessionUserData{count:0})?;
-    userdata.ctx.event.subscribe(request) ?;
+    let _session = SessionUserData::set(request, SessionUserData { count: 0 })?;
+    userdata.ctx.event.subscribe(request)?;
     request.reply(AFB_NO_DATA, 0);
     Ok(())
 }
 
-fn unsubscribe_callback(request: &AfbRequest, _args: &AfbRqtData, ctx: &AfbCtxData)  -> Result <(), AfbError> {
+fn unsubscribe_callback(
+    request: &AfbRequest,
+    _args: &AfbRqtData,
+    ctx: &AfbCtxData,
+) -> Result<(), AfbError> {
     let userdata = ctx.get_ref::<EvtUserData>()?;
-    SessionUserData::unref(request) ?;
+    SessionUserData::unref(request)?;
 
     userdata.ctx.event.unsubscribe(request)?;
     request.reply(AFB_NO_DATA, 0);
     Ok(())
 }
 
-fn push_callback(request: &AfbRequest, _args: &AfbRqtData, ctx: &AfbCtxData)  -> Result <(), AfbError> {
+fn push_callback(
+    request: &AfbRequest,
+    _args: &AfbRqtData,
+    ctx: &AfbCtxData,
+) -> Result<(), AfbError> {
     let userdata = ctx.get_ref::<EvtUserData>()?;
     let session = SessionUserData::get(request)?;
     session.count += 1;
@@ -81,7 +91,11 @@ fn push_callback(request: &AfbRequest, _args: &AfbRqtData, ctx: &AfbCtxData)  ->
     Ok(())
 }
 
-fn event_get_callback(event: &AfbEventMsg, args: &AfbRqtData, ctx: &AfbCtxData) -> Result<(),AfbError> {
+fn event_get_callback(
+    event: &AfbEventMsg,
+    args: &AfbRqtData,
+    ctx: &AfbCtxData,
+) -> Result<(), AfbError> {
     let userdata = ctx.get_ref::<EvtUserData>()?;
 
     // check request introspection
@@ -99,7 +113,7 @@ fn event_get_callback(event: &AfbEventMsg, args: &AfbRqtData, ctx: &AfbCtxData) 
         api_uid
     );
 
-    let jsonc= args.get::<JsoncObj>(0)?;
+    let jsonc = args.get::<JsoncObj>(0)?;
     afb_log_msg!(Info, event, "Got valid jsonc object argument={}", jsonc);
     Ok(())
 }

@@ -65,7 +65,9 @@ fn sensor_cb(request: &AfbRequest, args: &AfbRqtData, ctx: &AfbCtxData) -> Resul
                 "UNSUBSCRIBE" => Action::UNSUBSCRIBE,
                 "READ" => Action::READ,
                 "RESET" => Action::RESET,
-                _ => return afb_error!("invalid-action", "expect: SUBSCRIBE|UNSUBSCRIBE|READ|RESET")
+                _ => {
+                    return afb_error!("invalid-action", "expect: SUBSCRIBE|UNSUBSCRIBE|READ|RESET")
+                }
             },
         },
     };

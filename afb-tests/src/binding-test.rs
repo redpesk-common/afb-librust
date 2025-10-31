@@ -12,8 +12,8 @@
 )]
 
 // import libafb dependencies
-use afbv4::prelude::*;
 use afb_converter::MySimpleData;
+use afbv4::prelude::*;
 
 struct ASyncCallData {
     my_counter: u32,
@@ -77,9 +77,7 @@ impl AfbApiControls for TapUserData {
 
         let test2 = AfbTapTest::new("jsonc-basic", "rust-api", "verb_basic")
             .set_info("Check json input param")
-            .add_arg(
-                "{'skipail':'IoT.bzh','location':'Lorient','lander':'Brittany'}",
-            )?
+            .add_arg("{'skipail':'IoT.bzh','location':'Lorient','lander':'Brittany'}")?
             .finalize()?;
 
         let test3 = AfbTapTest::new("jsonc-reply", "rust-api", "verb_basic")

@@ -100,7 +100,7 @@ fn jobpost_callback(
 ) -> Result<(), AfbError> {
     // retrieve job post arguments
     let params = args.get_ref::<JobPostData>()?;
-    let request= &params.rqt;
+    let request = &params.rqt;
     afb_log_msg!(
         Info,
         job,
@@ -124,13 +124,9 @@ struct UserPostVerb {
     job_post: &'static AfbSchedJob,
     count: u32,
 }
-fn jobpost_verb(
-    request: &AfbRequest,
-    args: &AfbRqtData,
-    ctx: &AfbCtxData,
-) -> Result<(), AfbError> {
+fn jobpost_verb(request: &AfbRequest, args: &AfbRqtData, ctx: &AfbCtxData) -> Result<(), AfbError> {
     // extract jquery from 1st argument
-    let context= ctx.get_mut::<UserPostVerb>()?;
+    let context = ctx.get_mut::<UserPostVerb>()?;
     let jquery = match args.get::<JsoncObj>(0) {
         Ok(argument) => argument,
         Err(error) => error.to_jsonc()?,

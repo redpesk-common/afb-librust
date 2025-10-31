@@ -19,7 +19,7 @@ fn parse_json() {
 }
 
 #[test]
-fn equal_full_json() -> Result <(), AfbError> {
+fn equal_full_json() -> Result<(), AfbError> {
     let query = "{
                 'transfer_mode':'dc_extended',
                 'dc_evparam':{
@@ -52,13 +52,12 @@ fn equal_full_json() -> Result <(), AfbError> {
     let jquery = JsoncObj::parse(query).unwrap();
     let jexpect = JsoncObj::parse(query).unwrap();
 
-    jquery.equal ("tst_equal_full", jexpect, Jequal::Full )?;
+    jquery.equal("tst_equal_full", jexpect, Jequal::Full)?;
     Ok(())
-
 }
 
 #[test]
-fn equal_partial_json() -> Result <(), AfbError> {
+fn equal_partial_json() -> Result<(), AfbError> {
     let query = "{
                 'transfer_mode':'dc_extended',
                 'dc_evparam':{
@@ -107,15 +106,12 @@ fn equal_partial_json() -> Result <(), AfbError> {
     let jquery = JsoncObj::parse(query).unwrap();
     let jexpect = JsoncObj::parse(expect).unwrap();
 
-
-    if let Ok(_) = jquery.equal ("tst_equal_fail", jexpect.clone(), Jequal::Full) {
-        return afb_error!("tst_equal_fail", "this test should have fail")
+    if let Ok(_) = jquery.equal("tst_equal_fail", jexpect.clone(), Jequal::Full) {
+        return afb_error!("tst_equal_fail", "this test should have fail");
     }
 
-
-    jquery.equal ("tst_equal_partial", jexpect.clone(), Jequal::Partial )?;
+    jquery.equal("tst_equal_partial", jexpect.clone(), Jequal::Partial)?;
     Ok(())
-
 }
 
 #[test]

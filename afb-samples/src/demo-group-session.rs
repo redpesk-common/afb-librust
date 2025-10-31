@@ -19,19 +19,31 @@ fn session_drop_cb(session: &mut SessionUserData) {
     afb_log_msg!(Debug, None, "session closing count={}", session.count);
 }
 
-fn create_callback(request: &AfbRequest, _args: &AfbRqtData, _ctx: &AfbCtxData)  -> Result <(), AfbError>  {
-    let session= SessionUserData::set(request, SessionUserData{count:0})?;
+fn create_callback(
+    request: &AfbRequest,
+    _args: &AfbRqtData,
+    _ctx: &AfbCtxData,
+) -> Result<(), AfbError> {
+    let session = SessionUserData::set(request, SessionUserData { count: 0 })?;
     request.reply(session.count, 0);
     Ok(())
 }
 
-fn drop_callback(request: &AfbRequest, _args: &AfbRqtData, _ctx: &AfbCtxData)  -> Result <(), AfbError> {
+fn drop_callback(
+    request: &AfbRequest,
+    _args: &AfbRqtData,
+    _ctx: &AfbCtxData,
+) -> Result<(), AfbError> {
     SessionUserData::unref(request)?;
     request.reply(AFB_NO_DATA, 0);
     Ok(())
 }
 
-fn get_callback(request: &AfbRequest, _args: &AfbRqtData, _ctx: &AfbCtxData)  -> Result <(), AfbError> {
+fn get_callback(
+    request: &AfbRequest,
+    _args: &AfbRqtData,
+    _ctx: &AfbCtxData,
+) -> Result<(), AfbError> {
     let session = SessionUserData::get(request)?;
     session.count += 1;
     request.reply(session.count, 0);

@@ -1143,7 +1143,7 @@ impl JsoncObj {
         match jexpected.get_type() {
             Jtype::Array => {
                 // loop recursively on array slot
-                if ! self.is_type(Jtype::Array) {
+                if !self.is_type(Jtype::Array) {
                     return afb_error!(
                         uid,
                         "jsonc-match invalid type received:{:?} expected:{:?} value:{}",
@@ -1161,7 +1161,7 @@ impl JsoncObj {
             }
             Jtype::Object => {
                 // move jsonc into a rust array and iterate on key/value pairs
-                if ! self.is_type(Jtype::Object) {
+                if !self.is_type(Jtype::Object) {
                     return afb_error!(
                         uid,
                         "jsonc-match invalid type received:{:?} expected:{:?} value:{}",
