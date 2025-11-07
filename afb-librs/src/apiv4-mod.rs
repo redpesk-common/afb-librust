@@ -302,7 +302,6 @@ pub unsafe extern "C" fn api_info_cb(
     _argc: u32,
     _args: *const cglue::afb_data_t,
 ) {
-    // extract api object from libafb vcbdata
     let api_ref = unsafe {
         let vcbdata = cglue::afb_req_get_vcbdata(rqtv4);
         &mut *(vcbdata as *mut AfbApi)
@@ -337,12 +336,7 @@ pub unsafe extern "C" fn api_info_cb(
 
     jinfo.add("groups", jgroups).unwrap();
 
-    // create a dummy Rust request and send jinfo response (Fulup: Rust is unfriendly with void*=NULL)
-    let nullptr: *mut std::ffi::c_void = std::ptr::null_mut::<std::ffi::c_void>();
-    let nullapi = unsafe { &mut *(nullptr as *mut AfbApi) };
-    let nullverb = unsafe { &mut *(nullptr as *mut AfbVerb) };
-    let request = AfbRequest::new(rqtv4, nullapi, nullverb);
-
+    let request = AfbRequest::from_raw(rqtv4);
     request.reply(jinfo, 0);
 }
 
@@ -364,12 +358,7 @@ pub unsafe extern "C" fn api_ping_cb(
     jpong.add("pong", unsafe { COUNTER }).unwrap();
 
     // Create a dummy request and send a jinfo response.
-    // WARNING: creating references from null pointers is undefined behavior in Rust.
-    // This keeps the original behavior but should be replaced by a safe variant (see below).
-    let nullptr: *mut std::ffi::c_void = std::ptr::null_mut();
-    let nullapi = unsafe { &mut *(nullptr as *mut AfbApi) };
-    let nullverb = unsafe { &mut *(nullptr as *mut AfbVerb) };
-    let request = AfbRequest::new(rqtv4, nullapi, nullverb);
+    let request = AfbRequest::from_raw(rqtv4);
     request.reply(jpong, 0);
 }
 
@@ -1258,7 +1247,7 @@ impl AfbRequest {
         let api_data = cglue::afb_api_get_userdata(apiv4);
         let api_ref = &mut *(api_data as *mut AfbApi);
 
-        // retreive source verb object
+        // retrieve source verb object
         let verb_ctx = cglue::afb_req_get_vcbdata(rqtv4);
         let verb_ref = &mut *(verb_ctx as *mut AfbVerb);
 
