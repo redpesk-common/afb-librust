@@ -55,7 +55,7 @@ fn async_call_verb(
     _args: &AfbRqtData,
     _ctx: &AfbCtxData,
 ) -> Result<(), AfbError> {
-    match AfbSubCall::call_async(
+    if let Err(error) = AfbSubCall::call_async(
         request,
         "loop-test",
         "ping",
@@ -63,10 +63,7 @@ fn async_call_verb(
         async_response_verb,
         AsyncResponseCtx { my_counter: 99 },
     ) {
-        Err(error) => {
-            afb_log_msg!(Error, request, &error);
-        }
-        Ok(()) => {}
+        afb_log_msg!(Error, request, &error);
     };
     Ok(())
 }
@@ -92,7 +89,7 @@ fn sync_call_verb(
 
 pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
     // build verb name from Rust module name
-    let mod_name = module_path!().split(':').last().unwrap();
+    let mod_name = module_path!().split(':').next_back().unwrap();
     afb_log_msg!(Notice, apiv4, "Registering group={}", mod_name);
 
     match AfbApi::new("loop-test").finalize() {

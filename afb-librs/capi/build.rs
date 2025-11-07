@@ -26,15 +26,29 @@ fn main() {
 
     // ============== LIBAFB C interface =====================
     let header = "
-        // -----------------------------------------------------------------------
-        //         <- private 'libafb' Rust/C unsafe binding ->
-        // -----------------------------------------------------------------------
-        //   Do not exit this file it will be regenerated automatically by cargo.
-        //   Check:
-        //     - build.rs at project root for dynamically mapping
-        //     - src/capi/libafb-map.h for static values
-        // -----------------------------------------------------------------------
-        ";
+// -----------------------------------------------------------------------
+//         <- private 'libafb' Rust/C unsafe binding ->
+// -----------------------------------------------------------------------
+//   Do not exit this file it will be regenerated automatically by cargo.
+//   Check:
+//     - build.rs at project root for dynamically mapping
+//     - src/capi/libafb-map.h for static values
+// -----------------------------------------------------------------------
+
+// Tell rustfmt (stable) to skip formatting this whole file
+#[rustfmt::skip]
+
+#[allow(
+    warnings,
+    clippy::all,
+    clippy::pedantic,
+    clippy::nursery,
+    clippy::redundant_field_names,
+    clippy::similar_names,
+    clippy::ptr_offset_with_cast
+)]
+
+";
     // probe for dependencies
     #[cfg(not(feature = "rpm_build"))]
     system_deps::Config::new().probe().unwrap();
@@ -92,7 +106,7 @@ fn main() {
         .file("capi/_libafb-map.c")
         .include("/usr/local/include")
         .include("/usr/include/linux")
-        .flag(&format!("-std={}", c_std))
+        .flag(format!("-std={}", c_std))
         .flag("-D__builtin_c23_va_start=__builtin_va_start")
         .flag("-Dnullptr=0")
         .compile("afb-glue");
@@ -106,15 +120,29 @@ fn main() {
     println!("cargo:rerun-if-changed=capi/jsonc_map.h");
 
     let header = "
-    // -----------------------------------------------------------------------
-    //         <- private 'json-c' Rust/C unsafe binding ->
-    // -----------------------------------------------------------------------
-    //   Do not exit this file it will be regenerated automatically by cargo.
-    //   Check:
-    //     - build.rs at project root for dynamically mapping
-    //     - src/capi/jsonc_map.h for static values
-    // -----------------------------------------------------------------------
-    ";
+// -----------------------------------------------------------------------
+//         <- private 'json-c' Rust/C unsafe binding ->
+// -----------------------------------------------------------------------
+//   Do not exit this file it will be regenerated automatically by cargo.
+//   Check:
+//     - build.rs at project root for dynamically mapping
+//     - src/capi/jsonc_map.h for static values
+// -----------------------------------------------------------------------
+
+// Tell rustfmt (stable) to skip formatting this whole file
+#[rustfmt::skip]
+
+#[allow(
+    warnings,
+    clippy::all,
+    clippy::pedantic,
+    clippy::nursery,
+    clippy::redundant_field_names,
+    clippy::similar_names,
+    clippy::ptr_offset_with_cast
+)]
+
+";
 
     let jsonc = bindgen::Builder::default()
         // main entry point for wrapper

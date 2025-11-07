@@ -215,7 +215,7 @@ impl AfbError {
     pub fn get_info(&self) -> String {
         self.info.to_owned()
     }
-    pub fn get_dbg<'a>(&'a self) -> &'a DbgInfo {
+    pub fn get_dbg(&self) -> &DbgInfo {
         &self.dbg_info
     }
 
@@ -231,10 +231,10 @@ impl AfbError {
             info: self.info.to_owned(),
             status: self.get_status(),
             dbg_info: DbgInfo {
-                name: name,
-                file: file,
-                line: line,
-                column: column,
+                name,
+                file,
+                line,
+                column,
             },
         }
     }
@@ -265,11 +265,11 @@ impl fmt::Debug for AfbError {
 
 // convert syslog (0-7) level to Afb verbosity mask model
 pub fn verbosity_to_mask(level: i32) -> Result<u32, AfbError> {
-    let mut mask = AfbLogLevel::from_syslog_level(level.abs() as u32)? as u32;
+    let mut mask = AfbLogLevel::from_syslog_level(level.unsigned_abs())? as u32;
     if level > 0 {
         for sys_level in [1, 2, 3, 4, 5, 6, 7] {
             if level as u32 >= mask {
-                mask = mask | AfbLogLevel::from_syslog_level(sys_level)? as u32;
+                mask |= AfbLogLevel::from_syslog_level(sys_level)? as u32;
             } else {
                 break;
             }
@@ -280,7 +280,12 @@ pub fn verbosity_to_mask(level: i32) -> Result<u32, AfbError> {
 
 pub struct AfbLogMsg {}
 pub trait DoSendLog<T> {
-    fn print_log(
+    /// # Safety
+    /// - `file`, `funcname`, and `format` must point to valid, null-terminated C strings
+    ///   that live at least for the duration of this call.
+    /// - `handle` must be a valid handle for the corresponding backend.
+    /// - This function calls into C APIs and may dereference raw pointers.
+    unsafe fn print_log(
         level: i32,
         handle: T,
         file: *const Cchar,
@@ -288,11 +293,14 @@ pub trait DoSendLog<T> {
         funcname: *const Cchar,
         format: *const Cchar,
     );
-    fn get_verbosity(handle: T) -> u32;
+
+    /// # Safety
+    /// - `handle` must be a valid handle; the implementation may call into C code.
+    unsafe fn get_verbosity(handle: T) -> u32;
 }
 
 impl<'a> DoSendLog<&AfbEventMsg<'a>> for AfbLogMsg {
-    fn print_log(
+    unsafe fn print_log(
         level: i32,
         event: &AfbEventMsg,
         file: *const Cchar,
@@ -300,26 +308,24 @@ impl<'a> DoSendLog<&AfbEventMsg<'a>> for AfbLogMsg {
         funcname: *const Cchar,
         format: *const Cchar,
     ) {
-        unsafe {
-            cglue::afb_api_verbose(
-                (*event).get_api().get_apiv4(),
-                level,
-                file,
-                line as i32,
-                funcname,
-                format,
-            )
-        }
+        cglue::afb_api_verbose(
+            (*event).get_api().get_apiv4(),
+            level,
+            file,
+            line as i32,
+            funcname,
+            format,
+        )
     }
 
-    fn get_verbosity(event: &AfbEventMsg) -> u32 {
+    unsafe fn get_verbosity(event: &AfbEventMsg) -> u32 {
         let handle = event.get_handler();
         handle.get_verbosity()
     }
 }
 
-impl<'a> DoSendLog<&AfbTimer> for AfbLogMsg {
-    fn print_log(
+impl DoSendLog<&AfbTimer> for AfbLogMsg {
+    unsafe fn print_log(
         level: i32,
         _timer: &AfbTimer,
         file: *const Cchar,
@@ -327,16 +333,16 @@ impl<'a> DoSendLog<&AfbTimer> for AfbLogMsg {
         funcname: *const Cchar,
         format: *const Cchar,
     ) {
-        unsafe { cglue::afb_verbose(level, file, line as i32, funcname, format) }
+        cglue::afb_verbose(level, file, line as i32, funcname, format)
     }
 
-    fn get_verbosity(timer: &AfbTimer) -> u32 {
+    unsafe fn get_verbosity(timer: &AfbTimer) -> u32 {
         timer.get_verbosity()
     }
 }
 
-impl<'a> DoSendLog<&AfbSchedJob> for AfbLogMsg {
-    fn print_log(
+impl DoSendLog<&AfbSchedJob> for AfbLogMsg {
+    unsafe fn print_log(
         level: i32,
         _timer: &AfbSchedJob,
         file: *const Cchar,
@@ -344,16 +350,16 @@ impl<'a> DoSendLog<&AfbSchedJob> for AfbLogMsg {
         funcname: *const Cchar,
         format: *const Cchar,
     ) {
-        unsafe { cglue::afb_verbose(level, file, line as i32, funcname, format) }
+        cglue::afb_verbose(level, file, line as i32, funcname, format)
     }
 
-    fn get_verbosity(job: &AfbSchedJob) -> u32 {
+    unsafe fn get_verbosity(job: &AfbSchedJob) -> u32 {
         job.get_verbosity()
     }
 }
 
 impl DoSendLog<&AfbRequest> for AfbLogMsg {
-    fn print_log(
+    unsafe fn print_log(
         level: i32,
         rqt: &AfbRequest,
         file: *const Cchar,
@@ -361,26 +367,24 @@ impl DoSendLog<&AfbRequest> for AfbLogMsg {
         funcname: *const Cchar,
         format: *const Cchar,
     ) {
-        unsafe {
-            cglue::afb_req_verbose(
-                (*rqt).get_rqtv4(),
-                level,
-                file,
-                line as i32,
-                funcname,
-                format,
-            )
-        }
+        cglue::afb_req_verbose(
+            (*rqt).get_rqtv4(),
+            level,
+            file,
+            line as i32,
+            funcname,
+            format,
+        )
     }
 
-    fn get_verbosity(rqt: &AfbRequest) -> u32 {
+    unsafe fn get_verbosity(rqt: &AfbRequest) -> u32 {
         let verb = rqt.get_verb();
         verb.get_verbosity(rqt)
     }
 }
 
-impl<'a> DoSendLog<&AfbApi> for AfbLogMsg {
-    fn print_log(
+impl DoSendLog<&AfbApi> for AfbLogMsg {
+    unsafe fn print_log(
         level: i32,
         api: &AfbApi,
         file: *const Cchar,
@@ -388,42 +392,53 @@ impl<'a> DoSendLog<&AfbApi> for AfbLogMsg {
         funcname: *const Cchar,
         format: *const Cchar,
     ) {
-        unsafe {
-            cglue::afb_api_verbose(
-                (*api).get_apiv4(),
-                level,
-                file,
-                line as i32,
-                funcname,
-                format,
-            )
-        }
+        cglue::afb_api_verbose(
+            (*api).get_apiv4(),
+            level,
+            file,
+            line as i32,
+            funcname,
+            format,
+        )
     }
 
-    fn get_verbosity(api: &AfbApi) -> u32 {
+    unsafe fn get_verbosity(api: &AfbApi) -> u32 {
         api.get_verbosity()
     }
 }
 
 impl DoSendLog<Option<u32>> for AfbLogMsg {
-    fn print_log(
+    /// Forwards the log record to the C backend (`afb_verbose`).
+    ///
+    /// # Safety
+    /// - `file`, `funcname`, and `format` must be valid, null-terminated C strings.
+    /// - Pointers must remain valid for the duration of this call.
+    /// - This function crosses the FFI boundary and may dereference raw pointers
+    ///   inside the C implementation.
+    unsafe fn print_log(
         level: i32,
-        _not_used: Option<u32>,
+        _not_used: Option<u32>, // reserved for a backend-specific handle (currently unused)
         file: *const Cchar,
         line: u32,
         funcname: *const Cchar,
         format: *const Cchar,
     ) {
-        unsafe { cglue::afb_verbose(level, file, line as i32, funcname, format) }
+        // Delegate to the underlying C logger. `line` is cast to i32 to match the ABI.
+        cglue::afb_verbose(level, file, line as i32, funcname, format)
     }
 
-    fn get_verbosity(_unused: Option<u32>) -> u32 {
-        255 // Fulup TBD should match binder -vvv
+    /// Returns the current verbosity threshold used by the backend.
+    ///
+    /// Note: We currently return the maximum verbosity (0xFF), i.e. all messages enabled.
+    /// TODO: Align this with the binder's `-v/-vv/-vvv` levels (or a runtime setting)
+    ///       so Rust and the C side use the same effective verbosity.
+    unsafe fn get_verbosity(_unused: Option<u32>) -> u32 {
+        0xFF
     }
 }
 
 impl DoSendLog<AfbRqtV4> for AfbLogMsg {
-    fn print_log(
+    unsafe fn print_log(
         level: i32,
         rqtv4: cglue::afb_req_t,
         file: *const Cchar,
@@ -431,15 +446,16 @@ impl DoSendLog<AfbRqtV4> for AfbLogMsg {
         funcname: *const Cchar,
         format: *const Cchar,
     ) {
-        unsafe { cglue::afb_req_verbose(rqtv4, level, file, line as i32, funcname, format) }
+        cglue::afb_req_verbose(rqtv4, level, file, line as i32, funcname, format)
     }
-    fn get_verbosity(rqt: AfbRqtV4) -> u32 {
-        unsafe { cglue::afb_req_logmask(rqt) as u32 }
+
+    unsafe fn get_verbosity(rqt: AfbRqtV4) -> u32 {
+        cglue::afb_req_logmask(rqt) as u32
     }
 }
 
 impl DoSendLog<&AfbEvent> for AfbLogMsg {
-    fn print_log(
+    unsafe fn print_log(
         level: i32,
         event: &AfbEvent,
         file: *const Cchar,
@@ -448,16 +464,16 @@ impl DoSendLog<&AfbEvent> for AfbLogMsg {
         format: *const Cchar,
     ) {
         let apiv4 = event.get_apiv4();
-        unsafe { cglue::afb_api_verbose(apiv4, level, file, line as i32, funcname, format) }
+        cglue::afb_api_verbose(apiv4, level, file, line as i32, funcname, format)
     }
 
-    fn get_verbosity(event: &AfbEvent) -> u32 {
+    unsafe fn get_verbosity(event: &AfbEvent) -> u32 {
         event.get_verbosity()
     }
 }
 
 impl DoSendLog<AfbApiV4> for AfbLogMsg {
-    fn print_log(
+    unsafe fn print_log(
         level: i32,
         apiv4: AfbApiV4,
         file: *const Cchar,
@@ -465,10 +481,11 @@ impl DoSendLog<AfbApiV4> for AfbLogMsg {
         funcname: *const Cchar,
         format: *const Cchar,
     ) {
-        unsafe { cglue::afb_api_verbose(apiv4, level, file, line as i32, funcname, format) }
+        cglue::afb_api_verbose(apiv4, level, file, line as i32, funcname, format)
     }
-    fn get_verbosity(apiv4: AfbApiV4) -> u32 {
-        unsafe { cglue::afb_api_logmask(apiv4) as u32 }
+
+    unsafe fn get_verbosity(apiv4: AfbApiV4) -> u32 {
+        cglue::afb_api_logmask(apiv4) as u32
     }
 }
 
@@ -528,7 +545,7 @@ impl AfbLogLevel {
     }
 
     pub fn to_syslog_level(&self) -> u32 {
-        let level = match self {
+        match self {
             AfbLogLevel::Error => cglue::afb_syslog_levels_AFB_SYSLOG_LEVEL_ERROR,
             AfbLogLevel::Debug => cglue::afb_syslog_levels_AFB_SYSLOG_LEVEL_DEBUG,
             AfbLogLevel::Notice => cglue::afb_syslog_levels_AFB_SYSLOG_LEVEL_NOTICE,
@@ -537,8 +554,7 @@ impl AfbLogLevel {
             AfbLogLevel::Emergency => cglue::afb_syslog_levels_AFB_SYSLOG_LEVEL_EMERGENCY,
             AfbLogLevel::Info => cglue::afb_syslog_levels_AFB_SYSLOG_LEVEL_INFO,
             AfbLogLevel::Alert => cglue::afb_syslog_levels_AFB_SYSLOG_LEVEL_ALERT,
-        };
-        level
+        }
     }
 }
 
@@ -548,12 +564,8 @@ impl AfbLogMsg {
         AfbLogMsg: DoSendLog<H>,
     {
         let log_level = level as u32;
-        let verbosity = Self::get_verbosity(handle);
-        if (verbosity & log_level) != 0 {
-            true
-        } else {
-            false
-        }
+        let verbosity = unsafe { <Self as DoSendLog<H>>::get_verbosity(handle) };
+        (verbosity & log_level) != 0
     }
 
     pub fn push_log<H, T>(level: AfbLogLevel, handle: H, format: T, info: Option<&DbgInfo>)
@@ -576,16 +588,34 @@ impl AfbLogMsg {
                 let format = CString::new(message)
                     .expect("Invalid message string")
                     .into_raw();
-                Self::print_log(log_level as i32, handle, file, line, func, format);
+                unsafe {
+                    <Self as DoSendLog<H>>::print_log(
+                        log_level as i32,
+                        handle,
+                        file,
+                        line,
+                        func,
+                        format,
+                    );
+                }
             }
             None => {
                 let line = 0;
-                let file = 0 as *const Cchar;
-                let func = 0 as *const Cchar;
+                let file = std::ptr::null::<Cchar>();
+                let func = std::ptr::null::<Cchar>();
                 let format = CString::new(message)
                     .expect("Invalid message string")
                     .into_raw();
-                Self::print_log(log_level as i32, handle, file, line, func, format);
+                unsafe {
+                    <Self as DoSendLog<H>>::print_log(
+                        log_level as i32,
+                        handle,
+                        file,
+                        line,
+                        func,
+                        format,
+                    );
+                }
             }
         };
     }
@@ -605,14 +635,27 @@ fn timer_default_cb(timer: &AfbTimer, _decount: u32, _ctx: &AfbCtxData) -> Resul
 
 // Afb AfbTimerHandle implementation
 // ------------------------
+/// Timer callback invoked by the C AFB runtime.
+///
+/// # Safety
+/// - This function is called from C (FFI). The `userdata` pointer must either be null
+///   or point to a valid value of the expected type, and it must remain valid for the
+///   whole duration of this call.
+/// - `timer` is owned/managed by the runtime: do **not** free/close it here. Only call
+///   functions that the AFB API documents as safe from a timer context.
+/// - This function must **not** panic or unwind across the FFI boundary.
+/// - Avoid long blocking operations and re-entrancy unless the AFB API explicitely
+///   allows it; keep the handler short and non-blocking.
+/// - `decount` is provided by the runtime; don’t assume it is > 0 and handle it
+///   defensively.
 #[no_mangle]
-pub extern "C" fn api_timers_cb(
+pub unsafe extern "C" fn api_timers_cb(
     _timer: cglue::afb_timer_t,
     userdata: *mut std::os::raw::c_void,
     decount: u32,
 ) {
     // extract timer+api object from libafb internals
-    let timer_ref = unsafe { &mut *(userdata as *mut AfbTimer) };
+    let timer_ref = &mut *(userdata as *mut AfbTimer);
     let result = (timer_ref.callback)(timer_ref, decount, &timer_ref.context);
 
     match result {
@@ -651,18 +694,40 @@ pub struct AfbTimer {
 }
 
 impl AfbTimer {
+    /// Creates a timer with sane defaults and leaks it, returning a `'static` mutable reference.
+    ///
+    /// This constructor intentionally leaks the allocated `AfbTimer` so that the
+    /// returned reference can cross FFI boundaries and be stored by C code that
+    /// expects a stable `'static` lifetime.
+    ///
+    /// # Lifetime & ownership
+    /// - The returned `&'static mut Self` is sound because the `Box` is leaked.
+    /// - You must provide a **dedicated free path** (e.g., an FFI callback that
+    ///   rebuilds the `Box` from a raw pointer) if you ever need to reclaim the memory.
+    /// - Do not create multiple independent owners that would attempt to free it twice.
+    ///
+    /// # Defaults
+    /// - `verbosity` defaults to `0xFF` (all messages enabled).
+    ///   TODO: inherit the verbosity from the API once available.
+    /// - `callback` uses `timer_default_cb`.
+    /// - `context` is initialized as empty (`AFB_NO_DATA`).
     pub fn new(uid: &'static str) -> &'static mut Self {
+        const DEFAULT_VERBOSITY: u32 = 0xFF;
+
         let timer_box = Box::new(AfbTimer {
-            _uid: uid,
-            info: "",
-            decount: 0,
-            period: 0,
-            verbosity: 255, // Fulup TBD should inherit from API
-            _timerv4: 0 as cglue::afb_timer_t,
-            autounref: 0,
-            callback: timer_default_cb,
-            context: AfbCtxData::new(AFB_NO_DATA),
+            _uid: uid,                    // stable identifier bound to the leaked lifetime
+            info: "",                     // optional informational string (empty by default)
+            decount: 0,                   // remaining iterations (0 means disabled/not started)
+            period: 0,                    // period in whatever unit the backend expects
+            verbosity: DEFAULT_VERBOSITY, // TODO: inherit from API-level verbosity
+            // If `afb_timer_t` is a pointer type, prefer the null-pointer variant below.
+            _timerv4: 0 as cglue::afb_timer_t, // backend handle (none yet)
+            autounref: 0,                      // auto-unref flag (0: disabled)
+            callback: timer_default_cb,        // default callback invoked by the backend
+            context: AfbCtxData::new(AFB_NO_DATA), // empty user context
         });
+
+        // Leak the Box so we can return a `'static` reference (required by some C APIs).
         Box::leak(timer_box)
     }
 
@@ -780,9 +845,19 @@ struct SchedJobV4 {
     args: AfbCtxData,
 }
 
+/// Job scheduler callback invoked by the AFB runtime.
+///
+/// # Safety
+/// - This function is invoked by the C/AFB runtime; **do not call it directly** from safe Rust.
+/// - `userdata` must be a valid, properly aligned pointer to the expected context type and must
+///   remain valid for the entire duration of the call.
+/// - The pointed-to value must not be aliased mutably elsewhere while this function runs.
+/// - `signal` must be the value provided by the scheduler (e.g. 0 or a valid POSIX signal code);
+///   passing arbitrary values is undefined behaviour.
+/// - All invariants required by the surrounding FFI/libafb code must be preserved.
 #[no_mangle]
-pub extern "C" fn api_schedjob_cb(signal: i32, userdata: *mut std::os::raw::c_void) {
-    let handle = unsafe { Box::from_raw(userdata as *mut SchedJobV4) };
+pub unsafe extern "C" fn api_schedjob_cb(signal: i32, userdata: *mut std::os::raw::c_void) {
+    let handle = Box::from_raw(userdata as *mut SchedJobV4);
     let job_ref = unsafe { &mut *(handle.job as *mut AfbSchedJob) };
     let result = (job_ref.callback)(job_ref, signal, &handle.args, &job_ref.context);
 
@@ -924,10 +999,11 @@ impl fmt::Display for AfbSchedJob {
     }
 }
 
-pub const AFB_AUTH_DFLT_V4: *mut AfbAuthV4 = 0 as *mut AfbAuthV4;
+pub const AFB_AUTH_DFLT_V4: *mut AfbAuthV4 = std::ptr::null_mut::<AfbAuthV4>();
 pub type AfbAuthV4 = cglue::afb_auth;
 pub struct AfbPermisionV4 {}
 impl AfbPermisionV4 {
+    #[allow(clippy::new_ret_no_self)]
     pub fn new(permission: &'static AfbPermission, inherited: *const AfbAuthV4) -> *mut AfbAuthV4 {
         let auth = match permission {
             AfbPermission::None() => AFB_AUTH_DFLT_V4,
@@ -956,9 +1032,9 @@ impl AfbPermisionV4 {
                     let auth_box = Box::new(AfbAuthV4 {
                         type_: cglue::afb_auth_type_afb_auth_And,
                         __bindgen_anon_1: cglue::afb_auth__bindgen_ty_1 {
-                            first: AfbPermisionV4::new(&slot, AFB_AUTH_DFLT_V4),
+                            first: AfbPermisionV4::new(slot, AFB_AUTH_DFLT_V4),
                         },
-                        next: next,
+                        next,
                     });
                     next = Box::leak(auth_box);
                 }
@@ -970,9 +1046,9 @@ impl AfbPermisionV4 {
                     let auth_box = Box::new(AfbAuthV4 {
                         type_: cglue::afb_auth_type_afb_auth_Or,
                         __bindgen_anon_1: cglue::afb_auth__bindgen_ty_1 {
-                            first: AfbPermisionV4::new(&slot, AFB_AUTH_DFLT_V4),
+                            first: AfbPermisionV4::new(slot, AFB_AUTH_DFLT_V4),
                         },
-                        next: next,
+                        next,
                     });
                     next = Box::leak(auth_box);
                 }
@@ -1019,8 +1095,9 @@ impl From<&'static AfbPermission> for AfbPermission {
 
 impl From<i32> for AfbPermission {
     fn from(value: i32) -> Self {
-        if value > 7 || value < -7 {
-            panic!("LOA should be within [0-7] range");
+        // Validate LOA is within the symmetric range [-7, 7] (keep in sync with the FFI contract).
+        if !(-7..=7).contains(&value) {
+            panic!("LOA must be within [-7, 7]");
         }
         if value != 0 {
             AfbPermission::Loa(value)
@@ -1061,15 +1138,27 @@ fn evtfd_default_cb(evfd: &AfbEvtFd, _revents: u32, _ctx: &AfbCtxData) -> Result
 
 // Afb EvtFdHandle implementation
 // ------------------------
+/// Event-FD callback invoked by the C AFB runtime.
+///
+/// # Safety
+/// - This function is called from C (FFI). `userdata` must be either null or a valid
+///   pointer to the expected type and remain valid for the duration of the call.
+/// - `efd` is owned/managed by the runtime: do **not** free/close/unref it here unless
+///   the AFB API explicitly allows it in an event-fd callback.
+/// - Do **not** panic or unwind across the FFI boundary.
+/// - Keep the handler short and non-blocking; avoid long blocking operations and
+///   re-entrancy unless the AFB API states it is safe in this context.
+/// - `revents` comes from the kernel/poller and may contain combinations of flags; treat
+///   it defensively and validate before acting.
 #[no_mangle]
-pub extern "C" fn api_evtfd_cb(
+pub unsafe extern "C" fn api_evtfd_cb(
     efd: cglue::afb_evfd_t,
     _fd: ::std::os::raw::c_int,
     revents: u32,
     userdata: *mut ::std::os::raw::c_void,
 ) {
     // extract evtfd+api object from libafb internals
-    let evtfd_ref = unsafe { &mut *(userdata as *mut AfbEvtFd) };
+    let evtfd_ref = &mut *(userdata as *mut AfbEvtFd);
 
     // call evtfd calback
     let result = (evtfd_ref.callback)(evtfd_ref, revents, &evtfd_ref.context);
@@ -1093,8 +1182,8 @@ pub extern "C" fn api_evtfd_cb(
 
     // clean callback control box
     if (revents & AfbEvtFdPoll::RUP.bits()) != 0 || (revents & AfbEvtFdPoll::HUP.bits()) != 0 {
-        let _ctrlbox = unsafe { Box::from_raw(evtfd_ref) };
-        unsafe { cglue::afb_evfd_unref(efd) };
+        let _ctrlbox = Box::from_raw(evtfd_ref);
+        cglue::afb_evfd_unref(efd);
     }
 }
 
@@ -1126,7 +1215,7 @@ pub struct AfbEvtFd {
 impl AfbEvtFd {
     pub fn new(uid: &'static str) -> &'static mut Self {
         let evt_box = Box::new(AfbEvtFd {
-            uid: uid,
+            uid,
             fd: 0,
             info: "",
             callback: evtfd_default_cb,

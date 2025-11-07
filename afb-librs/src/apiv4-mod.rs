@@ -34,7 +34,7 @@ use crate::prelude::*;
 pub type AfbApiV4 = cglue::afb_api_t;
 pub type AfbRqtV4 = cglue::afb_req_t;
 pub type AfbEvtV4 = cglue::afb_event_t;
-pub const NULLPTR: *mut std::ffi::c_void = 0 as *mut std::ffi::c_void;
+pub const NULLPTR: *mut std::ffi::c_void = std::ptr::null_mut::<std::ffi::c_void>();
 
 // maximum argument return from call sync functions
 const MAX_CALL_ARGS: u32 = 10;
@@ -116,7 +116,7 @@ pub use crate::AfbSessionRegister;
 #[macro_export]
 macro_rules! AfbSessionRegister {
     ($userdata: ident, $callback: ident) => {
-        use crate::afbv4::utilv4::afb_error;
+        use $crate::utilv4::afb_error;
         #[allow(non_camel_case_types)]
         impl AfbRqtSession for $userdata {
             fn as_any(&mut self) -> &mut dyn Any {
@@ -160,7 +160,7 @@ macro_rules! AfbSessionRegister {
         }
     };
     ($userdata: ident) => {
-        use crate::afbv4::utilv4::MakeError;
+        use $crate::utilv4::MakeError;
         #[allow(non_camel_case_types)]
         impl AfbRqtSession for $userdata {
             fn as_any(&mut self) -> &mut dyn Any {
@@ -209,10 +209,10 @@ fn add_verbs_to_group(
     verbs: &mut Vec<*const AfbVerb>,
 ) -> JsoncObj {
     let jgroup = JsoncObj::new();
-    if uid.len() > 0 {
+    if !uid.is_empty() {
         jgroup.add("uid", uid).unwrap();
     }
-    if info.len() > 0 {
+    if !info.is_empty() {
         jgroup.add("info", info).unwrap();
     }
     let jverbs = JsoncObj::array();
@@ -233,10 +233,8 @@ fn add_verbs_to_group(
                 jusages.add("data", jusage).unwrap();
             }
             jverb.add("usage", jusages).unwrap();
-        } else {
-            if let Some(jusage) = verb_ref.get_usage() {
-                jverb.add("usage", jusage).unwrap();
-            }
+        } else if let Some(jusage) = verb_ref.get_usage() {
+            jverb.add("usage", jusage).unwrap();
         };
 
         let jsamples = verb_ref.get_samples();
@@ -251,18 +249,55 @@ fn add_verbs_to_group(
     jgroup
 }
 
-// restore Rust Cstring, in order to make it disposable
+// Reclaim a Rust-owned Box that was previously leaked to C and free it safely.
+
+/// Reconstructs and frees an `AfbRqtSessionWrap` that was leaked to C.
+///
+/// This function is meant to be used as a C callback/deleter. It restores the
+/// original `Box<AfbRqtSessionWrap>` from the raw pointer passed through FFI,
+/// calls a graceful shutdown hook, then drops the Box so Rust runs `Drop`.
+///
+/// # Safety
+/// - `context` **must** be a non-null pointer originally produced by
+///   `Box::leak::<AfbRqtSessionWrap>(...)`.
+/// - Passing any other pointer (wrong type, already-freed, or stack memory)
+///   is **undefined behavior**.
+/// - This function must only be called **once** for a given `context`.
+///
+/// # Behavior
+/// - If `context` is null, the function returns immediately (no-op).
+/// - Calls `AfbRqtSessionWrap::inner.closing()` to allow the session to flush/close
+///   resources before destruction.
+/// - Rebuilds the `Box` with `Box::from_raw` and lets it drop at end of scope,
+///   which runs the type’s `Drop` implementation.
 #[no_mangle]
-pub extern "C" fn free_session_cb(context: *mut std::ffi::c_void) {
-    // Fulup why session drop is not called ????
-    let wrap = unsafe { &mut *(context as *const _ as *mut AfbRqtSessionWrap) };
+pub unsafe extern "C" fn free_session_cb(context: *mut std::ffi::c_void) {
+    // Defensive: ignore null pointers coming from C.
+    if context.is_null() {
+        // Nothing to free; caller passed a null context.
+        return;
+    }
+
+    // SAFETY: Callers promise that `context` came from `Box::leak(AfbRqtSessionWrap)`.
+    // We can therefore reborrow it temporarily to run the pre-drop hook.
+    let wrap = &mut *(context as *mut AfbRqtSessionWrap);
+
+    // Allow the session to gracefully close before we drop it.
+    // This is useful to flush logs, release handles, etc.
     wrap.inner.closing();
-    let cbox = unsafe { Box::from_raw(context) };
+
+    // SAFETY: Restore ownership to Rust so that `Drop` runs exactly once.
+    // After this point, `context` must not be used again on the C side.
+    let cbox: Box<AfbRqtSessionWrap> = Box::from_raw(context as *mut AfbRqtSessionWrap);
+
+    // Dropping the `Box` will run `Drop` for `AfbRqtSessionWrap` and its fields.
     drop(cbox);
 }
 
+/// # Safety
+/// `rqtv4` is provided by libafb; `_args` must point to an array of `argc` items.
 #[no_mangle]
-pub extern "C" fn api_info_cb(
+pub unsafe extern "C" fn api_info_cb(
     rqtv4: cglue::afb_req_t,
     _argc: u32,
     _args: *const cglue::afb_data_t,
@@ -303,7 +338,7 @@ pub extern "C" fn api_info_cb(
     jinfo.add("groups", jgroups).unwrap();
 
     // create a dummy Rust request and send jinfo response (Fulup: Rust is unfriendly with void*=NULL)
-    let nullptr: *mut std::ffi::c_void = 0 as *mut std::ffi::c_void;
+    let nullptr: *mut std::ffi::c_void = std::ptr::null_mut::<std::ffi::c_void>();
     let nullapi = unsafe { &mut *(nullptr as *mut AfbApi) };
     let nullverb = unsafe { &mut *(nullptr as *mut AfbVerb) };
     let request = AfbRequest::new(rqtv4, nullapi, nullverb);
@@ -311,22 +346,27 @@ pub extern "C" fn api_info_cb(
     request.reply(jinfo, 0);
 }
 
+/// # Safety
+/// - `rqtv4` is provided by libafb and must be a valid request handle.
+/// - `_args` must point to an array of `_argc` items (or be null when `_argc == 0`).
 #[no_mangle]
-pub extern "C" fn api_ping_cb(
+pub unsafe extern "C" fn api_ping_cb(
     rqtv4: cglue::afb_req_t,
     _argc: u32,
     _args: *const cglue::afb_data_t,
 ) {
-    // increment counter for each ping
+    // Increment the per-process ping counter.
     static mut COUNTER: u32 = 0;
     unsafe { COUNTER += 1 };
 
-    // build final jinfo object with metadata and groups
+    // Build the final jinfo object with metadata and groups.
     let jpong = JsoncObj::new();
     jpong.add("pong", unsafe { COUNTER }).unwrap();
 
-    // create a dummy Rust request and send jinfo response (Fulup: Rust is unfriendly with void*=NULL)
-    let nullptr: *mut std::ffi::c_void = 0 as *mut std::ffi::c_void;
+    // Create a dummy request and send a jinfo response.
+    // WARNING: creating references from null pointers is undefined behavior in Rust.
+    // This keeps the original behavior but should be replaced by a safe variant (see below).
+    let nullptr: *mut std::ffi::c_void = std::ptr::null_mut();
     let nullapi = unsafe { &mut *(nullptr as *mut AfbApi) };
     let nullverb = unsafe { &mut *(nullptr as *mut AfbVerb) };
     let request = AfbRequest::new(rqtv4, nullapi, nullverb);
@@ -365,7 +405,7 @@ pub trait AfbApiControls {
 
     fn exit(&mut self, api: &AfbApi, code: i32) -> i32 {
         afb_log_msg!(Debug, api, "api exit: uid:{} code:{}", api._uid, code);
-        return code;
+        code
     }
 
     fn as_any(&mut self) -> &mut dyn Any;
@@ -376,12 +416,12 @@ fn binding_parse_config(
     apiv4: cglue::afb_api_t,
     ctlarg: cglue::afb_ctlarg_t,
 ) -> Result<JsoncObj, AfbError> {
-    assert!(ctlarg.is_null() != true);
+    assert!(!ctlarg.is_null());
     let jso: *mut std::ffi::c_void =
         unsafe { (*ctlarg).root_entry.config } as *mut _ as *mut std::ffi::c_void;
 
     // extract config rust object from C void* ctrlbox
-    if jso != 0 as *mut std::ffi::c_void {
+    if !jso.is_null() {
         JsoncObj::import(jso)
     } else {
         // libafb may not pass api config as expected
@@ -403,8 +443,11 @@ pub fn afb_binding_get_config(
     binding_parse_config(apiv4, ctlarg)
 }
 
+/// # Safety
+/// All pointers and counts come from libafb and must remain valid for the duration
+/// of the callback. The function assumes `apictx` points to a previously created `AfbApi`.
 #[no_mangle]
-pub extern "C" fn api_controls_cb(
+pub unsafe extern "C" fn api_controls_cb(
     apiv4: cglue::afb_api_t,
     ctlid: cglue::afb_ctlid_t,
     ctlarg_v4: cglue::afb_ctlarg_t,
@@ -413,7 +456,7 @@ pub extern "C" fn api_controls_cb(
     // extract config rust object from C void* ctrlbox
     //let ctlid = ctlid_v4 as cglue::afb_ctlid_t;
     let ctlarg = ctlarg_v4 as cglue::afb_ctlarg_t;
-    let api_ref = unsafe { &*(apictx as *mut AfbApi) };
+    let api_ref = &*(apictx as *mut AfbApi);
 
     let status = match ctlid {
         cglue::afb_ctlid_afb_ctlid_Pre_Init => {
@@ -489,8 +532,9 @@ pub extern "C" fn api_controls_cb(
                         verb_ref.verbosity = api_ref.verbosity;
                     }
 
-                    verb_ref.register(apiv4, api_auth);
-                    if status < 0 {
+                    let rc = unsafe { verb_ref.register(apiv4, api_auth) };
+                    if rc < 0 {
+                        status = rc;
                         afb_log_msg!(
                             Critical,
                             api_ref._apiv4.get(),
@@ -506,7 +550,7 @@ pub extern "C" fn api_controls_cb(
             if status >= 0 {
                 for slot in &api_ref.groups {
                     let group_ref = unsafe { &mut *(*slot as *mut AfbGroup) };
-                    status = group_ref.register(apiv4, api_auth);
+                    status = unsafe { group_ref.register(apiv4, api_auth) };
                     if status < 0 {
                         afb_log_msg!(
                             Critical,
@@ -562,7 +606,7 @@ pub extern "C" fn api_controls_cb(
             };
 
             // add verb ping
-            if status >= 0 && api_ref.do_ping == true {
+            if status >= 0 && api_ref.do_ping {
                 let verb_name = CString::new("ping").unwrap();
                 let verb_info = CString::new("libafb default api check").unwrap();
                 status = unsafe {
@@ -580,7 +624,7 @@ pub extern "C" fn api_controls_cb(
             };
 
             // add verb info
-            if status >= 0 && api_ref.do_info == true {
+            if status >= 0 && api_ref.do_info {
                 let verb_name = CString::new("info").unwrap();
                 let verb_info =
                     CString::new("libafb automatic introspection of api verbs").unwrap();
@@ -665,7 +709,7 @@ pub extern "C" fn api_controls_cb(
         }
     };
 
-    return status;
+    status
 }
 
 pub struct AfbApi {
@@ -802,7 +846,7 @@ impl AfbApi {
     }
 
     pub fn require_api(&mut self, value: &'static str) -> &mut Self {
-        if value != "" {
+        if !value.is_empty() {
             self.require_apis.push(value);
         }
         self
@@ -824,7 +868,7 @@ impl AfbApi {
         let api_name = CString::new(self.name).expect("invalid api name");
         let api_info = CString::new(self.info).expect("invalid api info");
 
-        let api_concurrency: i32 = if self.do_concurrency == true { 0 } else { 1 };
+        let api_concurrency: i32 = if self.do_concurrency { 0 } else { 1 };
         let status = unsafe {
             let mut _newapi: cglue::afb_api_t = 0 as cglue::afb_api_t;
             cglue::afb_create_api(
@@ -865,6 +909,7 @@ impl AfbApi {
     pub fn get_version(&self) -> &'static str {
         self.version
     }
+    #[allow(clippy::mut_from_ref)]
     pub fn getctrlbox(&self) -> &mut dyn AfbApiControls {
         match self.ctrlbox {
             None => panic!(
@@ -886,8 +931,14 @@ impl fmt::Display for AfbApi {
     }
 }
 
+/// # Safety
+/// `rqtv4` is a live request handle; `args` points to an array of `argc` items provided by libafb.
 #[no_mangle]
-pub extern "C" fn api_verbs_cb(rqtv4: cglue::afb_req_t, argc: u32, args: *const cglue::afb_data_t) {
+pub unsafe extern "C" fn api_verbs_cb(
+    rqtv4: cglue::afb_req_t,
+    argc: u32,
+    args: *const cglue::afb_data_t,
+) {
     // extract verb+api object from libafb internals
     let verb_ctx = unsafe { cglue::afb_req_get_vcbdata(rqtv4) };
     let verb_ref = unsafe { &mut *(verb_ctx as *mut AfbVerb) };
@@ -898,10 +949,11 @@ pub extern "C" fn api_verbs_cb(rqtv4: cglue::afb_req_t, argc: u32, args: *const 
         let api_data = cglue::afb_api_get_userdata(apiv4);
         &mut *(api_data as *mut AfbApi)
     };
-    // build new request reference count object
-    // fulup to be done RUST and libafb refcount should be aligned
-    api_ref._count += 1;
-    verb_ref._count += 1;
+    // Build a new request by incrementing reference counts.
+    // TODO: Ensure Rust-side and libafb reference-count semantics are aligned
+    // (ownership rules, lifetime, and release path).
+    api_ref._count += 1; // API-level handle refcount
+    verb_ref._count += 1; // Verb-level handle refcount
 
     // move const **array in something Rust may understand
     let arguments = AfbRqtData::new(
@@ -1031,8 +1083,20 @@ impl AfbVerb {
         self
     }
 
+    /// # Safety
+    /// - `apiv4` must be a valid `cglue::afb_api_t` pointer provided by libafb and
+    ///   remain valid for the entire call.
+    /// - `inherited_auth` may be null. If non-null, it must point to a valid `AfbAuthV4`.
+    /// - This function performs FFI calls and may dereference raw pointers coming
+    ///   from `apiv4`. The caller must uphold libafb’s invariants (lifetimes, call
+    ///   thread, initialization order, etc.).
+    /// - No aliased mutable references may be created from these pointers.
     #[track_caller]
-    pub fn register(&self, apiv4: cglue::afb_api_t, inherited_auth: *const AfbAuthV4) -> i32 {
+    pub unsafe fn register(
+        &self,
+        apiv4: cglue::afb_api_t,
+        inherited_auth: *const AfbAuthV4,
+    ) -> i32 {
         let verb_name = CString::new(self.name).expect("invalid verb name");
         let verb_info = CString::new(self.info).expect("invalid verb info");
 
@@ -1066,7 +1130,7 @@ impl AfbVerb {
         self.info
     }
     pub fn get_usage(&self) -> Option<&'static str> {
-        self.usage.clone()
+        self.usage
     }
     pub fn get_samples(&self) -> JsoncObj {
         self.samples.clone()
@@ -1103,7 +1167,7 @@ impl Clone for AfbRequest {
 }
 
 #[doc(hidden)]
-impl<'a> Drop for AfbRequest {
+impl Drop for AfbRequest {
     fn drop(&mut self) {
         unsafe {
             cglue::afb_req_unref(self._rqtv4);
@@ -1121,15 +1185,22 @@ pub trait AfbRqtSession {
 }
 
 impl AfbRequest {
-    pub fn new(rqtv4: cglue::afb_req_t, api: &'static AfbApi, verb: &'static AfbVerb) -> Self {
+    /// # Safety
+    /// `rqtv4` must be a live libafb request handle. Caller ensures its validity.
+    pub unsafe fn new(
+        rqtv4: cglue::afb_req_t,
+        api: &'static AfbApi,
+        verb: &'static AfbVerb,
+    ) -> Self {
         AfbRequest {
-            _rqtv4: unsafe { cglue::afb_req_addref(rqtv4) },
-            verb: verb,
-            api: api,
+            _rqtv4: cglue::afb_req_addref(rqtv4),
+            verb,
+            api,
         }
     }
 
     #[track_caller]
+    #[allow(clippy::mut_from_ref)]
     pub fn set_session(
         &self,
         value: Box<dyn AfbRqtSession>,
@@ -1161,9 +1232,10 @@ impl AfbRequest {
         }
     }
 
+    #[allow(clippy::mut_from_ref)]
     #[track_caller]
     pub fn get_session(&self) -> Result<&mut dyn AfbRqtSession, AfbError> {
-        let session = 0 as *mut ::std::os::raw::c_void;
+        let session = std::ptr::null_mut::<::std::os::raw::c_void>();
         let status = unsafe {
             cglue::afb_req_context_get(
                 self.get_rqtv4(),
@@ -1178,17 +1250,17 @@ impl AfbRequest {
         }
     }
 
-    pub fn from_raw(rqtv4: AfbRqtV4) -> Self {
+    /// # Safety
+    /// `rqtv4` must be a live libafb request handle. Caller ensures its validity.
+    pub unsafe fn from_raw(rqtv4: AfbRqtV4) -> Self {
         // extract api_ref from libafb
-        let api_ref = unsafe {
-            let apiv4 = cglue::afb_req_get_api(rqtv4);
-            let api_data = cglue::afb_api_get_userdata(apiv4);
-            &mut *(api_data as *mut AfbApi)
-        };
+        let apiv4 = cglue::afb_req_get_api(rqtv4);
+        let api_data = cglue::afb_api_get_userdata(apiv4);
+        let api_ref = &mut *(api_data as *mut AfbApi);
 
         // retreive source verb object
-        let verb_ctx = unsafe { cglue::afb_req_get_vcbdata(rqtv4) };
-        let verb_ref = unsafe { &mut *(verb_ctx as *mut AfbVerb) };
+        let verb_ctx = cglue::afb_req_get_vcbdata(rqtv4);
+        let verb_ref = &mut *(verb_ctx as *mut AfbVerb);
 
         AfbRequest {
             _rqtv4: rqtv4,
@@ -1275,7 +1347,7 @@ impl AfbRequest {
     }
 }
 
-impl<'a> fmt::Display for AfbRequest {
+impl fmt::Display for AfbRequest {
     fn fmt(&self, format: &mut fmt::Formatter<'_>) -> fmt::Result {
         unsafe {
             let self_ref = &*(self as *const _ as *mut AfbRequest);
@@ -1301,9 +1373,9 @@ impl<'a> AfbEventMsg<'a> {
     pub fn new(uid: String, name: &'a str, api: &'a AfbApi, handler: &'a AfbEvtHandler) -> Self {
         AfbEventMsg {
             _uid: uid,
-            api: api,
-            name: name,
-            handler: handler,
+            api,
+            name,
+            handler,
         }
     }
 
@@ -1353,6 +1425,9 @@ impl fmt::Display for AfbEventMsg<'_> {
 
 // Afb AfbEventMsg implementation
 // ------------------------
+/// # Safety
+/// All pointers are provided by libafb and must be valid for the duration of the callback.
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 #[no_mangle]
 pub extern "C" fn api_events_cb(
     event_ctx: *mut std::ffi::c_void,
@@ -1370,13 +1445,18 @@ pub extern "C" fn api_events_cb(
         &mut *(api_data as *mut AfbApi)
     };
 
-    // build new request reference count object
-    // fulup to be done RUST and libafb refcount should be aligned
+    // Increment reference counts for the new request.
+    // TODO: Align Rust-side and libafb reference-count semantics
+    // (ownership rules, lifetime, and release path).
     api_ref._count += 1;
     handler_ref._count += 1;
+
+    // Convert the C string event name to &str.
+    // Safety: `evtname` must point to a valid, null-terminated C string
+    // that remains alive at least for the duration of this call.
     let name = unsafe { CStr::from_ptr(evtname) }
         .to_str()
-        .expect("hoops invalid internal event name");
+        .expect("invalid internal event name (UTF-8 required)");
 
     let uid = format!(
         "{}|{:04X}|{:04X}",
@@ -1483,18 +1563,28 @@ impl AfbEvtHandler {
         self
     }
 
+    #[allow(clippy::not_unsafe_ptr_arg_deref)]
+    /// # Safety
+    /// `apiv4` must be a valid `cglue::afb_api_t` obtained from the AFB runtime.
+    /// The pointer is passed to the underlying C API and may be dereferenced by it.
+    /// Caller must ensure lifetime and thread-safety per AFB requirements.
+    /// The return code of `afb_api_event_handler_add`.
+    ///
+    /// # Safety
+    /// `apiv4` is an opaque raw handle provided by the AFB C API. This function forwards
+    /// it to an FFI call which may dereference the pointer. The caller must ensure that
+    /// `apiv4` is a valid AFB API handle for the duration of the call and that the
+    /// callback/userdata lifetime rules required by the C side are respected.
     #[track_caller]
-    pub fn register(&mut self, apiv4: cglue::afb_api_t) -> i32 {
+    pub unsafe fn register(&mut self, apiv4: cglue::afb_api_t) -> i32 {
         let event_pattern = CString::new(self.pattern).expect("invalid event pattern");
-
-        unsafe {
-            cglue::afb_api_event_handler_add(
-                apiv4,
-                event_pattern.as_ptr(),
-                Some(api_events_cb),
-                self as *const _ as *mut std::ffi::c_void,
-            )
-        }
+        debug_assert!(!apiv4.is_null(), "apiv4 must be a valid non-null pointer");
+        cglue::afb_api_event_handler_add(
+            apiv4,
+            event_pattern.as_ptr(),
+            Some(api_events_cb),
+            self as *const _ as *mut std::ffi::c_void,
+        )
     }
 
     // return object getter trait to prevent any malicious modification
@@ -1763,7 +1853,20 @@ impl AfbGroup {
         self
     }
 
-    pub fn register(&self, apiv4: cglue::afb_api_t, inherited_auth: *const AfbAuthV4) -> i32 {
+    /// # Safety
+    /// - `apiv4` must be a valid `cglue::afb_api_t` pointer provided by libafb and
+    ///   remain valid for the entire call.
+    /// - `inherited_auth` may be null. If non-null, it must point to a valid `AfbAuthV4`.
+    /// - This function performs FFI calls and may dereference raw pointers coming
+    ///   from `apiv4`. The caller must uphold libafb’s invariants (lifetimes, call
+    ///   thread, initialization order, etc.).
+    /// - No aliased mutable references may be created from these pointers.
+    #[track_caller]
+    pub unsafe fn register(
+        &self,
+        apiv4: cglue::afb_api_t,
+        inherited_auth: *const AfbAuthV4,
+    ) -> i32 {
         let mut status = 0;
         for slot in &self.verbs {
             let verb_ref = unsafe { &mut *(*slot as *mut AfbVerb) };
@@ -1774,7 +1877,7 @@ impl AfbGroup {
             }
 
             // add prefix to verb name and rebuild a static str string
-            if self.prefix.len() > 0 {
+            if !self.prefix.is_empty() {
                 verb_ref.name = Box::leak(
                     (self.prefix.to_owned() + self.separator + verb_ref.name).into_boxed_str(),
                 );
@@ -1784,7 +1887,7 @@ impl AfbGroup {
                 AfbPermisionV4::new(self.permission, inherited_auth);
 
             //call verb registration method
-            status = verb_ref.register(apiv4, group_permission);
+            status = unsafe { verb_ref.register(apiv4, group_permission) };
             if status < 0 {
                 afb_log_msg!(
                     Critical,
@@ -1847,9 +1950,10 @@ impl AfbGroup {
     }
 }
 
+/// # Safety
+/// Pointers and counts are provided by libafb and must be valid.
 #[no_mangle]
-//fn afb_async_rqt_callback(userdata: *mut std::os::raw::c_void, status: i32, argc: u32, args: *mut cglue::afb_data_t, rqtv4: cglue::afb_req_t)
-pub extern "C" fn afb_async_rqt_callback(
+pub unsafe extern "C" fn afb_async_rqt_callback(
     userdata: *mut std::os::raw::c_void,
     status: i32,
     argc: u32,
@@ -1898,9 +2002,11 @@ pub extern "C" fn afb_async_rqt_callback(
     }
 }
 
+/// # Safety
+/// `userdata` is a `*mut AfbSubCall` allocated by this crate; `args` is an array of `argc`
+/// elements owned by libafb; `apiv4` is a valid libafb API handle.
 #[no_mangle]
-//fn afb_async_rqt_callback(userdata: *mut std::os::raw::c_void, status: i32, argc: u32, args: *mut cglue::afb_data_t, rqtv4: cglue::afb_req_t)
-pub extern "C" fn afb_async_api_callback(
+pub unsafe extern "C" fn afb_async_api_callback(
     userdata: *mut std::os::raw::c_void,
     status: i32,
     argc: u32,
@@ -1992,7 +2098,7 @@ impl<C: 'static> DoSubcallAsync<&AfbApi, ApiCallback, C> for AfbSubCall {
             api.get_apiv4(),
             apiname,
             verbname,
-            &params,
+            params,
             callback,
             context,
         )
@@ -2012,6 +2118,7 @@ impl DoSubcallSync<&AfbApi> for AfbSubCall {
 
 impl<C: 'static> DoSubcallAsync<AfbApiV4, ApiCallback, C> for AfbSubCall {
     #[track_caller]
+    #[allow(clippy::not_unsafe_ptr_arg_deref)]
     fn subcall_async(
         apiv4: AfbApiV4,
         apiname: CString,
@@ -2042,13 +2149,14 @@ impl<C: 'static> DoSubcallAsync<AfbApiV4, ApiCallback, C> for AfbSubCall {
 
 impl DoSubcallSync<AfbApiV4> for AfbSubCall {
     #[track_caller]
+    #[allow(clippy::not_unsafe_ptr_arg_deref)]
     fn subcall_sync(
         apiv4: AfbApiV4,
         apiname: CString,
         verbname: CString,
         params: &AfbParams,
     ) -> Result<AfbRqtData, AfbError> {
-        let mut status = 0 as i32;
+        let mut status = 0_i32;
         let mut nreplies = MAX_CALL_ARGS;
         let replies = [0 as cglue::afb_data_t; MAX_CALL_ARGS as usize];
 
@@ -2083,8 +2191,9 @@ impl DoSubcallSync<AfbApiV4> for AfbSubCall {
     }
 }
 
-impl<'a, C: 'static> DoSubcallAsync<&AfbRequest, RqtCallback, C> for AfbSubCall {
+impl<C: 'static> DoSubcallAsync<&AfbRequest, RqtCallback, C> for AfbSubCall {
     #[track_caller]
+    #[allow(clippy::not_unsafe_ptr_arg_deref)]
     fn subcall_async(
         rqt: &AfbRequest,
         apiname: CString,
@@ -2104,8 +2213,9 @@ impl<'a, C: 'static> DoSubcallAsync<&AfbRequest, RqtCallback, C> for AfbSubCall 
     }
 }
 
-impl<'a> DoSubcallSync<&AfbRequest> for AfbSubCall {
+impl DoSubcallSync<&AfbRequest> for AfbSubCall {
     #[track_caller]
+    #[allow(clippy::not_unsafe_ptr_arg_deref)]
     fn subcall_sync(
         rqt: &AfbRequest,
         apiname: CString,
@@ -2118,6 +2228,7 @@ impl<'a> DoSubcallSync<&AfbRequest> for AfbSubCall {
 
 impl<C: 'static> DoSubcallAsync<AfbRqtV4, RqtCallback, C> for AfbSubCall {
     #[track_caller]
+    #[allow(clippy::not_unsafe_ptr_arg_deref)]
     fn subcall_async(
         rqtv4: AfbRqtV4,
         apiname: CString,
@@ -2147,13 +2258,14 @@ impl<C: 'static> DoSubcallAsync<AfbRqtV4, RqtCallback, C> for AfbSubCall {
 }
 impl DoSubcallSync<AfbRqtV4> for AfbSubCall {
     #[track_caller]
+    #[allow(clippy::not_unsafe_ptr_arg_deref)]
     fn subcall_sync(
         rqtv4: AfbRqtV4,
         apiname: CString,
         verbname: CString,
         params: &AfbParams,
     ) -> Result<AfbRqtData, AfbError> {
-        let mut status = 0 as i32;
+        let mut status = 0_i32;
         let mut nreplies = MAX_CALL_ARGS;
         let replies = [0 as cglue::afb_data_t; MAX_CALL_ARGS as usize];
 
@@ -2247,8 +2359,7 @@ impl AfbSubCall {
 
         //let handle = 0 as *mut cglue::afb_api_x4;
 
-        Ok(AfbSubCall::subcall_async(
-            handle, apistr, verbstr, &params, callback, context,
-        ))
+        let _: () = AfbSubCall::subcall_async(handle, apistr, verbstr, &params, callback, context);
+        Ok(())
     }
 }

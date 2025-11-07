@@ -158,13 +158,13 @@ fn jobpost_verb(request: &AfbRequest, args: &AfbRqtData, ctx: &AfbCtxData) -> Re
 // prefix group of event verbs and attach a default privilege
 pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
     // build verb name from Rust module name
-    let mod_name = module_path!().split(':').last().unwrap();
+    let mod_name = module_path!().split(':').next_back().unwrap();
     afb_log_msg!(Notice, apiv4, "Registering group={}", mod_name);
 
     let event = AfbEvent::new("timer-event").finalize()?;
     let ctxdata = Rc::new(UserCtxData {
         counter: Cell::new(0),
-        event: event,
+        event,
     });
 
     let start_timer = AfbVerb::new("timer-start")

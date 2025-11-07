@@ -21,7 +21,7 @@ fn probe_callback(
 
 pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbVerb, AfbError> {
     // build verb name from Rust module name
-    let mod_name = module_path!().split(':').last().unwrap();
+    let mod_name = module_path!().split(':').next_back().unwrap();
     afb_log_msg!(Notice, apiv4, "Registering verb={}", mod_name);
 
     let group = AfbVerb::new(mod_name)

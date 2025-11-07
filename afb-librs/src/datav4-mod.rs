@@ -38,7 +38,7 @@ pub type Cchar = ::std::os::raw::c_char;
 
 // trick to create a null parameter
 pub type AfbNoData = Option<std::ffi::c_void>;
-pub const AFB_NO_AUTH: *const cglue::afb_auth = 0 as *const cglue::afb_auth;
+pub const AFB_NO_AUTH: *const cglue::afb_auth = std::ptr::null();
 pub const AFB_NO_DATA: AfbNoData = None;
 pub const AFB_OK: i32 = 0;
 pub const AFB_FAIL: i32 = 1;
@@ -197,6 +197,7 @@ pub struct AfbCtxData {
     raw: *mut std::ffi::c_void,
     typeid: TypeId,
     lock: Mutex<bool>,
+    drop_fn: unsafe fn(*mut std::ffi::c_void),
 }
 
 pub struct AfbCtxLock<'a, T> {
@@ -228,6 +229,7 @@ impl AfbCtxData {
             raw: Box::into_raw(Box::new(ctx)) as *mut std::ffi::c_void,
             typeid,
             lock: Mutex::new(true),
+            drop_fn: drop_box_t::<T>,
         }
     }
 
@@ -239,6 +241,7 @@ impl AfbCtxData {
         Ok(())
     }
 
+    #[allow(clippy::mut_from_ref)]
     #[track_caller]
     pub fn get_lock<T>(&self) -> Result<AfbCtxLock<'_, &mut T>, AfbError>
     where
@@ -263,6 +266,7 @@ impl AfbCtxData {
         Ok(value)
     }
 
+    #[allow(clippy::mut_from_ref)]
     #[track_caller]
     pub fn get_mut<T>(&self) -> Result<&mut T, AfbError>
     where
@@ -281,8 +285,7 @@ impl AfbCtxData {
         let mut lock = self.lock.lock().unwrap();
         if *lock {
             *lock = false;
-            let boxe = unsafe { Box::from_raw(self.raw as *mut T) };
-            drop(boxe)
+            unsafe { (self.drop_fn)(self.raw) };
         }
     }
 }
@@ -292,8 +295,7 @@ impl Drop for AfbCtxData {
         let mut lock = self.lock.lock().unwrap();
         if *lock {
             *lock = false;
-            let boxe = unsafe { Box::from_raw(self.raw) };
-            drop(boxe)
+            unsafe { (self.drop_fn)(self.raw) };
         }
     }
 }
@@ -368,10 +370,22 @@ extern "C" fn free_cstring_cb(context: *mut std::ffi::c_void) {
 }
 
 // restore Rust Cstring, in order to make it disposable
+
+#[inline]
+unsafe fn drop_box_t<T>(ptr: *mut std::ffi::c_void) {
+    drop(Box::<T>::from_raw(ptr as *mut T));
+}
+
+#[no_mangle]
+pub extern "C" fn free_box_any(context: *mut std::ffi::c_void) {
+    unsafe {
+        drop(Box::<dyn Any>::from_raw(context as *mut dyn Any));
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn free_box_cb(context: *mut std::ffi::c_void) {
-    let cbox = unsafe { Box::from_raw(context) };
-    drop(cbox);
+    free_box_any(context);
 }
 
 type EncoderCb = fn(*mut std::ffi::c_void) -> Result<String, AfbError>;
@@ -401,7 +415,8 @@ extern "C" fn afb_encoding_cb(
             let cbuffer = CString::new(encoded)
                 .expect("(hoops) invalid encoded string")
                 .into_raw();
-            let status = unsafe {
+
+            unsafe {
                 cglue::afb_create_data_raw(
                     dest,
                     AfbBuiltinType::get(&AfbBuiltinType::Json).typev4,
@@ -410,8 +425,7 @@ extern "C" fn afb_encoding_cb(
                     Some(free_cstring_cb),
                     cbuffer as *const _ as *mut std::ffi::c_void,
                 )
-            };
-            status
+            }
         }
         Err(error) => {
             println!("encoding error={}", error);
@@ -445,7 +459,7 @@ extern "C" fn afb_decoding_cb(
         Ok(decoded) => {
             let cbuffer = Box::leak(decoded);
 
-            let status = unsafe {
+            unsafe {
                 cglue::afb_create_data_raw(
                     dest,
                     encoder_ref.typev4,
@@ -454,8 +468,7 @@ extern "C" fn afb_decoding_cb(
                     Some(free_box_cb),
                     cbuffer as *const _ as *mut std::ffi::c_void,
                 )
-            };
-            status
+            }
         }
         Err(error) => {
             println!("decoding error={}", error);
@@ -495,6 +508,7 @@ pub struct AfbConverter {
 impl AfbConverter {
     // create a new converter type within libafb
     #[track_caller]
+    #[allow(clippy::mut_from_ref)]
     pub fn new(uid: &'static str) -> Result<&'static mut Self, AfbError> {
         // register new type within libafb
         let cuid = CString::new(uid)
@@ -510,10 +524,7 @@ impl AfbConverter {
         };
 
         if status == 0 {
-            let converter = Box::new(AfbConverter {
-                _uid: uid,
-                typev4: typev4,
-            });
+            let converter = Box::new(AfbConverter { _uid: uid, typev4 });
 
             // freeze converter type in memory heap
             Ok(Box::leak(converter))
@@ -533,8 +544,8 @@ impl AfbConverter {
         let encoder_ref = Box::new(AfbEncoder {
             _converter: self,
             typev4: AfbBuiltinType::get(&AfbBuiltinType::Json).typev4,
-            encoder: encoder,
-            decoder: decoder,
+            encoder,
+            decoder,
         });
 
         let encoder_ref = Box::leak(encoder_ref);
@@ -584,6 +595,7 @@ impl AfbConverter {
 }
 
 #[track_caller]
+#[allow(clippy::mut_from_ref)]
 pub fn get_type(uid: &'static str) -> Result<&'static mut AfbConverter, AfbError> {
     let typev4: cglue::afb_type_t = 0 as cglue::afb_type_t;
     let cuid = CString::new(uid).expect("Invalid converter uid key");
@@ -598,10 +610,7 @@ pub fn get_type(uid: &'static str) -> Result<&'static mut AfbConverter, AfbError
     if status < 0 {
         afb_error!(uid, "type lookup fail")
     } else {
-        let converter_box = Box::new(AfbConverter {
-            _uid: uid,
-            typev4: typev4,
-        });
+        let converter_box = Box::new(AfbConverter { _uid: uid, typev4 });
 
         Ok(Box::leak(converter_box))
     }
@@ -653,7 +662,7 @@ impl ConvertQuery<String> for AfbRqtData {
         match self.get_ro(converter, index) {
             None => afb_error!(uid, "invalid converter format args[{}]", index),
             Some(cbuffer) => {
-                let cstring = unsafe { CStr::from_ptr(&mut *(cbuffer as *mut Cchar)) };
+                let cstring = unsafe { CStr::from_ptr(&*(cbuffer as *mut Cchar)) };
                 let slice: &str = cstring.to_str().unwrap();
                 Ok(slice.to_owned())
             }
@@ -686,7 +695,7 @@ impl AfbRqtData {
     pub fn new(args: &[AfbDataV4], argc: u32, status: i32) -> Self {
         AfbRqtData {
             count: argc,
-            status: status,
+            status,
             argsv4: args.to_owned(),
         }
     }
@@ -768,14 +777,12 @@ impl AfbRqtData {
     #[track_caller]
     pub fn check(&self, index: i32) -> Result<(), u32> {
         let count = self.count as i32;
-        let check = if (index >= 0) && (index < count) {
-            Ok(())
-        } else if index < 0 && index.abs() == (count - 1) {
+
+        if ((0..count).contains(&index)) || (index < 0 && index.abs() == count - 1) {
             Ok(())
         } else {
             Err(self.count)
-        };
-        check
+        }
     }
 
     #[track_caller]
@@ -794,8 +801,9 @@ impl AfbRqtData {
     }
 
     #[track_caller]
+    #[allow(clippy::not_unsafe_ptr_arg_deref)]
     pub fn get_ro(&self, typev4: AfbTypeV4, index: usize) -> Option<*mut std::ffi::c_void> {
-        let result = unsafe {
+        unsafe {
             let source = self.argsv4[index];
             let mut argument = 0 as cglue::afb_data_t;
             let status = cglue::afb_data_convert(source, typev4, &mut argument);
@@ -806,8 +814,7 @@ impl AfbRqtData {
             } else {
                 None
             }
-        };
-        result
+        }
     }
 
     #[track_caller]
@@ -1011,6 +1018,12 @@ impl Clone for AfbParams {
     }
 }
 
+impl Default for AfbParams {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AfbParams {
     #[track_caller]
     pub fn new() -> Self {
@@ -1053,7 +1066,7 @@ impl AfbParams {
 
     fn insert(&mut self, data: &mut AfbExportData) -> Result<(), AfbError> {
         // provide box free_cb is none defined
-        if let None = data.freecb {
+        if data.freecb.is_none() {
             data.freecb = Some(free_box_cb);
         }
 
