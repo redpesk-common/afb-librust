@@ -408,19 +408,32 @@ impl DoSendLog<&AfbApi> for AfbLogMsg {
 }
 
 impl DoSendLog<Option<u32>> for AfbLogMsg {
+    /// Forwards the log record to the C backend (`afb_verbose`).
+    ///
+    /// # Safety
+    /// - `file`, `funcname`, and `format` must be valid, null-terminated C strings.
+    /// - Pointers must remain valid for the duration of this call.
+    /// - This function crosses the FFI boundary and may dereference raw pointers
+    ///   inside the C implementation.
     unsafe fn print_log(
         level: i32,
-        _not_used: Option<u32>,
+        _not_used: Option<u32>, // reserved for a backend-specific handle (currently unused)
         file: *const Cchar,
         line: u32,
         funcname: *const Cchar,
         format: *const Cchar,
     ) {
+        // Delegate to the underlying C logger. `line` is cast to i32 to match the ABI.
         cglue::afb_verbose(level, file, line as i32, funcname, format)
     }
 
+    /// Returns the current verbosity threshold used by the backend.
+    ///
+    /// Note: We currently return the maximum verbosity (0xFF), i.e. all messages enabled.
+    /// TODO: Align this with the binder's `-v/-vv/-vvv` levels (or a runtime setting)
+    ///       so Rust and the C side use the same effective verbosity.
     unsafe fn get_verbosity(_unused: Option<u32>) -> u32 {
-        255 // Fulup TBD should match binder -vvv
+        0xFF
     }
 }
 
@@ -681,18 +694,40 @@ pub struct AfbTimer {
 }
 
 impl AfbTimer {
+    /// Creates a timer with sane defaults and leaks it, returning a `'static` mutable reference.
+    ///
+    /// This constructor intentionally leaks the allocated `AfbTimer` so that the
+    /// returned reference can cross FFI boundaries and be stored by C code that
+    /// expects a stable `'static` lifetime.
+    ///
+    /// # Lifetime & ownership
+    /// - The returned `&'static mut Self` is sound because the `Box` is leaked.
+    /// - You must provide a **dedicated free path** (e.g., an FFI callback that
+    ///   rebuilds the `Box` from a raw pointer) if you ever need to reclaim the memory.
+    /// - Do not create multiple independent owners that would attempt to free it twice.
+    ///
+    /// # Defaults
+    /// - `verbosity` defaults to `0xFF` (all messages enabled).
+    ///   TODO: inherit the verbosity from the API once available.
+    /// - `callback` uses `timer_default_cb`.
+    /// - `context` is initialized as empty (`AFB_NO_DATA`).
     pub fn new(uid: &'static str) -> &'static mut Self {
+        const DEFAULT_VERBOSITY: u32 = 0xFF;
+
         let timer_box = Box::new(AfbTimer {
-            _uid: uid,
-            info: "",
-            decount: 0,
-            period: 0,
-            verbosity: 255, // Fulup TBD should inherit from API
-            _timerv4: 0 as cglue::afb_timer_t,
-            autounref: 0,
-            callback: timer_default_cb,
-            context: AfbCtxData::new(AFB_NO_DATA),
+            _uid: uid,                    // stable identifier bound to the leaked lifetime
+            info: "",                     // optional informational string (empty by default)
+            decount: 0,                   // remaining iterations (0 means disabled/not started)
+            period: 0,                    // period in whatever unit the backend expects
+            verbosity: DEFAULT_VERBOSITY, // TODO: inherit from API-level verbosity
+            // If `afb_timer_t` is a pointer type, prefer the null-pointer variant below.
+            _timerv4: 0 as cglue::afb_timer_t, // backend handle (none yet)
+            autounref: 0,                      // auto-unref flag (0: disabled)
+            callback: timer_default_cb,        // default callback invoked by the backend
+            context: AfbCtxData::new(AFB_NO_DATA), // empty user context
         });
+
+        // Leak the Box so we can return a `'static` reference (required by some C APIs).
         Box::leak(timer_box)
     }
 
@@ -1060,8 +1095,9 @@ impl From<&'static AfbPermission> for AfbPermission {
 
 impl From<i32> for AfbPermission {
     fn from(value: i32) -> Self {
+        // Validate LOA is within the symmetric range [-7, 7] (keep in sync with the FFI contract).
         if !(-7..=7).contains(&value) {
-            panic!("LOA should be within [0-7] range");
+            panic!("LOA must be within [-7, 7]");
         }
         if value != 0 {
             AfbPermission::Loa(value)

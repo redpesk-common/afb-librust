@@ -149,34 +149,34 @@ impl Clone for JsoncObj {
 }
 
 impl fmt::Display for JsoncObj {
-    fn fmt(&self, format: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let cstring;
-        unsafe {
-            // warning: no ';'
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Convert the underlying json-c object to a C string buffer.
+        //
+        // Safety:
+        // - `self.jso` must be a valid `*mut json_object` (owned/retained elsewhere).
+        // - `json_object_to_json_string_ext` returns a pointer to an internal
+        //   null-terminated buffer owned by json-c; it must NOT be freed by Rust.
+        // - The buffer remains valid until the json-c object is modified or freed.
+        let cstring = unsafe {
             let jso = self.jso;
-            let cbuffer = if format.alternate() {
-                // {:#}
-                cglue::json_object_to_json_string_ext(
-                    jso,
-                    (cglue::JSON_C_TO_STRING_PRETTY | cglue::JSON_C_TO_STRING_NOSLASHESCAPE) as i32,
-                )
+            let flags = if f.alternate() {
+                // `"{:#}"` → pretty-printed JSON, without slash escaping.
+                (cglue::JSON_C_TO_STRING_PRETTY | cglue::JSON_C_TO_STRING_NOSLASHESCAPE) as i32
             } else {
-                // {}
-                cglue::json_object_to_json_string_ext(
-                    jso,
-                    (cglue::JSON_C_TO_STRING_NOSLASHESCAPE | cglue::JSON_C_TO_STRING_NOZERO) as i32,
-                )
+                // `"{}"` → compact JSON, no slash escape and no trailing ".0" for integers.
+                (cglue::JSON_C_TO_STRING_NOSLASHESCAPE | cglue::JSON_C_TO_STRING_NOZERO) as i32
             };
-            cstring = CStr::from_ptr(cbuffer);
+
+            let cbuffer = cglue::json_object_to_json_string_ext(jso, flags);
+            // SAFETY: json-c guarantees a valid, null-terminated UTF-8 buffer here.
+            CStr::from_ptr(cbuffer)
         };
 
-        // no semicolon here: `write!` returns the result
-        write!(format, "{}", cstring.to_str().unwrap())
-
-        // Fulup should free cbuffer
+        // Note: no trailing semicolon — `write!` returns `fmt::Result` directly.
+        write!(f, "{}", cstring.to_str().expect("json-c produced non-UTF8"))
+        // Do NOT free `cbuffer`: it is managed by json-c and tied to `self.jso`.
     }
 }
-
 pub trait JsoncExport<T> {
     /// # Safety
     /// Caller must ensure `jso` is a valid pointer coming from json-c.

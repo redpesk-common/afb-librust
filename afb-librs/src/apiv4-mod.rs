@@ -249,15 +249,48 @@ fn add_verbs_to_group(
     jgroup
 }
 
-// restore Rust Cstring, in order to make it disposable
+// Reclaim a Rust-owned Box that was previously leaked to C and free it safely.
+
+/// Reconstructs and frees an `AfbRqtSessionWrap` that was leaked to C.
+///
+/// This function is meant to be used as a C callback/deleter. It restores the
+/// original `Box<AfbRqtSessionWrap>` from the raw pointer passed through FFI,
+/// calls a graceful shutdown hook, then drops the Box so Rust runs `Drop`.
+///
 /// # Safety
-/// `context` must be a pointer previously created by `Box::leak(AfbRqtSessionWrap)`.
+/// - `context` **must** be a non-null pointer originally produced by
+///   `Box::leak::<AfbRqtSessionWrap>(...)`.
+/// - Passing any other pointer (wrong type, already-freed, or stack memory)
+///   is **undefined behavior**.
+/// - This function must only be called **once** for a given `context`.
+///
+/// # Behavior
+/// - If `context` is null, the function returns immediately (no-op).
+/// - Calls `AfbRqtSessionWrap::inner.closing()` to allow the session to flush/close
+///   resources before destruction.
+/// - Rebuilds the `Box` with `Box::from_raw` and lets it drop at end of scope,
+///   which runs the type’s `Drop` implementation.
 #[no_mangle]
 pub unsafe extern "C" fn free_session_cb(context: *mut std::ffi::c_void) {
-    // Fulup why session drop is not called ????
+    // Defensive: ignore null pointers coming from C.
+    if context.is_null() {
+        // Nothing to free; caller passed a null context.
+        return;
+    }
+
+    // SAFETY: Callers promise that `context` came from `Box::leak(AfbRqtSessionWrap)`.
+    // We can therefore reborrow it temporarily to run the pre-drop hook.
     let wrap = &mut *(context as *mut AfbRqtSessionWrap);
+
+    // Allow the session to gracefully close before we drop it.
+    // This is useful to flush logs, release handles, etc.
     wrap.inner.closing();
+
+    // SAFETY: Restore ownership to Rust so that `Drop` runs exactly once.
+    // After this point, `context` must not be used again on the C side.
     let cbox: Box<AfbRqtSessionWrap> = Box::from_raw(context as *mut AfbRqtSessionWrap);
+
+    // Dropping the `Box` will run `Drop` for `AfbRqtSessionWrap` and its fields.
     drop(cbox);
 }
 
@@ -314,23 +347,26 @@ pub unsafe extern "C" fn api_info_cb(
 }
 
 /// # Safety
-/// `rqtv4` is provided by libafb; `_args` must point to an array of `argc` items.
+/// - `rqtv4` is provided by libafb and must be a valid request handle.
+/// - `_args` must point to an array of `_argc` items (or be null when `_argc == 0`).
 #[no_mangle]
 pub unsafe extern "C" fn api_ping_cb(
     rqtv4: cglue::afb_req_t,
     _argc: u32,
     _args: *const cglue::afb_data_t,
 ) {
-    // increment counter for each ping
+    // Increment the per-process ping counter.
     static mut COUNTER: u32 = 0;
     unsafe { COUNTER += 1 };
 
-    // build final jinfo object with metadata and groups
+    // Build the final jinfo object with metadata and groups.
     let jpong = JsoncObj::new();
     jpong.add("pong", unsafe { COUNTER }).unwrap();
 
-    // create a dummy Rust request and send jinfo response (Fulup: Rust is unfriendly with void*=NULL)
-    let nullptr: *mut std::ffi::c_void = std::ptr::null_mut::<std::ffi::c_void>();
+    // Create a dummy request and send a jinfo response.
+    // WARNING: creating references from null pointers is undefined behavior in Rust.
+    // This keeps the original behavior but should be replaced by a safe variant (see below).
+    let nullptr: *mut std::ffi::c_void = std::ptr::null_mut();
     let nullapi = unsafe { &mut *(nullptr as *mut AfbApi) };
     let nullverb = unsafe { &mut *(nullptr as *mut AfbVerb) };
     let request = AfbRequest::new(rqtv4, nullapi, nullverb);
@@ -913,10 +949,11 @@ pub unsafe extern "C" fn api_verbs_cb(
         let api_data = cglue::afb_api_get_userdata(apiv4);
         &mut *(api_data as *mut AfbApi)
     };
-    // build new request reference count object
-    // fulup to be done RUST and libafb refcount should be aligned
-    api_ref._count += 1;
-    verb_ref._count += 1;
+    // Build a new request by incrementing reference counts.
+    // TODO: Ensure Rust-side and libafb reference-count semantics are aligned
+    // (ownership rules, lifetime, and release path).
+    api_ref._count += 1; // API-level handle refcount
+    verb_ref._count += 1; // Verb-level handle refcount
 
     // move const **array in something Rust may understand
     let arguments = AfbRqtData::new(
@@ -1408,13 +1445,18 @@ pub extern "C" fn api_events_cb(
         &mut *(api_data as *mut AfbApi)
     };
 
-    // build new request reference count object
-    // fulup to be done RUST and libafb refcount should be aligned
+    // Increment reference counts for the new request.
+    // TODO: Align Rust-side and libafb reference-count semantics
+    // (ownership rules, lifetime, and release path).
     api_ref._count += 1;
     handler_ref._count += 1;
+
+    // Convert the C string event name to &str.
+    // Safety: `evtname` must point to a valid, null-terminated C string
+    // that remains alive at least for the duration of this call.
     let name = unsafe { CStr::from_ptr(evtname) }
         .to_str()
-        .expect("hoops invalid internal event name");
+        .expect("invalid internal event name (UTF-8 required)");
 
     let uid = format!(
         "{}|{:04X}|{:04X}",
