@@ -170,7 +170,7 @@ impl fmt::Display for JsoncObj {
             cstring = CStr::from_ptr(cbuffer);
         };
 
-        // pas de ; fait sur le write fait return
+        // no semicolon here: `write!` returns the result
         write!(format, "{}", cstring.to_str().unwrap())
 
         // Fulup should free cbuffer

@@ -281,10 +281,10 @@ pub fn verbosity_to_mask(level: i32) -> Result<u32, AfbError> {
 pub struct AfbLogMsg {}
 pub trait DoSendLog<T> {
     /// # Safety
-    /// - `file`, `funcname` et `format` doivent pointer vers des C-strings valides et
-    ///   null-terminées vivant au moins le temps de l'appel.
-    /// - `handle` doit être un handle valide pour le backend concerné.
-    /// - Cette fonction appelle des APIs C et peut déréférencer des pointeurs bruts.
+    /// - `file`, `funcname`, and `format` must point to valid, null-terminated C strings
+    ///   that live at least for the duration of this call.
+    /// - `handle` must be a valid handle for the corresponding backend.
+    /// - This function calls into C APIs and may dereference raw pointers.
     unsafe fn print_log(
         level: i32,
         handle: T,
@@ -293,8 +293,9 @@ pub trait DoSendLog<T> {
         funcname: *const Cchar,
         format: *const Cchar,
     );
+
     /// # Safety
-    /// - `handle` doit être un handle valide ; l’implémentation peut appeler du code C.
+    /// - `handle` must be a valid handle; the implementation may call into C code.
     unsafe fn get_verbosity(handle: T) -> u32;
 }
 
