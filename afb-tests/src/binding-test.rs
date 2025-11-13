@@ -34,11 +34,11 @@ fn async_response_cb(api: &AfbApi, params: &AfbRqtData, ctx: &AfbCtxData) -> Res
                 ctx.my_counter,
                 argument
             );
-        }
+        },
         Err(error) => {
             afb_log_msg!(Error, api, "async_response error={}", error);
             return Err(error);
-        }
+        },
     };
     Ok(())
 }
@@ -93,11 +93,7 @@ impl AfbApiControls for TapUserData {
 
         let test5 = AfbTapTest::new("MySimpleData", "rust-api", "verb_typed")
             .set_info("Check custom typed input")
-            .add_arg(MySimpleData {
-                x: 256,
-                y: 1024,
-                name: "Skipail IoT.bzh".to_owned(),
-            })?
+            .add_arg(MySimpleData { x: 256, y: 1024, name: "Skipail IoT.bzh".to_owned() })?
             .set_onsuccess("check-session")
             .finalize()?;
 
@@ -236,27 +232,23 @@ impl AfbApiControls for TapUserData {
         afb_log_msg!(Debug, api, "api={} config={}", api.get_uid(), jconf);
         match jconf.get::<bool>("autostart") {
             Ok(value) => self.autostart = value,
-            Err(_error) => {}
+            Err(_error) => {},
         };
 
         match jconf.get::<bool>("autoexit") {
             Ok(value) => self.autoexit = value,
-            Err(_error) => {}
+            Err(_error) => {},
         };
 
         match jconf.get::<String>("output") {
-            Err(_error) => {}
+            Err(_error) => {},
             Ok(value) => match value.to_uppercase().as_str() {
                 "JSON" => self.output = AfbTapOutput::JSON,
                 "TAP" => self.output = AfbTapOutput::TAP,
                 "NONE" => self.output = AfbTapOutput::NONE,
                 _ => {
-                    afb_log_msg!(
-                        Error,
-                        api,
-                        "Invalid output should be json|tap (default used)"
-                    );
-                }
+                    afb_log_msg!(Error, api, "Invalid output should be json|tap (default used)");
+                },
             },
         };
 
@@ -277,11 +269,7 @@ pub fn binding_test_init(rootv4: AfbApiV4, jconf: JsoncObj) -> Result<&'static A
         Err(_error) => "Tap-test-rootv4".to_owned(),
     };
 
-    let tap_config = TapUserData {
-        autostart: true,
-        autoexit: true,
-        output: AfbTapOutput::TAP,
-    };
+    let tap_config = TapUserData { autostart: true, autoexit: true, output: AfbTapOutput::TAP };
 
     // custom type should register once per binder
     afb_converter::register(rootv4)?;

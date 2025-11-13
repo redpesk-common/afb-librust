@@ -89,7 +89,7 @@ pub fn hexa_to_bytes<'a>(input: &str, buffer: &'a mut [u8]) -> Result<&'a [u8], 
                     "invalid hexa encoding syntax: '[01,ff,...]' got:{}",
                     input
                 )
-            }
+            },
         }
         idx += 1;
     }
@@ -141,9 +141,7 @@ impl Clone for JsoncObj {
     fn clone(&self) -> Self {
         unsafe {
             // Clone by bumping refcount
-            JsoncObj {
-                jso: cglue::json_object_get(self.jso),
-            }
+            JsoncObj { jso: cglue::json_object_get(self.jso) }
         }
     }
 }
@@ -754,9 +752,7 @@ impl JsoncImport<*const *const JsoncJso> for JsoncObj {
     fn import(jso: *const *const JsoncJso) -> Result<Self, AfbError> {
         debug_assert!(!jso.is_null(), "Jsonc::import: jso must not be null");
         unsafe {
-            let jsonc = JsoncObj {
-                jso: cglue::json_object_get(*jso as *mut cglue::json_object),
-            };
+            let jsonc = JsoncObj { jso: cglue::json_object_get(*jso as *mut cglue::json_object) };
             Ok(jsonc)
         }
     }
@@ -767,9 +763,7 @@ impl JsoncImport<*mut std::ffi::c_void> for JsoncObj {
     fn import(value: *mut std::ffi::c_void) -> Result<Self, AfbError> {
         let jso: &mut cglue::json_object = unsafe { &mut *(value as *mut cglue::json_object) };
         unsafe {
-            let jsonc = JsoncObj {
-                jso: cglue::json_object_get(jso),
-            };
+            let jsonc = JsoncObj { jso: cglue::json_object_get(jso) };
             Ok(jsonc)
         }
     }
@@ -779,9 +773,7 @@ impl JsoncImport<i64> for JsoncObj {
     #[track_caller]
     fn import(value: i64) -> Result<Self, AfbError> {
         unsafe {
-            let jsonc = JsoncObj {
-                jso: cglue::json_object_new_int64(value),
-            };
+            let jsonc = JsoncObj { jso: cglue::json_object_new_int64(value) };
             Ok(jsonc)
         }
     }
@@ -791,9 +783,7 @@ impl JsoncImport<f64> for JsoncObj {
     #[track_caller]
     fn import(value: f64) -> Result<Self, AfbError> {
         unsafe {
-            let jsonc = JsoncObj {
-                jso: cglue::json_object_new_double(value),
-            };
+            let jsonc = JsoncObj { jso: cglue::json_object_new_double(value) };
             Ok(jsonc)
         }
     }
@@ -807,9 +797,7 @@ impl JsoncImport<&str> for JsoncObj {
         } else {
             let sval = CString::new(value).expect("Invalid jsonc key string");
             unsafe {
-                let jsonc = JsoncObj {
-                    jso: cglue::json_object_new_string(sval.into_raw()),
-                };
+                let jsonc = JsoncObj { jso: cglue::json_object_new_string(sval.into_raw()) };
                 Ok(jsonc)
             }
         }
@@ -821,9 +809,7 @@ impl JsoncImport<&String> for JsoncObj {
     fn import(value: &String) -> Result<Self, AfbError> {
         let sval = CString::new(value.as_str()).expect("Invalid jsonc key string");
         unsafe {
-            let jsonc = JsoncObj {
-                jso: cglue::json_object_new_string(sval.into_raw()),
-            };
+            let jsonc = JsoncObj { jso: cglue::json_object_new_string(sval.into_raw()) };
             Ok(jsonc)
         }
     }
@@ -840,18 +826,14 @@ impl JsoncObj {
     pub fn new() -> JsoncObj {
         unsafe {
             // New empty object
-            JsoncObj {
-                jso: cglue::json_object_new_object(),
-            }
+            JsoncObj { jso: cglue::json_object_new_object() }
         }
     }
     #[track_caller]
     pub fn array() -> JsoncObj {
         unsafe {
             // New empty array
-            JsoncObj {
-                jso: cglue::json_object_new_array(),
-            }
+            JsoncObj { jso: cglue::json_object_new_array() }
         }
     }
 
@@ -900,19 +882,13 @@ impl JsoncObj {
                     let cbuffer = cglue::json_object_get_string(jso);
                     let cstring = CStr::from_ptr(cbuffer);
                     result = Jobject::String(cstring.to_str().unwrap().to_owned());
-                }
+                },
                 Jtype::Array => {
-                    result = {
-                        Jobject::Array(JsoncObj {
-                            jso: cglue::json_object_get(jso),
-                        })
-                    }
-                }
+                    result = { Jobject::Array(JsoncObj { jso: cglue::json_object_get(jso) }) }
+                },
                 Jtype::Object => {
-                    result = Jobject::Object(JsoncObj {
-                        jso: cglue::json_object_get(jso),
-                    });
-                }
+                    result = Jobject::Object(JsoncObj { jso: cglue::json_object_get(jso) });
+                },
                 Jtype::Null => result = Jobject::Null(),
                 _ => result = Jobject::Unknown("jsonc unknown type"),
             }
@@ -1124,14 +1100,14 @@ impl JsoncObj {
             match self.get::<JsoncObj>(entry.key.as_str()) {
                 Err(error) => {
                     return Err(error);
-                }
+                },
                 Ok(value) => {
                     let kval = entry.obj.to_string();
                     let tval = value.to_string();
                     if kval != tval {
                         return afb_error!("jsonc-contains-fail", "json-token-not-found");
                     }
-                }
+                },
             }
         }
         Ok(())
@@ -1157,7 +1133,7 @@ impl JsoncObj {
                     let uid_slot = format!("{}:{}", uid, idx);
                     receive_slot.equal(&uid_slot, expected_slot, tag)?;
                 }
-            }
+            },
             Jtype::Object => {
                 // move jsonc into a rust array and iterate on key/value pairs
                 if !self.is_type(Jtype::Object) {
@@ -1185,7 +1161,7 @@ impl JsoncObj {
                                                 expected_entry.key, self
                                             )
                                         )
-                                    }
+                                    },
                                     Some(value) => value,
                                 };
                             received_entry.obj.equal(
@@ -1194,7 +1170,7 @@ impl JsoncObj {
                                 tag,
                             )?;
                         }
-                    }
+                    },
 
                     Jequal::Full => {
                         for received_entry in &received {
@@ -1208,7 +1184,7 @@ impl JsoncObj {
                                                 received_entry.key, jexpected
                                             )
                                         )
-                                    }
+                                    },
                                     Some(value) => value,
                                 };
                             received_entry.obj.equal(
@@ -1217,9 +1193,9 @@ impl JsoncObj {
                                 tag,
                             )?;
                         }
-                    }
+                    },
                 }
-            }
+            },
 
             expected_type => {
                 if expected_type != self.get_type() {
@@ -1238,25 +1214,25 @@ impl JsoncObj {
                         let exp = jexpected.get_as::<bool>()?;
 
                         rec == exp
-                    }
+                    },
                     Jtype::Int => {
                         let rec = self.get_as::<i64>()?;
                         let exp = jexpected.get_as::<i64>()?;
 
                         rec == exp
-                    }
+                    },
                     Jtype::Float => {
                         let rec = self.get_as::<f64>()?;
                         let exp = jexpected.get_as::<f64>()?;
 
                         rec == exp
-                    }
+                    },
                     Jtype::String => {
                         let rec = self.get_as::<String>()?;
                         let exp = jexpected.get_as::<String>()?;
 
                         rec == exp
-                    }
+                    },
                     _ => false,
                 };
 
@@ -1268,7 +1244,7 @@ impl JsoncObj {
                         jexpected
                     );
                 }
-            }
+            },
         }
 
         Ok(())
@@ -1283,9 +1259,7 @@ impl JsoncObj {
                 json_str.as_bytes().as_ptr() as *mut c_char,
                 json_str.len() as i32,
             );
-            let jsonc = JsoncObj {
-                jso: cglue::json_object_get(jso),
-            };
+            let jsonc = JsoncObj { jso: cglue::json_object_get(jso) };
 
             let jerr = cglue::json_tokener_get_error(tok);
 

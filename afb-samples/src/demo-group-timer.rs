@@ -76,9 +76,7 @@ fn start_timer_callback(
         .set_period(1000)
         .set_decount(10)
         .set_callback(timer_callback)
-        .set_context(UserVcbData {
-            ctx: context.ctx.clone(),
-        })
+        .set_context(UserVcbData { ctx: context.ctx.clone() })
         .start()?;
 
     request.reply(AFB_NO_DATA, 0);
@@ -135,22 +133,16 @@ fn jobpost_verb(request: &AfbRequest, args: &AfbRqtData, ctx: &AfbCtxData) -> Re
     // increase count
     context.count += 1;
 
-    let job_context = JobPostData {
-        rqt: request.add_ref(),
-        jsonc: jquery.clone(),
-        count: context.count,
-    };
+    let job_context =
+        JobPostData { rqt: request.add_ref(), jsonc: jquery.clone(), count: context.count };
 
     let _jobid = context.job_post.post(3000, job_context)?;
 
     match context.event.subscribe(request) {
-        Err(_error) => {}
+        Err(_error) => {},
         Ok(event) => {
-            event.push(format!(
-                "job-post response should arrive in 3s count={}",
-                context.count
-            ));
-        }
+            event.push(format!("job-post response should arrive in 3s count={}", context.count));
+        },
     }
     Ok(())
 }
@@ -162,16 +154,11 @@ pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
     afb_log_msg!(Notice, apiv4, "Registering group={}", mod_name);
 
     let event = AfbEvent::new("timer-event").finalize()?;
-    let ctxdata = Rc::new(UserCtxData {
-        counter: Cell::new(0),
-        event,
-    });
+    let ctxdata = Rc::new(UserCtxData { counter: Cell::new(0), event });
 
     let start_timer = AfbVerb::new("timer-start")
         .set_callback(start_timer_callback)
-        .set_context(UserVcbData {
-            ctx: ctxdata.clone(),
-        })
+        .set_context(UserVcbData { ctx: ctxdata.clone() })
         .set_info("tics 1s timer for 10 tic")
         .set_usage("no input")
         .finalize()?;
@@ -184,11 +171,7 @@ pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
 
     let job_verb = AfbVerb::new("job-post")
         .set_callback(jobpost_verb)
-        .set_context(UserPostVerb {
-            event,
-            job_post,
-            count: 0,
-        })
+        .set_context(UserPostVerb { event, job_post, count: 0 })
         .set_info("return response in 3s")
         .set_usage("no input")
         .finalize()?;

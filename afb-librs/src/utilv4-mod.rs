@@ -230,12 +230,7 @@ impl AfbError {
             uid: self.uid.to_owned(),
             info: self.info.to_owned(),
             status: self.get_status(),
-            dbg_info: DbgInfo {
-                name,
-                file,
-                line,
-                column,
-            },
+            dbg_info: DbgInfo { name, file, line, column },
         }
     }
 
@@ -367,14 +362,7 @@ impl DoSendLog<&AfbRequest> for AfbLogMsg {
         funcname: *const Cchar,
         format: *const Cchar,
     ) {
-        cglue::afb_req_verbose(
-            (*rqt).get_rqtv4(),
-            level,
-            file,
-            line as i32,
-            funcname,
-            format,
-        )
+        cglue::afb_req_verbose((*rqt).get_rqtv4(), level, file, line as i32, funcname, format)
     }
 
     unsafe fn get_verbosity(rqt: &AfbRequest) -> u32 {
@@ -392,14 +380,7 @@ impl DoSendLog<&AfbApi> for AfbLogMsg {
         funcname: *const Cchar,
         format: *const Cchar,
     ) {
-        cglue::afb_api_verbose(
-            (*api).get_apiv4(),
-            level,
-            file,
-            line as i32,
-            funcname,
-            format,
-        )
+        cglue::afb_api_verbose((*api).get_apiv4(), level, file, line as i32, funcname, format)
     }
 
     unsafe fn get_verbosity(api: &AfbApi) -> u32 {
@@ -579,15 +560,9 @@ impl AfbLogMsg {
         match info {
             Some(dbg) => {
                 let line = dbg.line;
-                let file = CString::new(dbg.file)
-                    .expect("Invalid filename string")
-                    .into_raw();
-                let func = CString::new(dbg.name)
-                    .expect("Invalid func_name string")
-                    .into_raw();
-                let format = CString::new(message)
-                    .expect("Invalid message string")
-                    .into_raw();
+                let file = CString::new(dbg.file).expect("Invalid filename string").into_raw();
+                let func = CString::new(dbg.name).expect("Invalid func_name string").into_raw();
+                let format = CString::new(message).expect("Invalid message string").into_raw();
                 unsafe {
                     <Self as DoSendLog<H>>::print_log(
                         log_level as i32,
@@ -598,14 +573,12 @@ impl AfbLogMsg {
                         format,
                     );
                 }
-            }
+            },
             None => {
                 let line = 0;
                 let file = std::ptr::null::<Cchar>();
                 let func = std::ptr::null::<Cchar>();
-                let format = CString::new(message)
-                    .expect("Invalid message string")
-                    .into_raw();
+                let format = CString::new(message).expect("Invalid message string").into_raw();
                 unsafe {
                     <Self as DoSendLog<H>>::print_log(
                         log_level as i32,
@@ -616,7 +589,7 @@ impl AfbLogMsg {
                         format,
                     );
                 }
-            }
+            },
         };
     }
 }
@@ -626,11 +599,7 @@ pub type TimerCallback =
     fn(timer: &AfbTimer, decount: u32, ctx: &AfbCtxData) -> Result<(), AfbError>;
 #[track_caller]
 fn timer_default_cb(timer: &AfbTimer, _decount: u32, _ctx: &AfbCtxData) -> Result<(), AfbError> {
-    afb_error!(
-        "afb-default-cb",
-        "uid:{} no timer callback defined",
-        timer.get_uid()
-    )
+    afb_error!("afb-default-cb", "uid:{} no timer callback defined", timer.get_uid())
 }
 
 // Afb AfbTimerHandle implementation
@@ -659,7 +628,7 @@ pub unsafe extern "C" fn api_timers_cb(
     let result = (timer_ref.callback)(timer_ref, decount, &timer_ref.context);
 
     match result {
-        Ok(()) => {}
+        Ok(()) => {},
         Err(error) => {
             let dbg = error.get_dbg();
             afb_log_raw!(
@@ -672,7 +641,7 @@ pub unsafe extern "C" fn api_timers_cb(
                 dbg.line,
                 dbg.column
             );
-        }
+        },
     }
 
     // clean callback control box
@@ -833,11 +802,7 @@ fn job_default_cb(
     _args: &AfbCtxData,
     _ctx: &AfbCtxData,
 ) -> Result<(), AfbError> {
-    afb_error!(
-        "afb-default-cb",
-        "uid:{} no job callback defined",
-        job.get_uid()
-    )
+    afb_error!("afb-default-cb", "uid:{} no job callback defined", job.get_uid())
 }
 
 struct SchedJobV4 {
@@ -862,7 +827,7 @@ pub unsafe extern "C" fn api_schedjob_cb(signal: i32, userdata: *mut std::os::ra
     let result = (job_ref.callback)(job_ref, signal, &handle.args, &job_ref.context);
 
     match result {
-        Ok(()) => {}
+        Ok(()) => {},
         Err(error) => {
             let dbg = error.get_dbg();
             afb_log_raw!(
@@ -875,7 +840,7 @@ pub unsafe extern "C" fn api_schedjob_cb(signal: i32, userdata: *mut std::os::ra
                 dbg.line,
                 dbg.column
             );
-        }
+        },
     }
 }
 
@@ -1014,18 +979,16 @@ impl AfbPermisionV4 {
                     next: AFB_AUTH_DFLT_V4,
                 });
                 Box::leak(auth_box) as *mut AfbAuthV4
-            }
+            },
             AfbPermission::Require(value) => {
                 let perm = CString::new(*value).expect("invalid permission string");
                 let auth_box = Box::new(AfbAuthV4 {
                     type_: cglue::afb_auth_type_afb_auth_Permission,
-                    __bindgen_anon_1: cglue::afb_auth__bindgen_ty_1 {
-                        text: perm.into_raw(),
-                    },
+                    __bindgen_anon_1: cglue::afb_auth__bindgen_ty_1 { text: perm.into_raw() },
                     next: AFB_AUTH_DFLT_V4,
                 });
                 Box::leak(auth_box) as *mut AfbAuthV4
-            }
+            },
             AfbPermission::AnyOf(values) => {
                 let mut next = AFB_AUTH_DFLT_V4;
                 for slot in values {
@@ -1039,7 +1002,7 @@ impl AfbPermisionV4 {
                     next = Box::leak(auth_box);
                 }
                 next
-            }
+            },
             AfbPermission::AllOf(values) => {
                 let mut next = AFB_AUTH_DFLT_V4;
                 for slot in values {
@@ -1053,7 +1016,7 @@ impl AfbPermisionV4 {
                     next = Box::leak(auth_box);
                 }
                 next as *mut AfbAuthV4
-            }
+            },
             AfbPermission::Inner(value) => AfbPermisionV4::new(value, AFB_AUTH_DFLT_V4),
         };
 
@@ -1129,11 +1092,7 @@ pub type EvtFdCallback =
     fn(evfd: &AfbEvtFd, revents: u32, ctx: &AfbCtxData) -> Result<(), AfbError>;
 #[track_caller]
 fn evtfd_default_cb(evfd: &AfbEvtFd, _revents: u32, _ctx: &AfbCtxData) -> Result<(), AfbError> {
-    afb_error!(
-        "afb-default-cb",
-        "uid:{} no evtfd callback defined",
-        evfd.get_uid()
-    )
+    afb_error!("afb-default-cb", "uid:{} no evtfd callback defined", evfd.get_uid())
 }
 
 // Afb EvtFdHandle implementation
@@ -1164,7 +1123,7 @@ pub unsafe extern "C" fn api_evtfd_cb(
     let result = (evtfd_ref.callback)(evtfd_ref, revents, &evtfd_ref.context);
 
     match result {
-        Ok(()) => {}
+        Ok(()) => {},
         Err(error) => {
             let dbg = error.get_dbg();
             afb_log_raw!(
@@ -1177,7 +1136,7 @@ pub unsafe extern "C" fn api_evtfd_cb(
                 dbg.line,
                 dbg.column
             );
-        }
+        },
     }
 
     // clean callback control box

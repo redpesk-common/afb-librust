@@ -45,10 +45,7 @@ pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbVerb, AfbError> {
 
     let verb = AfbVerb::new(mod_name)
         .set_callback(verb_cb)
-        .set_context(MyCtxCb {
-            _text: "toto",
-            count: 0,
-        })
+        .set_context(MyCtxCb { _text: "toto", count: 0 })
         .set_info("My 1st demo verb")
         .set_usage("any json string")
         .add_sample("{'skipail': 'IoT.bzh', 'location':'Lorient'}")?

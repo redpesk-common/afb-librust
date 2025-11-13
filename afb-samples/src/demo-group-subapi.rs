@@ -19,8 +19,8 @@ fn hello_stop_cb(
         Err(error) => {
             afb_log_msg!(Error, request, &error);
             request.reply(afb_add_trace!(error), -1);
-        }
-        Ok(_response) => {}
+        },
+        Ok(_response) => {},
     };
     Ok(())
 }
@@ -31,10 +31,7 @@ fn hello_response_cb(
     _params: &AfbRqtData,
     _ctx: &AfbCtxData,
 ) -> Result<(), AfbError> {
-    request.reply(
-        "subscribe helloworld done (check log in afb-binder console)",
-        0,
-    );
+    request.reply("subscribe helloworld done (check log in afb-binder console)", 0);
     Ok(())
 }
 

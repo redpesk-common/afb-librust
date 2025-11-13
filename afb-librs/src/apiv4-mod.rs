@@ -49,11 +49,7 @@ pub type RqtCallback =
 
 #[track_caller]
 fn rqt_default_cb(rqt: &AfbRequest, _args: &AfbRqtData, _ctx: &AfbCtxData) -> Result<(), AfbError> {
-    afb_error!(
-        "afb-default-cb",
-        "uid:{} no verb callback defined",
-        rqt.get_verb().get_uid()
-    )
+    afb_error!("afb-default-cb", "uid:{} no verb callback defined", rqt.get_verb().get_uid())
 }
 
 pub type ApiCallback =
@@ -86,14 +82,14 @@ macro_rules! AfbBindingRegister {
                         dbg.column
                     );
                     return AFB_ABORT;
-                }
+                },
             };
 
             match $callback(apiv4, jconf) {
                 Ok(api) => {
                     afb_log_msg!(Notice, apiv4, "RUST api uid={} started", api.get_uid());
                     AFB_OK
-                }
+                },
                 Err(error) => {
                     let dbg = error.get_dbg();
                     afb_log_raw!(
@@ -106,7 +102,7 @@ macro_rules! AfbBindingRegister {
                         dbg.column
                     );
                     AFB_ABORT
-                }
+                },
             }
         }
     };
@@ -319,18 +315,12 @@ pub unsafe extern "C" fn api_info_cb(
 
     // create groups array to host verbs
     let jgroups = JsoncObj::array();
-    jgroups
-        .append(add_verbs_to_group("", "", &mut api_ref.verbs))
-        .unwrap();
+    jgroups.append(add_verbs_to_group("", "", &mut api_ref.verbs)).unwrap();
 
     for slot in &api_ref.groups {
         let group_ref = unsafe { &mut *(*slot as *mut AfbGroup) };
         jgroups
-            .append(add_verbs_to_group(
-                group_ref._uid,
-                group_ref.info,
-                &mut group_ref.verbs,
-            ))
+            .append(add_verbs_to_group(group_ref._uid, group_ref.info, &mut group_ref.verbs))
             .unwrap();
     }
 
@@ -467,7 +457,7 @@ pub unsafe extern "C" fn api_controls_cb(
                                 dbg.column
                             );
                             return AFB_FAIL;
-                        }
+                        },
                     };
 
                     match unsafe { (*ctrlbox).config(api_ref, jconfig) } {
@@ -483,10 +473,10 @@ pub unsafe extern "C" fn api_controls_cb(
                                 dbg.column
                             );
                             AFB_FAIL
-                        }
+                        },
                         Ok(()) => AFB_OK,
                     }
-                }
+                },
                 None => 0,
             };
 
@@ -634,7 +624,7 @@ pub unsafe extern "C" fn api_controls_cb(
                 unsafe { cglue::afb_api_seal(apiv4) }
             }
             status
-        }
+        },
 
         cglue::afb_ctlid_afb_ctlid_Init => match api_ref.ctrlbox {
             Some(ctrlbox) => match unsafe { (*ctrlbox).start(api_ref) } {
@@ -651,7 +641,7 @@ pub unsafe extern "C" fn api_controls_cb(
                         dbg.column
                     );
                     AFB_FAIL
-                }
+                },
             },
             None => AFB_OK,
         },
@@ -671,7 +661,7 @@ pub unsafe extern "C" fn api_controls_cb(
                         dbg.column
                     );
                     AFB_FAIL
-                }
+                },
             },
             None => AFB_OK,
         },
@@ -684,7 +674,7 @@ pub unsafe extern "C" fn api_controls_cb(
                     (*ctrlbox).orphan(api_ref, cname.to_str().unwrap());
                 };
                 AFB_OK
-            }
+            },
             None => AFB_OK,
         },
 
@@ -695,7 +685,7 @@ pub unsafe extern "C" fn api_controls_cb(
 
         _ => {
             panic!("Rust ApiControl unknown ctlid (hoop!!!)");
-        }
+        },
     };
 
     status
@@ -912,11 +902,7 @@ impl AfbApi {
 
 impl fmt::Display for AfbApi {
     fn fmt(&self, format: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            format,
-            "uid:{} name:{} info:{}",
-            self._uid, self.name, self.info
-        )
+        write!(format, "uid:{} name:{} info:{}", self._uid, self.name, self.info)
     }
 }
 
@@ -954,7 +940,7 @@ pub unsafe extern "C" fn api_verbs_cb(
     let request = AfbRequest::new(rqtv4, api_ref, verb_ref);
     let result = (verb_ref.callback)(&request, &arguments, &verb_ref.context);
     match result {
-        Ok(()) => {}
+        Ok(()) => {},
         Err(error) => {
             let dbg = error.get_dbg();
             afb_log_raw!(
@@ -967,7 +953,7 @@ pub unsafe extern "C" fn api_verbs_cb(
                 dbg.column
             );
             request.reply(error, -100);
-        }
+        },
     }
 }
 
@@ -1131,11 +1117,7 @@ impl AfbVerb {
 
 impl fmt::Display for AfbVerb {
     fn fmt(&self, format: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            format,
-            "uid:{} name:{} info:{}",
-            self._uid, self.name, self.info
-        )
+        write!(format, "uid:{} name:{} info:{}", self._uid, self.name, self.info)
     }
 }
 
@@ -1181,11 +1163,7 @@ impl AfbRequest {
         api: &'static AfbApi,
         verb: &'static AfbVerb,
     ) -> Self {
-        AfbRequest {
-            _rqtv4: cglue::afb_req_addref(rqtv4),
-            verb,
-            api,
-        }
+        AfbRequest { _rqtv4: cglue::afb_req_addref(rqtv4), verb, api }
     }
 
     #[track_caller]
@@ -1251,11 +1229,7 @@ impl AfbRequest {
         let verb_ctx = cglue::afb_req_get_vcbdata(rqtv4);
         let verb_ref = &mut *(verb_ctx as *mut AfbVerb);
 
-        AfbRequest {
-            _rqtv4: rqtv4,
-            verb: verb_ref,
-            api: api_ref,
-        }
+        AfbRequest { _rqtv4: rqtv4, verb: verb_ref, api: api_ref }
     }
 
     pub fn get_uid(&self) -> String {
@@ -1322,7 +1296,7 @@ impl AfbRequest {
             Err(error) => {
                 afb_log_msg!(Critical, self, &error);
                 return;
-            }
+            },
             Ok(data) => data,
         };
         unsafe {
@@ -1360,12 +1334,7 @@ pub struct AfbEventMsg<'a> {
 
 impl<'a> AfbEventMsg<'a> {
     pub fn new(uid: String, name: &'a str, api: &'a AfbApi, handler: &'a AfbEvtHandler) -> Self {
-        AfbEventMsg {
-            _uid: uid,
-            api,
-            name,
-            handler,
-        }
+        AfbEventMsg { _uid: uid, api, name, handler }
     }
 
     pub fn get_verbosity(&self) -> u32 {
@@ -1447,10 +1416,7 @@ pub extern "C" fn api_events_cb(
         .to_str()
         .expect("invalid internal event name (UTF-8 required)");
 
-    let uid = format!(
-        "{}|{:04X}|{:04X}",
-        api_ref._uid, api_ref._count, handler_ref._count
-    );
+    let uid = format!("{}|{:04X}|{:04X}", api_ref._uid, api_ref._count, handler_ref._count);
     let event = AfbEventMsg::new(uid, name, api_ref, handler_ref);
 
     // move const **array in something Rust may understand
@@ -1463,7 +1429,7 @@ pub extern "C" fn api_events_cb(
     // call event calback
     let result = (handler_ref.callback)(&event, &mut arguments, &handler_ref.context);
     match result {
-        Ok(()) => {}
+        Ok(()) => {},
         Err(error) => {
             let dbg = error.get_dbg();
             afb_log_raw!(
@@ -1476,7 +1442,7 @@ pub extern "C" fn api_events_cb(
                 dbg.line,
                 dbg.column
             );
-        }
+        },
     }
 }
 
@@ -1489,11 +1455,7 @@ fn evt_default_cb(
     _args: &AfbRqtData,
     _ctx: &AfbCtxData,
 ) -> Result<(), AfbError> {
-    afb_error!(
-        "afb-default-cb",
-        "uid:{} no event callback defined",
-        evt.get_uid()
-    )
+    afb_error!("afb-default-cb", "uid:{} no event callback defined", evt.get_uid())
 }
 
 pub struct AfbEvtHandler {
@@ -1593,11 +1555,7 @@ impl AfbEvtHandler {
 
 impl fmt::Display for AfbEvtHandler {
     fn fmt(&self, format: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            format,
-            "uid:{} name:{} info:{}",
-            self._uid, self.pattern, self.info
-        )
+        write!(format, "uid:{} name:{} info:{}", self._uid, self.pattern, self.info)
     }
 }
 
@@ -1714,10 +1672,7 @@ impl AfbEvent {
             afb_log_msg!(
                 Critical,
                 None,
-                format!(
-                    "Not register event:{} should register before use",
-                    self._uid
-                )
+                format!("Not register event:{} should register before use", self._uid)
             );
             return -1;
         }
@@ -1727,7 +1682,7 @@ impl AfbEvent {
             Err(error) => {
                 afb_log_msg!(Critical, self.get_apiv4(), &error);
                 return -1;
-            }
+            },
             Ok(data) => data,
         };
         unsafe {
@@ -1748,10 +1703,7 @@ impl AfbEvent {
             afb_log_msg!(
                 Critical,
                 self.get_apiv4(),
-                format!(
-                    "Not register event:{} should register before use",
-                    self._uid
-                )
+                format!("Not register event:{} should register before use", self._uid)
             );
             return -1;
         }
@@ -1761,7 +1713,7 @@ impl AfbEvent {
             Err(error) => {
                 afb_log_msg!(Critical, self.get_apiv4(), &error);
                 return -1;
-            }
+            },
             Ok(data) => data,
         };
         unsafe {
@@ -1974,7 +1926,7 @@ pub unsafe extern "C" fn afb_async_rqt_callback(
     let result = (subcall_ref.rqt_cb.unwrap())(&request, &arguments, &subcall_ref.context);
 
     match result {
-        Ok(()) => {}
+        Ok(()) => {},
         Err(error) => {
             let dbg = error.get_dbg();
             afb_log_raw!(
@@ -1987,7 +1939,7 @@ pub unsafe extern "C" fn afb_async_rqt_callback(
                 dbg.column
             );
             request.reply(error, -100);
-        }
+        },
     }
 }
 
@@ -2019,19 +1971,11 @@ pub unsafe extern "C" fn afb_async_api_callback(
     let subcall_ref = unsafe { &mut *(userdata as *mut AfbSubCall) };
     let result = (subcall_ref.api_cb.unwrap())(api_ref, &mut arguments, &subcall_ref.context);
     match result {
-        Ok(()) => {}
+        Ok(()) => {},
         Err(error) => {
             let dbg = error.get_dbg();
-            afb_log_raw!(
-                Notice,
-                apiv4,
-                "{} file: {}:{}:{}",
-                error,
-                dbg.file,
-                dbg.line,
-                dbg.column
-            );
-        }
+            afb_log_raw!(Notice, apiv4, "{} file: {}:{}:{}", error, dbg.file, dbg.line, dbg.column);
+        },
     }
 }
 
@@ -2083,14 +2027,7 @@ impl<C: 'static> DoSubcallAsync<&AfbApi, ApiCallback, C> for AfbSubCall {
         callback: ApiCallback,
         context: C,
     ) {
-        AfbSubCall::subcall_async(
-            api.get_apiv4(),
-            apiname,
-            verbname,
-            params,
-            callback,
-            context,
-        )
+        AfbSubCall::subcall_async(api.get_apiv4(), apiname, verbname, params, callback, context)
     }
 }
 impl DoSubcallSync<&AfbApi> for AfbSubCall {
@@ -2191,14 +2128,7 @@ impl<C: 'static> DoSubcallAsync<&AfbRequest, RqtCallback, C> for AfbSubCall {
         callback: RqtCallback,
         context: C,
     ) {
-        AfbSubCall::subcall_async(
-            (*rqt).get_rqtv4(),
-            apiname,
-            verbname,
-            params,
-            callback,
-            context,
-        )
+        AfbSubCall::subcall_async((*rqt).get_rqtv4(), apiname, verbname, params, callback, context)
     }
 }
 
@@ -2313,7 +2243,7 @@ impl AfbSubCall {
         let params = match response {
             Err(error) => {
                 return Err(error);
-            }
+            },
             Ok(data) => data,
         };
 
@@ -2339,7 +2269,7 @@ impl AfbSubCall {
         let params = match response {
             Err(error) => {
                 return Err(error);
-            }
+            },
             Ok(data) => data,
         };
 

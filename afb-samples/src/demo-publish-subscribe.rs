@@ -62,11 +62,11 @@ fn sensor_cb(request: &AfbRequest, args: &AfbRqtData, ctx: &AfbCtxData) -> Resul
     let action = match args.get::<JsoncObj>(0) {
         Err(error) => {
             return Err(afb_add_trace!(error));
-        }
+        },
         Ok(jquery) => match jquery.get::<String>("action") {
             Err(error) => {
                 return Err(afb_add_trace!(error));
-            }
+            },
             Ok(action) => match action.to_uppercase().as_str() {
                 "SUBSCRIBE" => Action::SUBSCRIBE,
                 "UNSUBSCRIBE" => Action::UNSUBSCRIBE,
@@ -74,7 +74,7 @@ fn sensor_cb(request: &AfbRequest, args: &AfbRqtData, ctx: &AfbCtxData) -> Resul
                 "RESET" => Action::RESET,
                 _ => {
                     return afb_error!("invalid-action", "expect: SUBSCRIBE|UNSUBSCRIBE|READ|RESET")
-                }
+                },
             },
         },
     };
@@ -85,19 +85,19 @@ fn sensor_cb(request: &AfbRequest, args: &AfbRqtData, ctx: &AfbCtxData) -> Resul
                 Err(error) => request.reply(afb_add_trace!(error), -1),
                 Ok(_handle) => request.reply("sensor subscribed", 0),
             };
-        }
+        },
         Action::UNSUBSCRIBE => {
             match ctx.event.unsubscribe(request) {
                 Err(error) => request.reply(afb_add_trace!(error), -1),
                 Ok(_handle) => request.reply("sensor unsubscribed", 0),
             };
-        }
+        },
         Action::READ => {
             request.reply(format!("sensor counter={}", ctx.get_counter()), 0);
-        }
+        },
         Action::RESET => {
             request.reply(format!("sensor reset={}", ctx.rst_counter()), 0);
-        }
+        },
     };
     Ok(())
 }
@@ -163,18 +163,12 @@ pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
     let event = AfbEvent::new("pub-sub-event");
 
     // Shared sensor state (counter + event) wrapped in Arc and reused by both timer and verb.
-    let ctxdata = Arc::new(UserData {
-        counter: Cell::new(0),
-        event,
-    });
+    let ctxdata = Arc::new(UserData { counter: Cell::new(0), event });
 
     AfbTimer::new("sensor_simulator")
         .set_period(1000)
         .set_callback(timer_callback)
-        .set_context(UserContext {
-            _debug: "simulator",
-            ctx: Arc::clone(&ctxdata),
-        })
+        .set_context(UserContext { _debug: "simulator", ctx: Arc::clone(&ctxdata) })
         // Optional: for a finite number of ticks, uncomment and then free the context
         // on the last tick inside `timer_callback`.
         // .set_decount(10)
@@ -183,10 +177,7 @@ pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
     let verb = AfbVerb::new("pub/sub")
         .set_name("pub-sub")
         .set_callback(sensor_cb)
-        .set_context(UserContext {
-            _debug: "pub/sub",
-            ctx: Arc::clone(&ctxdata),
-        })
+        .set_context(UserContext { _debug: "pub/sub", ctx: Arc::clone(&ctxdata) })
         .set_actions("['reset','read','subscribe','unsubscribe']")
         .expect("valid json array")
         .set_info("simulate publish/subscribe sensor model")

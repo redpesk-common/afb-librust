@@ -115,7 +115,7 @@ macro_rules! AfbDataConverter {
                                 ConverterBox(Some(encoder as &'static afbv4::datav4::AfbConverter))
                         };
                         Ok(encoder as &'static afbv4::datav4::AfbConverter)
-                    }
+                    },
                     Err(error) => Err(error),
                 }
             }
@@ -133,7 +133,7 @@ macro_rules! AfbDataConverter {
                             stringify!($uid)
                         );
                         panic!("fix missing converter");
-                    }
+                    },
                     ConverterBox(Some(value)) => value.typev4,
                 };
 
@@ -149,7 +149,7 @@ macro_rules! AfbDataConverter {
                                         std::ffi::CStr::from_ptr(&mut *(cbuffer as *mut Cchar))
                                     };
                                     cstring.to_str().unwrap()
-                                }
+                                },
                             }
                         };
                         afb_error!(
@@ -158,7 +158,7 @@ macro_rules! AfbDataConverter {
                             index,
                             data
                         )
-                    }
+                    },
                     Some(cbuffer) => Ok(unsafe { &mut *(cbuffer as *mut $datat) }),
                 }
             }
@@ -176,7 +176,7 @@ macro_rules! AfbDataConverter {
                             stringify!($uid)
                         );
                         panic!("fix missing converter");
-                    }
+                    },
                     ConverterBox(Some(value)) => value.typev4,
                 };
                 let uid = concat!("export:", stringify!($user_type));
@@ -305,9 +305,8 @@ impl AfbBuiltinType {
     pub fn get(builtin_type: &AfbBuiltinType) -> AfbConverter {
         unsafe {
             match builtin_type {
-                AfbBuiltinType::None => AfbConverter {
-                    _uid: "Builtin-None",
-                    typev4: 0 as AfbTypeV4,
+                AfbBuiltinType::None => {
+                    AfbConverter { _uid: "Builtin-None", typev4: 0 as AfbTypeV4 }
                 },
                 AfbBuiltinType::Opaque => AfbConverter {
                     _uid: "Builtin-Opaque",
@@ -412,9 +411,7 @@ extern "C" fn afb_encoding_cb(
     match result {
         Ok(encoded) => {
             let len = encoded.len();
-            let cbuffer = CString::new(encoded)
-                .expect("(hoops) invalid encoded string")
-                .into_raw();
+            let cbuffer = CString::new(encoded).expect("(hoops) invalid encoded string").into_raw();
 
             unsafe {
                 cglue::afb_create_data_raw(
@@ -426,11 +423,11 @@ extern "C" fn afb_encoding_cb(
                     cbuffer as *const _ as *mut std::ffi::c_void,
                 )
             }
-        }
+        },
         Err(error) => {
             println!("encoding error={}", error);
             -1
-        }
+        },
     }
 }
 
@@ -469,11 +466,11 @@ extern "C" fn afb_decoding_cb(
                     cbuffer as *const _ as *mut std::ffi::c_void,
                 )
             }
-        }
+        },
         Err(error) => {
             println!("decoding error={}", error);
             -1
-        }
+        },
     }
 }
 
@@ -511,9 +508,7 @@ impl AfbConverter {
     #[allow(clippy::mut_from_ref)]
     pub fn new(uid: &'static str) -> Result<&'static mut Self, AfbError> {
         // register new type within libafb
-        let cuid = CString::new(uid)
-            .expect("Invalid converter uid key")
-            .into_raw();
+        let cuid = CString::new(uid).expect("Invalid converter uid key").into_raw();
         let typev4 = 0 as cglue::afb_type_t;
         let status = unsafe {
             if cglue::afb_type_lookup(&typev4 as *const _ as *mut cglue::afb_type_t, cuid) == 0 {
@@ -601,10 +596,7 @@ pub fn get_type(uid: &'static str) -> Result<&'static mut AfbConverter, AfbError
     let cuid = CString::new(uid).expect("Invalid converter uid key");
 
     let status = unsafe {
-        cglue::afb_type_lookup(
-            &typev4 as *const _ as *mut cglue::afb_type_t,
-            cuid.into_raw(),
-        )
+        cglue::afb_type_lookup(&typev4 as *const _ as *mut cglue::afb_type_t, cuid.into_raw())
     };
 
     if status < 0 {
@@ -632,7 +624,7 @@ macro_rules! _register_query_converter {
                                     let cstring =
                                         unsafe { CStr::from_ptr(&mut *(cbuffer as *mut Cchar)) };
                                     cstring.to_str().unwrap()
-                                }
+                                },
                             }
                         };
                         afb_error!(
@@ -641,7 +633,7 @@ macro_rules! _register_query_converter {
                             index,
                             data
                         )
-                    }
+                    },
                     Some(cbuffer) => Ok(unsafe { *(cbuffer as *mut $rust_type) }),
                 }
             }
@@ -665,7 +657,7 @@ impl ConvertQuery<String> for AfbRqtData {
                 let cstring = unsafe { CStr::from_ptr(&*(cbuffer as *mut Cchar)) };
                 let slice: &str = cstring.to_str().unwrap();
                 Ok(slice.to_owned())
-            }
+            },
         }
     }
 }
@@ -693,11 +685,7 @@ pub struct AfbRqtData {
 impl AfbRqtData {
     #[track_caller]
     pub fn new(args: &[AfbDataV4], argc: u32, status: i32) -> Self {
-        AfbRqtData {
-            count: argc,
-            status,
-            argsv4: args.to_owned(),
-        }
+        AfbRqtData { count: argc, status, argsv4: args.to_owned() }
     }
 
     #[track_caller]
@@ -727,12 +715,9 @@ impl AfbRqtData {
         AfbRqtData: ConvertQuery<T>,
     {
         match self.check(index as i32) {
-            Err(max) => afb_error!(
-                "AfbRqtData.get",
-                "invalid argument index ask:{} max:{}",
-                index + 1,
-                max
-            ),
+            Err(max) => {
+                afb_error!("AfbRqtData.get", "invalid argument index ask:{} max:{}", index + 1, max)
+            },
             Ok(()) => Self::import(self, index),
         }
     }
@@ -838,11 +823,7 @@ impl AfbRqtData {
 impl Clone for AfbRqtData {
     fn clone(&self) -> Self {
         self.addref();
-        AfbRqtData {
-            count: self.count,
-            status: self.status,
-            argsv4: self.argsv4.clone(),
-        }
+        AfbRqtData { count: self.count, status: self.status, argsv4: self.argsv4.clone() }
     }
 }
 
@@ -1005,9 +986,7 @@ pub struct AfbParams {
 
 impl Clone for AfbParams {
     fn clone(&self) -> Self {
-        let mut clone = AfbParams {
-            arguments: Vec::new(),
-        };
+        let mut clone = AfbParams { arguments: Vec::new() };
 
         for idx in 0..self.arguments.len() {
             let param = self.arguments[idx];
@@ -1027,9 +1006,7 @@ impl Default for AfbParams {
 impl AfbParams {
     #[track_caller]
     pub fn new() -> Self {
-        AfbParams {
-            arguments: Vec::new(),
-        }
+        AfbParams { arguments: Vec::new() }
     }
 
     #[track_caller]
