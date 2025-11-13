@@ -15,4 +15,3 @@ afb_samples = {path ="../afb-samples"}
 name = "afb_tests"
 crate-type = ["cdylib"]
 path = "src/binding-test.rs"
-
