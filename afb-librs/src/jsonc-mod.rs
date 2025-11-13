@@ -884,7 +884,7 @@ impl JsoncObj {
                     result = Jobject::String(cstring.to_str().unwrap().to_owned());
                 },
                 Jtype::Array => {
-                    result = { Jobject::Array(JsoncObj { jso: cglue::json_object_get(jso) }) }
+                    result = Jobject::Array(JsoncObj { jso: cglue::json_object_get(jso) })
                 },
                 Jtype::Object => {
                     result = Jobject::Object(JsoncObj { jso: cglue::json_object_get(jso) });

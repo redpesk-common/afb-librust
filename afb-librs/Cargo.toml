@@ -13,6 +13,7 @@ authors = ["fulup@iot.bzh"]
 publish = false
 build = "capi/build.rs"
 edition = "2021"
+license.workspace = true
 
 [dependencies]
 bitflags = "2"
