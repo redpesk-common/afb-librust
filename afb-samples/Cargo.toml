@@ -3,6 +3,7 @@ name = "afb_samples"
 version = "0.1.0"
 authors = ["fulup@iot.bzh"]
 edition = "2021"
+license.workspace = true
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
@@ -20,4 +21,3 @@ path = "converter/demo-converter.rs"
 name = "afb_samples"
 crate-type = ["cdylib"]
 path = "src/@demo-binding.rs"
-

@@ -117,10 +117,7 @@ impl AfbTapTest {
     }
 
     pub fn set_response(&mut self, status: i32, diagnostic: &str) -> &mut Self {
-        self.response = Some(AfbTapResponse {
-            status,
-            diagnostic: diagnostic.to_owned(),
-        });
+        self.response = Some(AfbTapResponse { status, diagnostic: diagnostic.to_owned() });
         self
     }
 
@@ -189,10 +186,7 @@ impl AfbTapTest {
                 reply.get_status(),
                 afb_error_info(reply.get_status())
             );
-            return AfbTapResponse {
-                status: AFB_FAIL,
-                diagnostic: msg,
-            };
+            return AfbTapResponse { status: AFB_FAIL, diagnostic: msg };
         }
 
         for idx in 0..self.expect.len() {
@@ -201,11 +195,8 @@ impl AfbTapTest {
                 // expect argument as no jsonc representation.
                 Err(error) => {
                     let msg = error.to_jsonc().unwrap().to_string();
-                    return AfbTapResponse {
-                        status: AFB_FAIL,
-                        diagnostic: msg,
-                    };
-                }
+                    return AfbTapResponse { status: AFB_FAIL, diagnostic: msg };
+                },
                 Ok(mut jvalue) => {
                     let jtest = if jexpect.is_type(Jtype::Object) {
                         jvalue.contains(jexpect.clone())
@@ -215,18 +206,12 @@ impl AfbTapTest {
 
                     if let Err(error) = jtest {
                         afb_log_msg!(Warning, api, "{} -> {} NotIn {}", error, jexpect, jvalue);
-                        return AfbTapResponse {
-                            status: AFB_FAIL,
-                            diagnostic: error.to_string(),
-                        };
+                        return AfbTapResponse { status: AFB_FAIL, diagnostic: error.to_string() };
                     }
-                }
+                },
             }
         }
-        AfbTapResponse {
-            status: AFB_OK,
-            diagnostic: "".to_owned(),
-        }
+        AfbTapResponse { status: AFB_OK, diagnostic: "".to_owned() }
     }
 
     /// Call the configured verb with an optional timeout.
@@ -334,7 +319,7 @@ impl AfbTapTest {
             let mut done = match lock.lock() {
                 Err(_error) => {
                     return afb_error!("fail-group-wait", "fail waiting on tap group={}", self.uid)
-                }
+                },
                 Ok(mutex) => mutex,
             };
             *done = 1;
@@ -342,11 +327,7 @@ impl AfbTapTest {
         }
 
         // use group timeout as default
-        let timeout = if self.timeout == 0 {
-            self.get_group().timeout
-        } else {
-            self.timeout
-        };
+        let timeout = if self.timeout == 0 { self.get_group().timeout } else { self.timeout };
 
         self.call_with_timeout(timeout);
 
@@ -366,17 +347,14 @@ impl AfbTapTest {
         let msg = match &self.response {
             None => {
                 format!("ok {} - {} # SKIP", self.index, self.uid)
-            }
+            },
             Some(response) => {
                 if response.status == AFB_OK {
                     format!("ok {} - {}", self.index, self.uid)
                 } else {
-                    format!(
-                        "not ok {} - {} # {}",
-                        self.index, self.uid, response.diagnostic
-                    )
+                    format!("not ok {} - {} # {}", self.index, self.uid, response.diagnostic)
                 }
-            }
+            },
         };
         JsoncObj::import(msg.as_str())
     }
@@ -632,11 +610,11 @@ impl AfbTapSuite {
             Some(group) => {
                 afb_log_msg!(Debug, api, "-- Get Tap group:{}", label);
                 Some(unsafe { &mut **group })
-            }
+            },
             None => {
                 afb_log_msg!(Critical, api, "Fail to find test-group:{}", label);
                 None
-            }
+            },
         }
     }
 
@@ -652,9 +630,7 @@ impl AfbTapSuite {
     #[track_caller]
     pub fn finalize(&'static mut self) -> Result<(), AfbError> {
         let api = unsafe { &mut *(self.tap_api as *mut AfbApi) };
-        let vcbdata = TapGroupData {
-            group: self.autostart,
-        };
+        let vcbdata = TapGroupData { group: self.autostart };
 
         // add auto start group verbs
         let autostart_tap = unsafe { &mut *self.autostart };
@@ -710,10 +686,10 @@ impl AfbTapSuite {
         }
 
         match self.output {
-            AfbTapOutput::NONE => {}
+            AfbTapOutput::NONE => {},
             AfbTapOutput::JSON => {
                 println!("{}", jreport);
-            }
+            },
             AfbTapOutput::TAP => {
                 println!("-- start:{} --", self.uid);
                 let jvec = jreport.expand()?;
@@ -723,16 +699,16 @@ impl AfbTapSuite {
                     match jreport.get::<JsoncObj>(entry.key.as_str()) {
                         Err(error) => {
                             afb_log_msg!(Critical, self.get_api().get_apiv4(), error.to_string());
-                        }
+                        },
                         Ok(jtest) => {
                             for idx in 0..jtest.count().unwrap() {
                                 println!("{}", jtest.index::<String>(idx).unwrap().as_str());
                             }
-                        }
+                        },
                     }
                 }
                 println!("\n-- end:{} --", self.uid);
-            }
+            },
         };
         Ok(jreport)
     }
@@ -793,12 +769,12 @@ fn tap_test_callback(
         Err(error) => {
             afb_log_msg!(Error, rqt, "fail to launch test error={}", error);
             rqt.reply(error, 405);
-        }
+        },
         Ok(_jreport) => {
             // wait for test to be completed
             let _next = test.get_next_ptr();
             rqt.reply(test.get_report()?, 0);
-        }
+        },
     }
     Ok(())
 }
@@ -829,10 +805,10 @@ fn tap_group_callback(
         Err(error) => {
             afb_log_msg!(Error, rqt, "fail to launch test error={}", error);
             rqt.reply(error, 405);
-        }
+        },
         Ok(_jreport) => {
             rqt.reply(group.get_report()?, 0);
-        }
+        },
     }
     Ok(())
 }

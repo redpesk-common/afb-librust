@@ -6,3 +6,8 @@ members = [
     "afb-samples",
     "afb-tests",
 ]
+
+[workspace.package]
+# hérité par les crates avec `license.workspace = true`
+edition = "2021"
+license = "MIT OR Apache-2.0"

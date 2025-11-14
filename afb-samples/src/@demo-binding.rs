@@ -60,13 +60,7 @@ impl AfbApiControls for ApiUserData {
     // api is loaded but not ready to be used, when defined binder send binding specific configuration
     fn config(&mut self, api: &AfbApi, config: JsoncObj) -> Result<(), AfbError> {
         let _api_data = self; // self matches api_data
-        afb_log_msg!(
-            Notice,
-            api,
-            "--api-config api={} config={}",
-            api.get_uid(),
-            config
-        );
+        afb_log_msg!(Notice, api, "--api-config api={} config={}", api.get_uid(), config);
 
         Ok(())
     }
@@ -95,9 +89,7 @@ pub fn binding_init(rootv4: AfbApiV4, jconf: JsoncObj) -> Result<&'static AfbApi
         .set_name("rust-api")
         .set_info("My first Rust API")
         .set_permission(AfbPermission::new("acl:rust"))
-        .set_callback(Box::new(ApiUserData {
-            _any_data: "skipail",
-        }))
+        .set_callback(Box::new(ApiUserData { _any_data: "skipail" }))
         .set_verbosity(verbosity)?
         .add_verb(verb_probe::register(rootv4)?)
         .add_verb(verb_basic::register(rootv4)?)

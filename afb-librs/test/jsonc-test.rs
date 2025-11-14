@@ -106,10 +106,7 @@ fn equal_partial_json() -> Result<(), AfbError> {
     let jquery = JsoncObj::parse(query).unwrap();
     let jexpect = JsoncObj::parse(expect).unwrap();
 
-    if jquery
-        .equal("tst_equal_fail", jexpect.clone(), Jequal::Full)
-        .is_ok()
-    {
+    if jquery.equal("tst_equal_fail", jexpect.clone(), Jequal::Full).is_ok() {
         return afb_error!("tst_equal_fail", "this test should have fail");
     }
 
@@ -249,10 +246,7 @@ fn get_from_object() {
     jsonc.add("slot3", value3).unwrap();
     jsonc.add("slot4", JsoncObj::new()).unwrap();
     jsonc.add("slot5", JsoncObj::array()).unwrap();
-    assert!(
-        matches!(jsonc.get_type(), Jtype::Object),
-        "object not a jsonc object"
-    );
+    assert!(matches!(jsonc.get_type(), Jtype::Object), "object not a jsonc object");
 
     match jsonc.get::<i64>("slot1") {
         Ok(value) => assert!(value == value1, "slot1/value diverge"),
@@ -278,10 +272,10 @@ fn get_from_object() {
             Jobject::String(value) => assert!(value == value3, "slot2/value diverge"),
             Jobject::Object(value) => {
                 assert!(value.is_type(Jtype::Object), "object not a jsonc object")
-            }
+            },
             Jobject::Array(value) => {
                 assert!(value.is_type(Jtype::Array), "object not a jsonc array")
-            }
+            },
             _ => panic!("invalid jsonc type"),
         }
     }
@@ -303,10 +297,7 @@ fn get_from_array() {
     jsonc.append(value3).unwrap();
     jsonc.append(JsoncObj::new()).unwrap();
     jsonc.append(JsoncObj::array()).unwrap();
-    assert!(
-        matches!(jsonc.get_type(), Jtype::Array),
-        "object not a jsonc array"
-    );
+    assert!(matches!(jsonc.get_type(), Jtype::Array), "object not a jsonc array");
 
     match jsonc.index::<i64>(0) {
         Ok(value) => assert!(value == value1, "slot1/value diverge"),
@@ -331,10 +322,10 @@ fn get_from_array() {
             Jobject::String(value) => assert!(value == value3, "slot2/value diverge"),
             Jobject::Object(value) => {
                 assert!(value.is_type(Jtype::Object), "object not a jsonc object")
-            }
+            },
             Jobject::Array(value) => {
                 assert!(value.is_type(Jtype::Array), "object not a jsonc array")
-            }
+            },
             _ => panic!("invalid jsonc type"),
         }
     }

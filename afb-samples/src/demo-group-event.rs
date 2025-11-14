@@ -127,43 +127,32 @@ pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
 
     // create event and build share Arc context data
     let event = AfbEvent::new("demo-event").finalize()?;
-    let ctxdata = Arc::new(UserCtxData {
-        counter: Cell::new(0),
-        event,
-    });
+    let ctxdata = Arc::new(UserCtxData { counter: Cell::new(0), event });
 
     let simple_event_handler = AfbEvtHandler::new("handler-1")
         .set_info("My first event handler")
         .set_pattern("helloworld-event/timerCount")
         .set_callback(event_get_callback)
-        .set_context(EvtUserData {
-            ctx: Arc::clone(&ctxdata),
-        })
+        .set_context(EvtUserData { ctx: Arc::clone(&ctxdata) })
         .finalize()?;
 
     let unsubscribe = AfbVerb::new("unsubscribe")
         .set_callback(unsubscribe_callback)
-        .set_context(EvtUserData {
-            ctx: Arc::clone(&ctxdata),
-        })
+        .set_context(EvtUserData { ctx: Arc::clone(&ctxdata) })
         .set_info("unsubscribe to event")
         .set_usage("no input")
         .finalize()?;
 
     let subscribe = AfbVerb::new("subscribe")
         .set_callback(subscribe_callback)
-        .set_context(EvtUserData {
-            ctx: Arc::clone(&ctxdata),
-        })
+        .set_context(EvtUserData { ctx: Arc::clone(&ctxdata) })
         .set_info("unsubscribe to event")
         .set_usage("no input")
         .finalize()?;
 
     let push = AfbVerb::new("push")
         .set_callback(push_callback)
-        .set_context(EvtUserData {
-            ctx: Arc::clone(&ctxdata),
-        })
+        .set_context(EvtUserData { ctx: Arc::clone(&ctxdata) })
         .set_info("push query as event output")
         .set_usage("any json data")
         .add_sample("{'skipail':'IoT.bzh'}")?

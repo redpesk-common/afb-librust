@@ -21,11 +21,7 @@ fn typed_callback(
     let input = args.get::<&MySimpleData>(0)?;
 
     // create a sample simple-data object as response
-    let output = MySimpleData {
-        name: input.name.to_uppercase(),
-        x: input.x + 1,
-        y: input.y - 1,
-    };
+    let output = MySimpleData { name: input.name.to_uppercase(), x: input.x + 1, y: input.y - 1 };
 
     // closure is call from following 'if let' with reply()
     let reply = || -> Result<(), AfbError> {

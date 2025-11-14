@@ -19,10 +19,7 @@ use std::process::Command;
 fn main() {
     let c_std = std::env::var("C_STD").unwrap_or_else(|_| "gnu2x".to_string());
 
-    let fallback_defines = [
-        "-D__builtin_c23_va_start=__builtin_va_start",
-        "-Dnullptr=NULL",
-    ];
+    let fallback_defines = ["-D__builtin_c23_va_start=__builtin_va_start", "-Dnullptr=NULL"];
 
     // ============== LIBAFB C interface =====================
     let header = "
@@ -95,9 +92,7 @@ fn main() {
         .generate()
         .expect("Unable to generate libafb");
 
-    _capi_map
-        .write_to_file("capi/_libafb-map.rs")
-        .expect("Couldn't write libafb!");
+    _capi_map.write_to_file("capi/_libafb-map.rs").expect("Couldn't write libafb!");
 
     // Tell Cargo that if the given file changes, to rerun this build script.
     // println!("cargo:rerun-if-changed=src/capi/libafb-map.c");
@@ -174,7 +169,5 @@ fn main() {
         .generate()
         .expect("Unable to generate jsonc");
 
-    jsonc
-        .write_to_file("capi/_jsonc-map.rs")
-        .expect("Couldn't write jsonc!");
+    jsonc.write_to_file("capi/_jsonc-map.rs").expect("Couldn't write jsonc!");
 }
