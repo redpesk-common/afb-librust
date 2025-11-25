@@ -8,7 +8,7 @@
 
 [package]
 name = "afbv4"
-version = "0.2.0"
+version = "5.1.1"
 authors = ["fulup@iot.bzh"]
 publish = false
 build = "capi/build.rs"
@@ -27,7 +27,7 @@ cc = ">=1.0"
 rpm_build = []
 
 [package.metadata.system-deps]
-libafb = "5"
+afb-binding = "4"
 json-c  = "*"
 
 [lib]
