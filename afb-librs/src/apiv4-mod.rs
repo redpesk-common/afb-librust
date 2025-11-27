@@ -1527,15 +1527,17 @@ impl AfbEvtHandler {
     /// `apiv4` is a valid AFB API handle for the duration of the call and that the
     /// callback/userdata lifetime rules required by the C side are respected.
     #[track_caller]
-    pub unsafe fn register(&mut self, apiv4: cglue::afb_api_t) -> i32 {
+    pub fn register(&mut self, apiv4: cglue::afb_api_t) -> i32 {
         let event_pattern = CString::new(self.pattern).expect("invalid event pattern");
         debug_assert!(!apiv4.is_null(), "apiv4 must be a valid non-null pointer");
-        cglue::afb_api_event_handler_add(
-            apiv4,
-            event_pattern.as_ptr(),
-            Some(api_events_cb),
-            self as *const _ as *mut std::ffi::c_void,
-        )
+        unsafe {
+            cglue::afb_api_event_handler_add(
+                apiv4,
+                event_pattern.as_ptr(),
+                Some(api_events_cb),
+                self as *const _ as *mut std::ffi::c_void,
+            )
+        }
     }
 
     // return object getter trait to prevent any malicious modification
