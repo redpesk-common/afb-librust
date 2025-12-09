@@ -19,16 +19,11 @@ license.workspace = true
 bitflags = "2"
 
 [build-dependencies]
-system-deps = ">=7.0"
 bindgen = ">=0.69"
 cc = ">=1.0"
 
 [features]
 rpm_build = []
-
-[package.metadata.system-deps]
-afb-binding = "4"
-json-c  = "*"
 
 [lib]
 name = "afbv4"

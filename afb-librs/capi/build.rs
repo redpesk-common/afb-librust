@@ -46,21 +46,16 @@ fn main() {
 )]
 
 ";
-    // probe for dependencies
-    #[cfg(not(feature = "rpm_build"))]
-    system_deps::Config::new().probe().unwrap();
-
     // invalidate the built crate whenever the wrapper changes
     println!("cargo:rerun-if-changed=capi/libafb-map.h");
 
     // expand static inline libafb macro -> C23
-    let cmd = format!(
-        "gcc -std={}  -D__builtin_c23_va_start=__builtin_va_start -Dnullptr=0  -E capi/libafb-map.h \
-         | sed 's/static *inline//' \
-         | sed '/^#/d' \
-         | sed '/^$/d' > capi/_libafb-map.c",
-        c_std
-    );
+    let cmd = "gcc -D__builtin_c23_va_start=__builtin_va_start -Dnullptr=0  -E capi/libafb-map.h \
+          | sed 's/static *inline//' \
+          | sed '/^#/d' \
+        | sed '/^$/d' > capi/_libafb-map.c"
+        .to_string();
+
     // expand static inline libafb macro
     let output = Command::new("bash")
         .args(["-c", &cmd])
