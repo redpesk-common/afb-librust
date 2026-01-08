@@ -29,6 +29,14 @@
 #![allow(clippy::ptr_offset_with_cast)]
 #![allow(clippy::type_complexity)]
 #![allow(clippy::useless_transmute)]
+
+// Force the final consumer (e.g. an AFB binding built as a cdylib) to link
+// against json-c. This is required because the binding may reference json-c
+// symbols (e.g. json_object_new_int64) and relying on the hosting process to
+// have json-c loaded globally is fragile.
+#[link(name = "json-c")]
+extern "C" {}
+
 include!("_libafb-map.rs");
 
 // hack to force RUST to export afbBinding mandatory entry points

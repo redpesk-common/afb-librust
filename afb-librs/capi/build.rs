@@ -102,9 +102,13 @@ fn main() {
         .compile("afb-glue");
 
     // ============== JSONC-C interface =====================
-    // add here any special search path specific to your configuration
-    println!("cargo:rustc-link-search=/usr/local/lib64");
-    println!("cargo:rustc-link-arg=-ljson-c");
+    // Ensure that any final consumer (bin/cdylib) ends up with a DT_NEEDED
+    // entry for libjson-c at runtime. Using `rustc-link-lib` (not `link-arg`)
+    // is important because Cargo propagates it to dependent crates.
+    //
+    // Keep the extra search path for non-standard installs.
+    println!("cargo:rustc-link-search=native=/usr/local/lib64");
+    println!("cargo:rustc-link-lib=json-c");
 
     // invalidate the built crate whenever the wrapper changes
     println!("cargo:rerun-if-changed=capi/jsonc_map.h");
