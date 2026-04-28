@@ -49,7 +49,7 @@ pub fn binding_init(rootv4: AfbApiV4, jconf: AfbJsonObj) -> Result <&'static Afb
                 AFB_OK
             }
             Err(error) => {
-                afb_log_msg!(Critical, binding, "Fail to register api error={}", error);
+                afb_log_msg!(Critical, binding, "Failed to register api error={}", error);
                 AFB_ABORT
             }
         }
@@ -159,7 +159,7 @@ fn simple_callback(request: &AfbRequest, args: &mut AfbRqtData, ctx: AfbCtxData)
         request.reply(response, 0);
         Ok(())
     };
-    // if data export fail send an error report
+    // if data export fails, send an error report
     if let Err(error) = reply() {
         request.reply(afb_add_trace!(error), 405);
     }
@@ -169,8 +169,8 @@ fn simple_callback(request: &AfbRequest, args: &mut AfbRqtData, ctx: AfbCtxData)
 // register user custom defined data type within libafb framework
 match simple_data::register() {
     Err(error) => {
-        afb_log_msg!(Critical,binding,"fail to register converter error={}",error);
-        panic! ("(hoops) fail to register custom type");
+        afb_log_msg!(Critical,binding,"failed to register converter error={}",error);
+        panic! ("(hoops) failed to register custom type");
     }
     Ok(_value) => {},
 };

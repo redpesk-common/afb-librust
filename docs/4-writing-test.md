@@ -132,7 +132,7 @@ fn start(&mut self, api: &AfbApi) -> i32 {
     .finalize();
     let status= match test_suite {
         Err(error) => {
-            afb_log_msg!(Critical, &api, "Tap test fail to start error={}", error);
+            afb_log_msg!(Critical, &api, "Tap test failed to start error={}", error);
             AFB_ABORT
         },
         Ok(_json) => AFB_OK
@@ -175,7 +175,7 @@ pub fn binding_test_init(rootv4: AfbApiV4, jconf: JsoncObj) -> i32 {
             AFB_OK
         }
         Err(error) => {
-            afb_log_msg!(Critical, rootv4, "Fail to register api error={}", error);
+            afb_log_msg!(Critical, rootv4, "Failed to register api error={}", error);
             AFB_ABORT
         }
     }

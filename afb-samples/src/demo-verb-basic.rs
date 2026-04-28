@@ -33,7 +33,7 @@ fn verb_cb(request: &AfbRequest, args: &AfbRqtData, ctx: &AfbCtxData) -> Result<
         Ok(())
     };
 
-    // if data export fail send an error report
+    // if data export fails, send an error report
     reply()?;
     Ok(())
 }

@@ -140,7 +140,7 @@ impl AfbApiControls for TapUserData {
 
         // ------ LOA Group -----------
         let loa1 = AfbTapTest::new("loa-check-x", "rust-api", "loa_group/check")
-            .set_info("Check missing LOA fail with invalid scope")
+            .set_info("Check missing LOA fails with invalid scope")
             .set_status(-9)
             .finalize()?; // invalid scope
 
@@ -162,7 +162,7 @@ impl AfbApiControls for TapUserData {
 
         // ------ Timer Group -----------
         let timer1 = AfbTapTest::new("break-timeout", "rust-api", "timer_group/job-post")
-            .set_info("Check should fail in timeout")
+            .set_info("Check should fail on timeout")
             .set_timeout(1)
             .set_status(-62) // timeout
             .finalize()?;

@@ -57,7 +57,7 @@ clear
 if ! test -f "$CARGO_TARGET_DIR/debug/examples/libafb_samples.so"; then
     cargo build --example afb_samples
     if test $? != 0; then
-        echo "FATAL: fail to compile libafb sample"
+        echo "FATAL: failed to compile libafb sample"
         exit 1
     fi
 fi
@@ -65,7 +65,7 @@ fi
 # rebuilt test binding
 cargo build  --example afb_tests
 if test $? != 0; then
-    echo "FATAL: fail to compile test suite"
+    echo "FATAL: failed to compile test suite"
     exit 1
 fi
 

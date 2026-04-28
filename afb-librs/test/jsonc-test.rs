@@ -163,11 +163,11 @@ fn add_object() {
     jsonc.add("slot3", "toto").unwrap();
     assert!(jsonc.count().unwrap() == 3, "object count != 3");
 
-    // adding an object may fail is target is not an object
+    // adding an object may fail if target is not an object
     let jobject = JsoncObj::parse("{'a':1,'b':2}");
-    assert!(jobject.is_ok(), "Fail to parse jsonc string");
+    assert!(jobject.is_ok(), "Failed to parse jsonc string");
     let result = jsonc.add("slot4", jobject.unwrap());
-    assert!(result.is_ok(), "Fail to add slot4");
+    assert!(result.is_ok(), "Failed to add slot4");
     assert!(jsonc.count().unwrap() == 4, "object count != 4");
 
     match jsonc.get_type() {
@@ -195,11 +195,11 @@ fn insert_array() {
     jsonc.append("toto").unwrap();
     assert!(jsonc.count().unwrap() == 3, "object count != 3");
 
-    // adding an object may fail is target is not an object
+    // adding an object may fail if target is not an object
     let jobject = JsoncObj::parse("{'a':1,'b':2}");
-    assert!(jobject.is_ok(), "Fail to parse jsonc string");
+    assert!(jobject.is_ok(), "Failed to parse jsonc string");
     let result = jsonc.append(jobject.unwrap());
-    assert!(result.is_ok(), "Fail insert jsonc object in array");
+    assert!(result.is_ok(), "Failed to insert jsonc object in array");
     assert!(jsonc.count().unwrap() == 4, "object count != 4");
 
     match jsonc.get_type() {
@@ -250,17 +250,17 @@ fn get_from_object() {
 
     match jsonc.get::<i64>("slot1") {
         Ok(value) => assert!(value == value1, "slot1/value diverge"),
-        Err(error) => panic!("fail getting 'slot1'={}", error),
+        Err(error) => panic!("failed getting 'slot1'={}", error),
     }
 
     match jsonc.get::<f64>("slot2") {
         Ok(value) => assert!(value == value2, "slot2/value diverge"),
-        Err(error) => panic!("fail getting 'slot2'={}", error),
+        Err(error) => panic!("failed getting 'slot2'={}", error),
     }
 
     match jsonc.get::<String>("slot3") {
         Ok(value) => assert!(value == value3, "slot2/value diverge"),
-        Err(error) => panic!("fail getting 'slot3'={}", error),
+        Err(error) => panic!("failed getting 'slot3'={}", error),
     }
 
     let labels = ["slot1", "slot2", "slot3", "slot4", "slot5"];
@@ -301,17 +301,17 @@ fn get_from_array() {
 
     match jsonc.index::<i64>(0) {
         Ok(value) => assert!(value == value1, "slot1/value diverge"),
-        Err(error) => panic!("fail getting 'slot1'={}", error),
+        Err(error) => panic!("failed getting 'slot1'={}", error),
     }
 
     match jsonc.index::<f64>(1) {
         Ok(value) => assert!(value == value2, "slot2/value diverge"),
-        Err(error) => panic!("fail getting 'slot2'={}", error),
+        Err(error) => panic!("failed getting 'slot2'={}", error),
     }
 
     match jsonc.index::<String>(2) {
         Ok(value) => assert!(value == value3, "slot2/value diverge"),
-        Err(error) => panic!("fail getting 'slot3'={}", error),
+        Err(error) => panic!("failed getting 'slot3'={}", error),
     }
 
     println!("Loop on jsonc array= {}", jsonc);

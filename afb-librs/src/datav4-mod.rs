@@ -524,7 +524,7 @@ impl AfbConverter {
             // freeze converter type in memory heap
             Ok(Box::leak(converter))
         } else {
-            afb_error!(uid, "fail to register converter data type")
+            afb_error!(uid, "failed to register converter data type")
         }
     }
 
@@ -566,7 +566,7 @@ impl AfbConverter {
         };
 
         if status != 0 {
-            afb_error!(&self._uid, "Fail adding encoding converter")
+            afb_error!(&self._uid, "Failed to add encoding converter")
         } else {
             Ok(self)
         }

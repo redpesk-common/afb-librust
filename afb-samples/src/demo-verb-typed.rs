@@ -31,7 +31,7 @@ fn typed_callback(
         Ok(())
     };
 
-    // if data export fail send an error report
+    // if data export fails, send an error report
     if let Err(error) = reply() {
         request.reply(afb_add_trace!(error), 405);
     }

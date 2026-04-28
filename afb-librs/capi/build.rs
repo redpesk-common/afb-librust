@@ -60,7 +60,7 @@ fn main() {
     let output = Command::new("bash")
         .args(["-c", &cmd])
         .output()
-        .expect("fail to excec gcc -E capi/_libafb-map.h");
+        .expect("failed to exec gcc -E capi/_libafb-map.h");
     assert!(output.status.success());
 
     let _capi_map = bindgen::Builder::default()

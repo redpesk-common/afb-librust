@@ -318,7 +318,11 @@ impl AfbTapTest {
             let (lock, cvar) = &*semaphore;
             let mut done = match lock.lock() {
                 Err(_error) => {
-                    return afb_error!("fail-group-wait", "fail waiting on tap group={}", self.uid)
+                    return afb_error!(
+                        "fail-group-wait",
+                        "failed waiting on tap group={}",
+                        self.uid
+                    )
                 },
                 Ok(mutex) => mutex,
             };
@@ -612,7 +616,7 @@ impl AfbTapSuite {
                 Some(unsafe { &mut **group })
             },
             None => {
-                afb_log_msg!(Critical, api, "Fail to find test-group:{}", label);
+                afb_log_msg!(Critical, api, "Failed to find test-group:{}", label);
                 None
             },
         }
@@ -734,7 +738,7 @@ fn tap_suite_callback(
         afb_log_raw!(
             Critical,
             suite.get_api().get_apiv4(),
-            "Test fail {}:autostart error={}",
+            "Test failed {}:autostart error={}",
             suite.get_uid(),
             error
         );
@@ -767,7 +771,7 @@ fn tap_test_callback(
     let test = unsafe { &mut *context.test };
     match test.jobpost() {
         Err(error) => {
-            afb_log_msg!(Error, rqt, "fail to launch test error={}", error);
+            afb_log_msg!(Error, rqt, "failed to launch test error={}", error);
             rqt.reply(error, 405);
         },
         Ok(_jreport) => {
@@ -803,7 +807,7 @@ fn tap_group_callback(
 
     match group.launch() {
         Err(error) => {
-            afb_log_msg!(Error, rqt, "fail to launch test error={}", error);
+            afb_log_msg!(Error, rqt, "failed to launch test error={}", error);
             rqt.reply(error, 405);
         },
         Ok(_jreport) => {

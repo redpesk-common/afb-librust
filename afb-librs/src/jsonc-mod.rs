@@ -1157,7 +1157,7 @@ impl JsoncObj {
                                         return afb_error!(
                                             uid,
                                             format!(
-                                                "jsonc-match fail to find key:{} query:{}",
+                                                "jsonc-match failed to find key:{} query:{}",
                                                 expected_entry.key, self
                                             )
                                         )
@@ -1180,7 +1180,7 @@ impl JsoncObj {
                                         return afb_error!(
                                             uid,
                                             format!(
-                                                "jsonc-match fail to find key:{} expected:{}",
+                                                "jsonc-match failed to find key:{} expected:{}",
                                                 received_entry.key, jexpected
                                             )
                                         )
