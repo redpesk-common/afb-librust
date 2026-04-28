@@ -64,7 +64,7 @@ pub fn to_static_str(value: String) -> &'static str {
 pub fn bytes_to_str(data: &[u8]) -> Result<&str, AfbError> {
     let text = match str::from_utf8(data) {
         Ok(value) => value,
-        Err(_) => return afb_error!("bytes_to_str", "not a valid UTF string"),
+        Err(_) => return afb_error!("bytes_to_str", "not a valid UTF-8 string"),
     };
     Ok(text)
 }
@@ -262,7 +262,7 @@ impl JsoncExport<u32> for JsoncObj {
     #[track_caller]
     unsafe fn from_jso(jso: *mut cglue::json_object) -> Result<u32, AfbError> {
         if cglue::json_object_get_type(jso) != cglue::json_type_json_type_int {
-            afb_error!("jsonc-get-type", "jsonc object is not integer",)
+            afb_error!("jsonc-get-type", "jsonc object is not an integer",)
         } else {
             Ok(cglue::json_object_get_int(jso) as u32)
         }
@@ -277,7 +277,7 @@ impl JsoncExport<i16> for JsoncObj {
         } else {
             let value = cglue::json_object_get_int(jso);
             if value > i16::MAX as i32 || value < i16::MIN as i32 {
-                return afb_error!("jsonc::get<i16>", "multiplier should be i16 get:{}", value);
+                return afb_error!("jsonc::get<i16>", "multiplier should be i16, got:{}", value);
             }
             Ok(value as i16)
         }
@@ -333,7 +333,7 @@ impl JsoncExport<bool> for JsoncObj {
     #[track_caller]
     unsafe fn from_jso(jso: *mut cglue::json_object) -> Result<bool, AfbError> {
         if cglue::json_object_get_type(jso) != cglue::json_type_json_type_boolean {
-            afb_error!("jsonc-get-type", "jsonc object is not boolean")
+            afb_error!("jsonc-get-type", "jsonc object is not a boolean")
         } else {
             Ok(cglue::json_object_get_boolean(jso) != 0)
         }
@@ -403,7 +403,7 @@ impl ImportJso<usize> for JsoncObj {
         unsafe {
             // Index must be strictly less than length
             if idx >= cglue::json_object_array_length(jso) {
-                afb_error!("jsonc-array-size", "jsonc array index out of bound")
+                afb_error!("jsonc-array-size", "jsonc array index out of bounds")
             } else {
                 Ok(cglue::json_object_array_get_idx(jso, idx))
             }
@@ -957,7 +957,7 @@ impl JsoncObj {
             match JsoncObj::get_jso_type(self.jso) {
                 Jtype::Array => Ok(cglue::json_object_array_length(self.jso)),
                 Jtype::Object => Ok(cglue::json_object_object_length(self.jso) as usize),
-                _ => afb_error!("jsonc-count-fail", "jsonc is neither object or array",),
+                _ => afb_error!("jsonc-count-fail", "jsonc is neither an object nor an array",),
             }
         }
     }

@@ -94,10 +94,10 @@ pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
 
     match AfbApi::new("loop-test").finalize() {
         Ok(api_test) => {
-            afb_log_msg!(Notice, apiv4, "Loopback api uid={} started", api_test.get_uid());
+            afb_log_msg!(Notice, apiv4, "Loopback API uid={} started", api_test.get_uid());
         },
         Err(error) => {
-            afb_log_msg!(Critical, apiv4, "Failed to register api error={}", error);
+            afb_log_msg!(Critical, apiv4, "Failed to register api: error={}", error);
             panic!("(hoops) failed to create loop-test")
         },
     };

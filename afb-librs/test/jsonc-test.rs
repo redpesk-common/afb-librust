@@ -107,7 +107,7 @@ fn equal_partial_json() -> Result<(), AfbError> {
     let jexpect = JsoncObj::parse(expect).unwrap();
 
     if jquery.equal("tst_equal_fail", jexpect.clone(), Jequal::Full).is_ok() {
-        return afb_error!("tst_equal_fail", "this test should have fail");
+        return afb_error!("tst_equal_fail", "this test should have failed");
     }
 
     jquery.equal("tst_equal_partial", jexpect.clone(), Jequal::Partial)?;

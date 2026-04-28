@@ -247,7 +247,7 @@ impl AfbApiControls for TapUserData {
                 "TAP" => self.output = AfbTapOutput::TAP,
                 "NONE" => self.output = AfbTapOutput::NONE,
                 _ => {
-                    afb_log_msg!(Error, api, "Invalid output should be json|tap (default used)");
+                    afb_log_msg!(Error, api, "Invalid output, expected json|tap (using default)");
                 },
             },
         };

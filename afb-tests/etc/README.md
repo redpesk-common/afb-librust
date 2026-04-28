@@ -48,5 +48,5 @@ afb-binder --ws-server='tcp:*:9999/api-rust' --config=afb-samples/etc/binding-co
 
 Note:
 
-* ws-server require one port per API. Should a binder export more than one api to an external interface, you should declare --ws-server as often as needed.
+* ws-server requires one port per API. Should a binder export more than one api to an external interface, you should declare --ws-server as often as needed.
 * ws-server may also be set within binder config.json file. In this case as for ws-client it should be declared as a json array.

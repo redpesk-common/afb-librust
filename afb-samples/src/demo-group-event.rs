@@ -115,7 +115,7 @@ fn event_get_callback(
     );
 
     let jsonc = args.get::<JsoncObj>(0)?;
-    afb_log_msg!(Info, event, "Got valid jsonc object argument={}", jsonc);
+    afb_log_msg!(Info, event, "Got valid JSON-C object argument={}", jsonc);
     Ok(())
 }
 

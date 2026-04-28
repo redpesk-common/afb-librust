@@ -87,7 +87,7 @@ macro_rules! AfbBindingRegister {
 
             match $callback(apiv4, jconf) {
                 Ok(api) => {
-                    afb_log_msg!(Notice, apiv4, "RUST api uid={} started", api.get_uid());
+                    afb_log_msg!(Notice, apiv4, "Rust API uid={} started", api.get_uid());
                     AFB_OK
                 },
                 Err(error) => {
@@ -485,7 +485,7 @@ pub unsafe extern "C" fn api_controls_cb(
                     let name = CString::new(*slot).expect("invalid api name");
                     let rc = unsafe { cglue::afb_api_require_api(apiv4, name.as_ptr(), 0) };
                     if rc < 0 {
-                        afb_log_msg!(Critical, apiv4, "Require on api:{} fail", slot);
+                        afb_log_msg!(Critical, apiv4, "Requirement on API {} failed", slot);
                     }
                 }
             }
@@ -495,7 +495,7 @@ pub unsafe extern "C" fn api_controls_cb(
                     let name = CString::new(*slot).expect("invalid api name");
                     let rc = unsafe { cglue::afb_api_require_class(apiv4, name.as_ptr()) };
                     if rc < 0 {
-                        afb_log_msg!(Critical, apiv4, "Require on api class:{} fail", slot);
+                        afb_log_msg!(Critical, apiv4, "Requirement on API class {} failed", slot);
                     }
                 }
             }
@@ -1028,7 +1028,7 @@ impl AfbVerb {
             self.actions = jvalue;
             Ok(self)
         } else {
-            afb_error!("verb-set-action", "not a valid json array")
+            afb_error!("verb-set-action", "not a valid JSON array")
         }
     }
 
@@ -1210,7 +1210,7 @@ impl AfbRequest {
             )
         };
         if status < 0 {
-            afb_error!("rqt-session-missing", "request session does not exit")
+            afb_error!("rqt-session-missing", "request session does not exist")
         } else {
             let session = unsafe { &mut *(session as *mut AfbRqtSessionWrap) };
             Ok(session.inner.as_mut())
@@ -1618,7 +1618,7 @@ impl AfbEvent {
     #[track_caller]
     pub fn subscribe(&self, rqt: &AfbRequest) -> Result<&Self, AfbError> {
         if self._evtv4 == 0 as AfbEvtV4 {
-            return afb_error!(self._uid, "should register before usage");
+            return afb_error!(self._uid, "should be registered before use");
         }
 
         let status = unsafe { cglue::afb_req_subscribe(rqt.get_rqtv4(), self._evtv4) };
@@ -1632,7 +1632,7 @@ impl AfbEvent {
     #[track_caller]
     pub fn unsubscribe(&self, rqt: &AfbRequest) -> Result<&Self, AfbError> {
         if self._evtv4 == 0 as AfbEvtV4 {
-            return afb_error!(self._uid, "should register before usage");
+            return afb_error!(self._uid, "should be registered before use");
         }
 
         let status = unsafe { cglue::afb_req_unsubscribe(rqt.get_rqtv4(), self._evtv4) };

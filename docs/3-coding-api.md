@@ -45,11 +45,11 @@ pub fn binding_init(rootv4: AfbApiV4, jconf: AfbJsonObj) -> Result <&'static Afb
             .finalize()
         {
             Ok(api) => {
-                afb_log_msg!(Notice, binding, "RUST api uid={} started", api.get_uid());
+                afb_log_msg!(Notice, binding, "Rust API uid={} started", api.get_uid());
                 AFB_OK
             }
             Err(error) => {
-                afb_log_msg!(Critical, binding, "Failed to register api error={}", error);
+                afb_log_msg!(Critical, binding, "Failed to register api: error={}", error);
                 AFB_ABORT
             }
         }
@@ -169,7 +169,7 @@ fn simple_callback(request: &AfbRequest, args: &mut AfbRqtData, ctx: AfbCtxData)
 // register user custom defined data type within libafb framework
 match simple_data::register() {
     Err(error) => {
-        afb_log_msg!(Critical,binding,"failed to register converter error={}",error);
+        afb_log_msg!(Critical,binding,"failed to register converter: error={}",error);
         panic! ("(hoops) failed to register custom type");
     }
     Ok(_value) => {},

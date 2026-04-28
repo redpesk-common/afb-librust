@@ -600,7 +600,7 @@ pub fn get_type(uid: &'static str) -> Result<&'static mut AfbConverter, AfbError
     };
 
     if status < 0 {
-        afb_error!(uid, "type lookup fail")
+        afb_error!(uid, "type lookup failed")
     } else {
         let converter_box = Box::new(AfbConverter { _uid: uid, typev4 });
 
@@ -1060,7 +1060,7 @@ impl AfbParams {
             )
         };
         if status != 0 {
-            afb_error!(data.uid, "Fail:{} data export", data.uid)
+            afb_error!(data.uid, "Failed to export data:{}", data.uid)
         } else {
             self.arguments.push(data_handle);
             Ok(())
