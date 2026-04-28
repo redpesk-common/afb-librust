@@ -2,7 +2,7 @@
  * Copyright (C) 2015-2023 IoT.bzh Company
  * Author: Fulup Ar Foll <fulup@iot.bzh>
  *
- * Redpesk samples code/config use MIT License and can be freely copy/modified even within proprietary code
+ * Redpesk samples code/config use MIT License and can be freely copied/modified even within proprietary code
  * License: $RP_BEGIN_LICENSE$ SPDX:MIT https://opensource.org/licenses/MIT $RP_END_LICENSE$
  */
 
@@ -19,7 +19,7 @@ struct ASyncCallData {
     my_counter: u32,
 }
 
-// async response is s standard (AfbVerbRegister!) API/verb callback
+// async response is a standard (AfbVerbRegister!) API/verb callback
 fn async_response_cb(api: &AfbApi, params: &AfbRqtData, ctx: &AfbCtxData) -> Result<(), AfbError> {
     let ctx = ctx.get_mut::<ASyncCallData>()?;
     ctx.my_counter += 1;
@@ -36,7 +36,7 @@ fn async_response_cb(api: &AfbApi, params: &AfbRqtData, ctx: &AfbCtxData) -> Res
             );
         },
         Err(error) => {
-            afb_log_msg!(Error, api, "async_response error={}", error);
+            afb_log_msg!(Error, api, "async response error={}", error);
             return Err(error);
         },
     };

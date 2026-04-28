@@ -2,7 +2,7 @@
  * Copyright (C) 2015-2023 IoT.bzh Company
  * Author: Fulup Ar Foll <fulup@iot.bzh>
  *
- * Redpesk samples code/config use MIT License and can be freely copy/modified even within proprietary code
+ * Redpesk samples code/config use MIT License and can be freely copied/modified even within proprietary code
  * License: $RP_BEGIN_LICENSE$ SPDX:MIT https://opensource.org/licenses/MIT $RP_END_LICENSE$
  */
 
@@ -37,12 +37,12 @@ fn async_response_verb(
             argument
         },
         Err(error) => {
-            afb_log_msg!(Error, request, "async_response error={}", error);
+            afb_log_msg!(Error, request, "async response error={}", error);
             return Err(error);
         },
     };
 
-    // rebuilt a new json object with upcase value of initial one
+    // rebuilt a new json object with uppercase value of initial one
     let query = jquery.to_string().to_uppercase();
     let jreply = JsoncObj::parse(query.as_str()).unwrap();
 
@@ -97,7 +97,7 @@ pub fn register(apiv4: AfbApiV4) -> Result<&'static AfbGroup, AfbError> {
             afb_log_msg!(Notice, apiv4, "Loopback API uid={} started", api_test.get_uid());
         },
         Err(error) => {
-            afb_log_msg!(Critical, apiv4, "Failed to register api: error={}", error);
+            afb_log_msg!(Critical, apiv4, "Failed to register API: error={}", error);
             panic!("(hoops) failed to create loop-test")
         },
     };

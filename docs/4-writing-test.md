@@ -159,7 +159,7 @@ pub fn binding_test_init(rootv4: AfbApiV4, jconf: JsoncObj) -> i32 {
     };
 
     // custom type should register once per binder
-    demo_converter::register(rootv4).expect("must register custom type");
+    demo_converter::register(rootv4).expect("failed to register custom type");
 
     afb_log_msg!(Notice, rootv4, "-- rootv4 {} loaded", uid);
     match AfbApi::new("tap-test")
@@ -175,7 +175,7 @@ pub fn binding_test_init(rootv4: AfbApiV4, jconf: JsoncObj) -> i32 {
             AFB_OK
         }
         Err(error) => {
-            afb_log_msg!(Critical, rootv4, "Failed to register api: error={}", error);
+            afb_log_msg!(Critical, rootv4, "Failed to register API: error={}", error);
             AFB_ABORT
         }
     }

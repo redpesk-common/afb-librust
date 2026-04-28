@@ -5,7 +5,7 @@ Demo provides two samples configuration
 * binding-test-api.json: wait for request on <http://localhost:1234/devtools>
 * binding-test;auto.json: start/stop automatically and print tap output on stdout
 
-Technically Test-API is just an other binding, in default testing mode both bindings are loaded
+Technically Test-API is just another binding, in default testing mode both bindings are loaded
 within the same binding and security context (which translate in no privileges verification).
 
 To launch a test a remote target, while keeping your test binder on your host you should:

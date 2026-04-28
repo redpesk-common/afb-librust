@@ -165,7 +165,7 @@ fn add_object() {
 
     // adding an object may fail if target is not an object
     let jobject = JsoncObj::parse("{'a':1,'b':2}");
-    assert!(jobject.is_ok(), "Failed to parse jsonc string");
+    assert!(jobject.is_ok(), "Failed to parse JSON-C string");
     let result = jsonc.add("slot4", jobject.unwrap());
     assert!(result.is_ok(), "Failed to add slot4");
     assert!(jsonc.count().unwrap() == 4, "object count != 4");
@@ -197,7 +197,7 @@ fn insert_array() {
 
     // adding an object may fail if target is not an object
     let jobject = JsoncObj::parse("{'a':1,'b':2}");
-    assert!(jobject.is_ok(), "Failed to parse jsonc string");
+    assert!(jobject.is_ok(), "Failed to parse JSON-C string");
     let result = jsonc.append(jobject.unwrap());
     assert!(result.is_ok(), "Failed to insert jsonc object in array");
     assert!(jsonc.count().unwrap() == 4, "object count != 4");
@@ -239,7 +239,7 @@ fn get_from_object() {
     let value2 = 123.456;
     let value3 = "toto";
 
-    // create a testing jsonc object
+    // create a test JSON-C object
     let jsonc = JsoncObj::new();
     jsonc.add("slot1", value1).unwrap();
     jsonc.add("slot2", value2).unwrap();
@@ -250,7 +250,7 @@ fn get_from_object() {
 
     match jsonc.get::<i64>("slot1") {
         Ok(value) => assert!(value == value1, "slot1/value diverge"),
-        Err(error) => panic!("failed getting 'slot1'={}", error),
+        Err(error) => panic!("failed to get 'slot1': {}", error),
     }
 
     match jsonc.get::<f64>("slot2") {
@@ -290,7 +290,7 @@ fn get_from_array() {
     let value2 = 123.456;
     let value3 = "toto";
 
-    // create a testing jsonc object
+    // create a test JSON-C object
     let jsonc = JsoncObj::array();
     jsonc.append(value1).unwrap();
     jsonc.append(value2).unwrap();
@@ -301,7 +301,7 @@ fn get_from_array() {
 
     match jsonc.index::<i64>(0) {
         Ok(value) => assert!(value == value1, "slot1/value diverge"),
-        Err(error) => panic!("failed getting 'slot1'={}", error),
+        Err(error) => panic!("failed to get 'slot1': {}", error),
     }
 
     match jsonc.index::<f64>(1) {

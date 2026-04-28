@@ -1060,7 +1060,7 @@ impl AfbParams {
             )
         };
         if status != 0 {
-            afb_error!(data.uid, "Failed to export data:{}", data.uid)
+            afb_error!(data.uid, "Failed to export data: {}", data.uid)
         } else {
             self.arguments.push(data_handle);
             Ok(())
