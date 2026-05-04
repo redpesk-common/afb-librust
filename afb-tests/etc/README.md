@@ -5,7 +5,7 @@ Demo provides two samples configuration
 * binding-test-api.json: wait for request on <http://localhost:1234/devtools>
 * binding-test;auto.json: start/stop automatically and print tap output on stdout
 
-Technically Test-API is just an other binding, in default testing mode both bindings are loaded
+Technically Test-API is just another binding, in default testing mode both bindings are loaded
 within the same binding and security context (which translate in no privileges verification).
 
 To launch a test a remote target, while keeping your test binder on your host you should:
@@ -48,5 +48,5 @@ afb-binder --ws-server='tcp:*:9999/api-rust' --config=afb-samples/etc/binding-co
 
 Note:
 
-* ws-server require one port per API. Should a binder export more than one api to an external interface, you should declare --ws-server as often as needed.
+* ws-server requires one port per API. Should a binder export more than one api to an external interface, you should declare --ws-server as often as needed.
 * ws-server may also be set within binder config.json file. In this case as for ws-client it should be declared as a json array.

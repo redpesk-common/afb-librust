@@ -2,7 +2,7 @@
  * Copyright (C) 2015-2023 IoT.bzh Company
  * Author: Fulup Ar Foll <fulup@iot.bzh>
  *
- * Redpesk samples code/config use MIT License and can be freely copy/modified even within proprietary code
+ * Redpesk samples code/config use MIT License and can be freely copied/modified even within proprietary code
  * License: $RP_BEGIN_LICENSE$ SPDX:MIT https://opensource.org/licenses/MIT $RP_END_LICENSE$
  */
 
@@ -73,7 +73,10 @@ fn sensor_cb(request: &AfbRequest, args: &AfbRqtData, ctx: &AfbCtxData) -> Resul
                 "READ" => Action::READ,
                 "RESET" => Action::RESET,
                 _ => {
-                    return afb_error!("invalid-action", "expect: SUBSCRIBE|UNSUBSCRIBE|READ|RESET")
+                    return afb_error!(
+                        "invalid-action",
+                        "expected: SUBSCRIBE|UNSUBSCRIBE|READ|RESET"
+                    )
                 },
             },
         },

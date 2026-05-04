@@ -524,7 +524,7 @@ impl AfbConverter {
             // freeze converter type in memory heap
             Ok(Box::leak(converter))
         } else {
-            afb_error!(uid, "fail to register converter data type")
+            afb_error!(uid, "failed to register converter data type")
         }
     }
 
@@ -566,7 +566,7 @@ impl AfbConverter {
         };
 
         if status != 0 {
-            afb_error!(&self._uid, "Fail adding encoding converter")
+            afb_error!(&self._uid, "Failed to add encoding converter")
         } else {
             Ok(self)
         }
@@ -600,7 +600,7 @@ pub fn get_type(uid: &'static str) -> Result<&'static mut AfbConverter, AfbError
     };
 
     if status < 0 {
-        afb_error!(uid, "type lookup fail")
+        afb_error!(uid, "type lookup failed")
     } else {
         let converter_box = Box::new(AfbConverter { _uid: uid, typev4 });
 
@@ -1060,7 +1060,7 @@ impl AfbParams {
             )
         };
         if status != 0 {
-            afb_error!(data.uid, "Fail:{} data export", data.uid)
+            afb_error!(data.uid, "Failed to export data: {}", data.uid)
         } else {
             self.arguments.push(data_handle);
             Ok(())

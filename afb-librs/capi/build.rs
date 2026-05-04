@@ -60,7 +60,7 @@ fn main() {
     let output = Command::new("bash")
         .args(["-c", &cmd])
         .output()
-        .expect("fail to excec gcc -E capi/_libafb-map.h");
+        .expect("failed to exec gcc -E capi/_libafb-map.h");
     assert!(output.status.success());
 
     let _capi_map = bindgen::Builder::default()
@@ -85,9 +85,9 @@ fn main() {
         .clang_arg("-Wno-unknown-attributes")
         // generate libafb wrapper
         .generate()
-        .expect("Unable to generate libafb");
+        .expect("failed to generate libafb");
 
-    _capi_map.write_to_file("capi/_libafb-map.rs").expect("Couldn't write libafb!");
+    _capi_map.write_to_file("capi/_libafb-map.rs").expect("failed to write libafb");
 
     // Tell Cargo that if the given file changes, to rerun this build script.
     // println!("cargo:rerun-if-changed=src/capi/libafb-map.c");
@@ -166,7 +166,7 @@ fn main() {
         .clang_arg("-Wno-unknown-attributes")
         // generate jsonc wrapper
         .generate()
-        .expect("Unable to generate jsonc");
+        .expect("failed to generate JSON-C");
 
-    jsonc.write_to_file("capi/_jsonc-map.rs").expect("Couldn't write jsonc!");
+    jsonc.write_to_file("capi/_jsonc-map.rs").expect("failed to write JSON-C");
 }

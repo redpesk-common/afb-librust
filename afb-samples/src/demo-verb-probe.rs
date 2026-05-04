@@ -2,14 +2,14 @@
  * Copyright (C) 2015-2023 IoT.bzh Company
  * Author: Fulup Ar Foll <fulup@iot.bzh>
  *
- * Redpesk samples code/config use MIT License and can be freely copy/modified even within proprietary code
+ * Redpesk samples code/config use MIT License and can be freely copied/modified even within proprietary code
  * License: $RP_BEGIN_LICENSE$ SPDX:MIT https://opensource.org/licenses/MIT $RP_END_LICENSE$
 */
 
 // import libafb dependencies
 use afbv4::prelude::*;
 
-// just return use to test afb-rust framework minimal cost
+// just return to test the afb-rust framework with minimal cost
 fn probe_callback(
     request: &AfbRequest,
     _args: &AfbRqtData,

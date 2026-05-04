@@ -2,7 +2,7 @@
  * Copyright (C) 2015-2023 IoT.bzh Company
  * Author: Fulup Ar Foll <fulup@iot.bzh>
  *
- * Redpesk samples code/config use MIT License and can be freely copy/modified even within proprietary code
+ * Redpesk samples code/config use MIT License and can be freely copied/modified even within proprietary code
  * License: $RP_BEGIN_LICENSE$ SPDX:MIT https://opensource.org/licenses/MIT $RP_END_LICENSE$
  */
 
@@ -19,7 +19,7 @@ struct ASyncCallData {
     my_counter: u32,
 }
 
-// async response is s standard (AfbVerbRegister!) API/verb callback
+// async response is a standard (AfbVerbRegister!) API/verb callback
 fn async_response_cb(api: &AfbApi, params: &AfbRqtData, ctx: &AfbCtxData) -> Result<(), AfbError> {
     let ctx = ctx.get_mut::<ASyncCallData>()?;
     ctx.my_counter += 1;
@@ -36,7 +36,7 @@ fn async_response_cb(api: &AfbApi, params: &AfbRqtData, ctx: &AfbCtxData) -> Res
             );
         },
         Err(error) => {
-            afb_log_msg!(Error, api, "async_response error={}", error);
+            afb_log_msg!(Error, api, "async response error={}", error);
             return Err(error);
         },
     };
@@ -140,7 +140,7 @@ impl AfbApiControls for TapUserData {
 
         // ------ LOA Group -----------
         let loa1 = AfbTapTest::new("loa-check-x", "rust-api", "loa_group/check")
-            .set_info("Check missing LOA fail with invalid scope")
+            .set_info("Check missing LOA fails with invalid scope")
             .set_status(-9)
             .finalize()?; // invalid scope
 
@@ -162,7 +162,7 @@ impl AfbApiControls for TapUserData {
 
         // ------ Timer Group -----------
         let timer1 = AfbTapTest::new("break-timeout", "rust-api", "timer_group/job-post")
-            .set_info("Check should fail in timeout")
+            .set_info("Check should fail on timeout")
             .set_timeout(1)
             .set_status(-62) // timeout
             .finalize()?;
@@ -247,7 +247,7 @@ impl AfbApiControls for TapUserData {
                 "TAP" => self.output = AfbTapOutput::TAP,
                 "NONE" => self.output = AfbTapOutput::NONE,
                 _ => {
-                    afb_log_msg!(Error, api, "Invalid output should be json|tap (default used)");
+                    afb_log_msg!(Error, api, "Invalid output, expected json|tap (using default)");
                 },
             },
         };

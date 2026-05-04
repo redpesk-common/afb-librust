@@ -2,7 +2,7 @@
  * Copyright (C) 2015-2023 IoT.bzh Company
  * Author: Fulup Ar Foll <fulup@iot.bzh>
  *
- * Redpesk samples code/config use MIT License and can be freely copy/modified even within proprietary code
+ * Redpesk samples code/config use MIT License and can be freely copied/modified even within proprietary code
  * License: $RP_BEGIN_LICENSE$ SPDX:MIT https://opensource.org/licenses/MIT $RP_END_LICENSE$
 */
 
@@ -21,7 +21,7 @@ fn verb_cb(request: &AfbRequest, args: &AfbRqtData, ctx: &AfbCtxData) -> Result<
     let mut context = ctx.get_lock::<MyCtxCb>()?;
     context.count += 1;
 
-    // rebuilt a new json object with upcase value of initial one
+    // rebuilt a new json object with uppercase value of initial one
     let data = jquery.to_string().to_uppercase();
     let jreply = JsoncObj::parse(data.as_str()).unwrap();
 
@@ -33,7 +33,7 @@ fn verb_cb(request: &AfbRequest, args: &AfbRqtData, ctx: &AfbCtxData) -> Result<
         Ok(())
     };
 
-    // if data export fail send an error report
+    // if data export fails, send an error report
     reply()?;
     Ok(())
 }

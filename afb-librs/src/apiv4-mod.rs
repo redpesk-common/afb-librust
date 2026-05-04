@@ -75,7 +75,7 @@ macro_rules! AfbBindingRegister {
                     afb_log_raw!(
                         Notice,
                         apiv4,
-                        "binding config fail {} file: {}:{}:{}",
+                        "binding config failed {} file: {}:{}:{}",
                         error.get_info(),
                         dbg.file,
                         dbg.line,
@@ -87,7 +87,7 @@ macro_rules! AfbBindingRegister {
 
             match $callback(apiv4, jconf) {
                 Ok(api) => {
-                    afb_log_msg!(Notice, apiv4, "RUST api uid={} started", api.get_uid());
+                    afb_log_msg!(Notice, apiv4, "Rust API uid={} started", api.get_uid());
                     AFB_OK
                 },
                 Err(error) => {
@@ -95,7 +95,7 @@ macro_rules! AfbBindingRegister {
                     afb_log_raw!(
                         Notice,
                         apiv4,
-                        "binding init fail {} file: {}:{}:{}",
+                        "binding init failed {} file: {}:{}:{}",
                         error.get_info(),
                         dbg.file,
                         dbg.line,
@@ -129,7 +129,7 @@ macro_rules! AfbSessionRegister {
                 match request.get_session() {
                     Err(error) => Err(error),
                     Ok(any) => match any.as_any().downcast_mut::<$userdata>() {
-                        None => afb_error!("session-any-cast", "fail to restore <$userdata>"),
+                        None => afb_error!("session-any-cast", "failed to restore <$userdata>"),
                         Some(value) => Ok(value),
                     },
                 }
@@ -143,7 +143,7 @@ macro_rules! AfbSessionRegister {
                 match request.set_session(Box::new(userdata)) {
                     Err(error) => Err(error),
                     Ok(any) => match any.as_any().downcast_mut::<$userdata>() {
-                        None => afb_error!("session-any-cast", "fail to restore <$userdata>"),
+                        None => afb_error!("session-any-cast", "failed to restore <$userdata>"),
                         Some(value) => Ok(value),
                     },
                 }
@@ -170,7 +170,7 @@ macro_rules! AfbSessionRegister {
                 match request.get_session() {
                     Err(error) => Err(error),
                     Ok(any) => match any.as_any().downcast_mut::<$userdata>() {
-                        None => afb_error!("session-any-cast", "fail to restore <$userdata>"),
+                        None => afb_error!("session-any-cast", "failed to restore <$userdata>"),
                         Some(value) => Ok(value),
                     },
                 }
@@ -184,7 +184,7 @@ macro_rules! AfbSessionRegister {
                 match request.set_session(Box::new(userdata)) {
                     Err(error) => Err(error),
                     Ok(any) => match any.as_any().downcast_mut::<$userdata>() {
-                        None => afb_error!("session-any-cast", "fail to restore <$userdata>"),
+                        None => afb_error!("session-any-cast", "failed to restore <$userdata>"),
                         Some(value) => Ok(value),
                     },
                 }
@@ -485,7 +485,7 @@ pub unsafe extern "C" fn api_controls_cb(
                     let name = CString::new(*slot).expect("invalid api name");
                     let rc = unsafe { cglue::afb_api_require_api(apiv4, name.as_ptr(), 0) };
                     if rc < 0 {
-                        afb_log_msg!(Critical, apiv4, "Require on api:{} fail", slot);
+                        afb_log_msg!(Critical, apiv4, "Requirement on API {} failed", slot);
                     }
                 }
             }
@@ -495,7 +495,7 @@ pub unsafe extern "C" fn api_controls_cb(
                     let name = CString::new(*slot).expect("invalid api name");
                     let rc = unsafe { cglue::afb_api_require_class(apiv4, name.as_ptr()) };
                     if rc < 0 {
-                        afb_log_msg!(Critical, apiv4, "Require on api class:{} fail", slot);
+                        afb_log_msg!(Critical, apiv4, "Requirement on API class {} failed", slot);
                     }
                 }
             }
@@ -517,7 +517,7 @@ pub unsafe extern "C" fn api_controls_cb(
                         afb_log_msg!(
                             Critical,
                             api_ref._apiv4.get(),
-                            "Fail to register verb={} afberror={}",
+                            "Failed to register verb={} afberror={}",
                             verb_ref.get_uid(),
                             get_strerror(status)
                         );
@@ -534,7 +534,7 @@ pub unsafe extern "C" fn api_controls_cb(
                         afb_log_msg!(
                             Critical,
                             api_ref._apiv4.get(),
-                            "Fail to register group={}",
+                            "Failed to register group={}",
                             group_ref.get_uid()
                         );
                         break;
@@ -554,7 +554,7 @@ pub unsafe extern "C" fn api_controls_cb(
                         afb_log_msg!(
                             Critical,
                             api_ref._apiv4.get(),
-                            "Fail to register event={} afberror={}",
+                            "Failed to register event={} afberror={}",
                             event_ref.get_uid(),
                             get_strerror(status)
                         );
@@ -575,7 +575,7 @@ pub unsafe extern "C" fn api_controls_cb(
                         afb_log_msg!(
                             Critical,
                             api_ref._apiv4.get(),
-                            "Fail to register event={} afberror={}",
+                            "Failed to register event={} afberror={}",
                             event_ref.get_uid(),
                             get_strerror(status)
                         );
@@ -863,7 +863,7 @@ impl AfbApi {
         if status < 0 {
             afb_error!(
                 self._uid,
-                "Fail to register api uid={} status={} info={} ",
+                "Failed to register api uid={} status={} info={} ",
                 self._uid,
                 status,
                 afb_error_info(status)
@@ -1028,7 +1028,7 @@ impl AfbVerb {
             self.actions = jvalue;
             Ok(self)
         } else {
-            afb_error!("verb-set-action", "not a valid json array")
+            afb_error!("verb-set-action", "not a valid JSON array")
         }
     }
 
@@ -1183,7 +1183,7 @@ impl AfbRequest {
             )
         };
         if status < 0 {
-            afb_error!("rqt-session-exist", "request fail to create session")
+            afb_error!("rqt-session-exist", "request failed to create session")
         } else {
             Ok(session.inner.as_mut())
         }
@@ -1210,7 +1210,7 @@ impl AfbRequest {
             )
         };
         if status < 0 {
-            afb_error!("rqt-session-missing", "request session does not exit")
+            afb_error!("rqt-session-missing", "request session does not exist")
         } else {
             let session = unsafe { &mut *(session as *mut AfbRqtSessionWrap) };
             Ok(session.inner.as_mut())
@@ -1618,12 +1618,12 @@ impl AfbEvent {
     #[track_caller]
     pub fn subscribe(&self, rqt: &AfbRequest) -> Result<&Self, AfbError> {
         if self._evtv4 == 0 as AfbEvtV4 {
-            return afb_error!(self._uid, "should register before usage");
+            return afb_error!(self._uid, "should be registered before use");
         }
 
         let status = unsafe { cglue::afb_req_subscribe(rqt.get_rqtv4(), self._evtv4) };
         if status != 0 {
-            afb_error!(self._uid, "fail to subscribe event")
+            afb_error!(self._uid, "failed to subscribe event")
         } else {
             Ok(self)
         }
@@ -1632,12 +1632,12 @@ impl AfbEvent {
     #[track_caller]
     pub fn unsubscribe(&self, rqt: &AfbRequest) -> Result<&Self, AfbError> {
         if self._evtv4 == 0 as AfbEvtV4 {
-            return afb_error!(self._uid, "should register before usage");
+            return afb_error!(self._uid, "should be registered before use");
         }
 
         let status = unsafe { cglue::afb_req_unsubscribe(rqt.get_rqtv4(), self._evtv4) };
         if status != 0 {
-            afb_error!(self._uid, "fail to unsubscribe event")
+            afb_error!(self._uid, "failed to unsubscribe event")
         } else {
             Ok(self)
         }
@@ -1835,7 +1835,7 @@ impl AfbGroup {
                 afb_log_msg!(
                     Critical,
                     apiv4,
-                    "Fail to register verb={} afberror={}",
+                    "Failed to register verb={} afberror={}",
                     verb_ref.get_uid(),
                     get_strerror(status)
                 );
@@ -1850,7 +1850,7 @@ impl AfbGroup {
                     afb_log_msg!(
                         Critical,
                         apiv4,
-                        "Fail to register event_handler={} afberror={}",
+                        "Failed to register event_handler={} afberror={}",
                         event_ref.get_uid(),
                         get_strerror(status)
                     );
@@ -1866,7 +1866,7 @@ impl AfbGroup {
                     afb_log_msg!(
                         Critical,
                         apiv4,
-                        "Fail to register event={} afberror={}",
+                        "Failed to register event={} afberror={}",
                         event_ref.get_uid(),
                         get_strerror(status)
                     );

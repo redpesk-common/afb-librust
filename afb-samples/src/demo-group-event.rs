@@ -2,7 +2,7 @@
  * Copyright (C) 2015-2023 IoT.bzh Company
  * Author: Fulup Ar Foll <fulup@iot.bzh>
  *
- * Redpesk samples code/config use MIT License and can be freely copy/modified even within proprietary code
+ * Redpesk samples code/config use MIT License and can be freely copied/modified even within proprietary code
  * License: $RP_BEGIN_LICENSE$ SPDX:MIT https://opensource.org/licenses/MIT $RP_END_LICENSE$
  */
 
@@ -115,7 +115,7 @@ fn event_get_callback(
     );
 
     let jsonc = args.get::<JsoncObj>(0)?;
-    afb_log_msg!(Info, event, "Got valid jsonc object argument={}", jsonc);
+    afb_log_msg!(Info, event, "Got valid JSON-C object argument={}", jsonc);
     Ok(())
 }
 

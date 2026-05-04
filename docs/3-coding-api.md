@@ -45,11 +45,11 @@ pub fn binding_init(rootv4: AfbApiV4, jconf: AfbJsonObj) -> Result <&'static Afb
             .finalize()
         {
             Ok(api) => {
-                afb_log_msg!(Notice, binding, "RUST api uid={} started", api.get_uid());
+                afb_log_msg!(Notice, binding, "Rust API uid={} started", api.get_uid());
                 AFB_OK
             }
             Err(error) => {
-                afb_log_msg!(Critical, binding, "Fail to register api error={}", error);
+                afb_log_msg!(Critical, binding, "Failed to register API: error={}", error);
                 AFB_ABORT
             }
         }
@@ -159,7 +159,7 @@ fn simple_callback(request: &AfbRequest, args: &mut AfbRqtData, ctx: AfbCtxData)
         request.reply(response, 0);
         Ok(())
     };
-    // if data export fail send an error report
+    // if data export fails, send an error report
     if let Err(error) = reply() {
         request.reply(afb_add_trace!(error), 405);
     }
@@ -169,8 +169,8 @@ fn simple_callback(request: &AfbRequest, args: &mut AfbRqtData, ctx: AfbCtxData)
 // register user custom defined data type within libafb framework
 match simple_data::register() {
     Err(error) => {
-        afb_log_msg!(Critical,binding,"fail to register converter error={}",error);
-        panic! ("(hoops) fail to register custom type");
+        afb_log_msg!(Critical,binding,"failed to register converter: error={}",error);
+        panic! ("(hoops) failed to register custom type");
     }
     Ok(_value) => {},
 };
@@ -355,7 +355,7 @@ Full timer takes:
 * period: delay in ms that defines callback tic rate
 * count: the number of time, the timer should tic (default: zero== infinite)
 
-Note: timer handle is allocate in heap and deleted only when decount reach zero. If timer.set_count(0) it runs until afb_binder exit. User does not have to care about the timer handle live cycle as AfbTimer::new leak the handle memory.
+Note: timer handle is allocated in heap and deleted only when decount reaches zero. If timer.set_count(0) it runs until afb_binder exit. User does not have to care about the timer handle lifecycle as AfbTimer::new leak the handle memory.
 
 ```rust
 // Use timer vcbdata to store event handle that is normally available from API userdata
@@ -403,7 +403,7 @@ Delay timers are simpler and run only once. They take two params
 At delay the callback is activated with signal==0. Is ever callback runs longer that watchdog callback is activated again with a signal value!=0.
 
 ```rust
-// Job verb data is valid during all verb live cycle
+// Job verb data is valid during all verb lifecycle
 struct JobVerbContext {
     job_handle: &'static AfbSchedJob
 }

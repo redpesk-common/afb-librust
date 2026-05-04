@@ -742,7 +742,7 @@ impl AfbTimer {
     #[track_caller]
     pub fn start(&mut self) -> Result<&Self, AfbError> {
         if self.period == 0 {
-            return afb_error!(self._uid, "Timer period should >0",);
+            return afb_error!(self._uid, "Timer period should be > 0",);
         }
 
         let status = unsafe {
@@ -760,7 +760,7 @@ impl AfbTimer {
             )
         };
         if status != 0 {
-            return afb_error!(self._uid, "Afb_Timer creation fail");
+            return afb_error!(self._uid, "Afb_Timer creation failed");
         }
         Ok(self)
     }
@@ -929,7 +929,7 @@ impl AfbSchedJob {
             )
         };
         if jobv4 <= 0 {
-            return afb_error!(self._uid, "Job_post launch fail");
+            return afb_error!(self._uid, "Job_post launch failed");
         }
         Ok(jobv4)
     }
@@ -1232,7 +1232,7 @@ impl AfbEvtFd {
     #[track_caller]
     pub fn start(&mut self) -> Result<&Self, AfbError> {
         if self.fd == 0 {
-            return afb_error!(self.uid, "EventFd fd should >0",);
+            return afb_error!(self.uid, "EventFd fd should be > 0",);
         }
 
         let status = unsafe {
@@ -1247,7 +1247,7 @@ impl AfbEvtFd {
             )
         };
         if status != 0 {
-            return afb_error!(self.uid, "Afb_EvtFd creation fail");
+            return afb_error!(self.uid, "Afb_EvtFd creation failed");
         }
         Ok(self)
     }

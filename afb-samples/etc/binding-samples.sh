@@ -7,7 +7,7 @@ clear
 
 cargo build --example afb_samples
 if test $? != 0; then
-        echo "FATAL: fail to compile libafb sample"
+        echo "FATAL: failed to compile libafb sample"
         exit 1
 fi
 

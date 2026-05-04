@@ -2,7 +2,7 @@
 
 ## Install from RPM/APT
 
-WARNING: as today afb-librust remains in early access phase and binary version are not public. Alpha tester should build it from source.
+WARNING: as of today afb-librust remains in early access phase and binary versions are not public. Alpha testers should build it from source.
 
 * Declare redpesk repository: [(see doc)]({% chapter_link host-configuration-doc.setup-your-build-host %})
 
@@ -15,8 +15,8 @@ WARNING: as today afb-librust remains in early access phase and binary version a
 
 ### Rust binding Dependencies
 
-afb-librust require gcc to compile the glue between libafb/C and libafb/Rust. This glue is generated automatically through bindgen
-but nevertheless require gcc/C compiler.
+afb-librust requires GCC to compile the glue between libafb/C and libafb/Rust. This glue is generated automatically through bindgen
+but nevertheless requires a GCC/C compiler.
 
 * Declare redpesk repository: [(see doc)]({% chapter_link host-configuration-doc.setup-your-build-host %})
 
@@ -32,13 +32,13 @@ but nevertheless require gcc/C compiler.
 * sample
   * serde-json
 
-Note: bingen & serde pull many other rust modules that are pull automatically by cargo at build time.
+Note: bingen & serde pull many other rust modules that are pulled automatically by cargo at build time.
 
 ### Building
 
 ```bash
     git clone git.ovh.iot:redpesk/redpesk-labs/afb-librust.git
     cd afb-librust
-    touch libafb/src/capi/build.rs  # cargo fail to detect missing file that should be generated
+    touch libafb/src/capi/build.rs  # cargo fails to detect missing file that should be generated
     cargo build
 ```
