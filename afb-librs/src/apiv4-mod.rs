@@ -1636,7 +1636,7 @@ impl AfbEvent {
         }
 
         let status = unsafe { cglue::afb_req_unsubscribe(rqt.get_rqtv4(), self._evtv4) };
-        if status != 0 {
+        if status < 0 {
             afb_error!(self._uid, "failed to unsubscribe event")
         } else {
             Ok(self)
