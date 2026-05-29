@@ -509,12 +509,12 @@ impl AfbConverter {
     pub fn new(uid: &'static str) -> Result<&'static mut Self, AfbError> {
         // register new type within libafb
         let cuid = CString::new(uid).expect("Invalid converter uid key").into_raw();
-        let typev4 = 0 as cglue::afb_type_t;
+        let mut typev4 = 0 as cglue::afb_type_t;
         let status = unsafe {
-            if cglue::afb_type_lookup(&typev4 as *const _ as *mut cglue::afb_type_t, cuid) == 0 {
+            if cglue::afb_type_lookup(&mut typev4 as *mut cglue::afb_type_t, cuid) == 0 {
                 0
             } else {
-                cglue::afb_type_register(&typev4 as *const _ as *mut cglue::afb_type_t, cuid, 0)
+                cglue::afb_type_register(&mut typev4 as *mut cglue::afb_type_t, cuid, 0)
             }
         };
 
@@ -592,12 +592,11 @@ impl AfbConverter {
 #[track_caller]
 #[allow(clippy::mut_from_ref)]
 pub fn get_type(uid: &'static str) -> Result<&'static mut AfbConverter, AfbError> {
-    let typev4: cglue::afb_type_t = 0 as cglue::afb_type_t;
+    let mut typev4: cglue::afb_type_t = 0 as cglue::afb_type_t;
     let cuid = CString::new(uid).expect("Invalid converter uid key");
 
-    let status = unsafe {
-        cglue::afb_type_lookup(&typev4 as *const _ as *mut cglue::afb_type_t, cuid.into_raw())
-    };
+    let status =
+        unsafe { cglue::afb_type_lookup(&mut typev4 as *mut cglue::afb_type_t, cuid.into_raw()) };
 
     if status < 0 {
         afb_error!(uid, "type lookup failed")
@@ -1047,11 +1046,11 @@ impl AfbParams {
             data.freecb = Some(free_box_cb);
         }
 
-        // push data into libafb and retrieve it's handle
-        let data_handle: cglue::afb_data_t = 0 as cglue::afb_data_t;
+        // push data into libafb and retrieve its handle
+        let mut data_handle: cglue::afb_data_t = 0 as cglue::afb_data_t;
         let status = unsafe {
             cglue::afb_create_data_raw(
-                &data_handle as *const _ as *mut cglue::afb_data_t,
+                &mut data_handle as *mut cglue::afb_data_t,
                 data.typev4,
                 data.buffer_ptr,
                 data.buffer_len,

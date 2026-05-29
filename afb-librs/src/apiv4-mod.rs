@@ -1202,11 +1202,11 @@ impl AfbRequest {
     #[allow(clippy::mut_from_ref)]
     #[track_caller]
     pub fn get_session(&self) -> Result<&mut dyn AfbRqtSession, AfbError> {
-        let session = std::ptr::null_mut::<::std::os::raw::c_void>();
+        let mut session = std::ptr::null_mut::<::std::os::raw::c_void>();
         let status = unsafe {
             cglue::afb_req_context_get(
                 self.get_rqtv4(),
-                &session as *const _ as *mut *mut ::std::os::raw::c_void,
+                &mut session as *mut *mut ::std::os::raw::c_void,
             )
         };
         if status < 0 {
@@ -2086,7 +2086,7 @@ impl DoSubcallSync<AfbApiV4> for AfbSubCall {
     ) -> Result<AfbRqtData, AfbError> {
         let mut status = 0_i32;
         let mut nreplies = MAX_CALL_ARGS;
-        let replies = [0 as cglue::afb_data_t; MAX_CALL_ARGS as usize];
+        let mut replies = [0 as cglue::afb_data_t; MAX_CALL_ARGS as usize];
 
         let rc = unsafe {
             cglue::afb_api_call_sync(
@@ -2097,7 +2097,7 @@ impl DoSubcallSync<AfbApiV4> for AfbSubCall {
                 params.arguments.as_slice().as_ptr(),
                 &mut status,
                 &mut nreplies,
-                replies.as_ref() as *const _ as *mut cglue::afb_data_t,
+                replies.as_mut_ptr(),
             )
         };
         if rc < 0 || nreplies > MAX_CALL_ARGS || status < 0 {
@@ -2188,7 +2188,7 @@ impl DoSubcallSync<AfbRqtV4> for AfbSubCall {
     ) -> Result<AfbRqtData, AfbError> {
         let mut status = 0_i32;
         let mut nreplies = MAX_CALL_ARGS;
-        let replies = [0 as cglue::afb_data_t; MAX_CALL_ARGS as usize];
+        let mut replies = [0 as cglue::afb_data_t; MAX_CALL_ARGS as usize];
 
         let rc = unsafe {
             cglue::afb_req_subcall_sync(
@@ -2200,7 +2200,7 @@ impl DoSubcallSync<AfbRqtV4> for AfbSubCall {
                 cglue::afb_req_subcall_flags_afb_req_subcall_catch_events as i32,
                 &mut status,
                 &mut nreplies,
-                replies.as_ref() as *const _ as *mut cglue::afb_data_t,
+                replies.as_mut_ptr(),
             )
         };
         if rc < 0 || nreplies > MAX_CALL_ARGS || status < 0 {
