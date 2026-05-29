@@ -1299,6 +1299,13 @@ impl AfbRequest {
             },
             Ok(data) => data,
         };
+        /*
+         * afb_req_reply() keeps the response data after returning. Keep one
+         * reference for the libafb reply lifecycle, then release only the
+         * Rust-local references created by AfbParams::convert().
+         */
+        params.addref();
+
         unsafe {
             cglue::afb_req_reply(
                 self._rqtv4,
@@ -1307,6 +1314,11 @@ impl AfbRequest {
                 params.arguments.as_slice().as_ptr(),
             )
         };
+
+        // Release the Rust-owned references created by AfbParams::convert().
+        // afb_req_reply() does not consume the caller-side afb_data_t references.
+        // The extra reference above remains owned by libafb.
+        params.unref();
     }
 }
 
