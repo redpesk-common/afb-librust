@@ -99,6 +99,7 @@ fn main() {
         .flag(format!("-std={}", c_std))
         .flag("-D__builtin_c23_va_start=__builtin_va_start")
         .flag("-Dnullptr=0")
+        .flag_if_supported("-Wno-unused-parameter")
         .compile("afb-glue");
 
     // ============== JSONC-C interface =====================
