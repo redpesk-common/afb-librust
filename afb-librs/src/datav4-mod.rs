@@ -884,8 +884,15 @@ pub struct AfbExportData {
     pub freecb: ::std::option::Option<unsafe extern "C" fn(arg1: *mut ::std::os::raw::c_void)>,
 }
 
+pub struct AfbExportCopyData {
+    pub uid: &'static str,
+    pub typev4: AfbTypeV4,
+    pub buffer: Vec<u8>,
+}
+
 pub enum AfbExportResponse {
     Converter(AfbExportData),
+    Copy(AfbExportCopyData),
     Response(AfbParams),
 }
 
@@ -894,32 +901,36 @@ pub trait ConvertResponse<T> {
 }
 
 macro_rules! _register_response_converter {
-    ($rust_type:ty, $afb_builtin_type:ident) => {
+    ($rust_type:ty, $afb_builtin_type:ident, $to_bytes:expr) => {
         impl ConvertResponse<$rust_type> for AfbParams {
             #[track_caller]
             fn export(data: $rust_type) -> AfbExportResponse {
-                // cast integer to c-void*
-                let boxe = Box::new(data);
-                let raw_data = Box::into_raw(boxe) as *mut std::ffi::c_void;
-                let export = AfbExportData {
+                /*
+                 * Scalar builtin values are pure POD data. Export them with
+                 * afb_create_data_copy() instead of afb_create_data_raw().
+                 *
+                 * The raw path is kept for objects with an explicit ownership
+                 * callback, such as JsoncObj and CString. For scalars, copying
+                 * avoids any ambiguity around callback lifetime, buffer ownership
+                 * and libafb-side conversion.
+                 */
+                let buffer = ($to_bytes)(data);
+                AfbExportResponse::Copy(AfbExportCopyData {
                     uid: concat!("export:", stringify!($afb_builtin_type)),
                     typev4: unsafe { (*cglue::afbBindingV4r1_itfptr).$afb_builtin_type },
-                    buffer_ptr: raw_data,
-                    buffer_len: 0, // auto
-                    freecb: Some(free_box_cb),
-                };
-                AfbExportResponse::Converter(export)
+                    buffer,
+                })
             }
         }
     };
 }
 // converters with Rust/C equal binary representation
-_register_response_converter!(i64, type_i64);
-_register_response_converter!(i32, type_i32);
-_register_response_converter!(u64, type_u64);
-_register_response_converter!(u32, type_u32);
-_register_response_converter!(bool, type_bool);
-_register_response_converter!(f64, type_double);
+_register_response_converter!(i64, type_i64, |value: i64| value.to_ne_bytes().to_vec());
+_register_response_converter!(i32, type_i32, |value: i32| value.to_ne_bytes().to_vec());
+_register_response_converter!(u64, type_u64, |value: u64| value.to_ne_bytes().to_vec());
+_register_response_converter!(u32, type_u32, |value: u32| value.to_ne_bytes().to_vec());
+_register_response_converter!(bool, type_bool, |value: bool| vec![u8::from(value)]);
+_register_response_converter!(f64, type_double, |value: f64| value.to_ne_bytes().to_vec());
 
 impl ConvertResponse<JsoncObj> for AfbParams {
     #[track_caller]
@@ -1090,14 +1101,17 @@ impl AfbParams {
     {
         let mut param = AfbParams::new();
         // convert response data depending on type
-        let mut data = match AfbParams::export(data_in) {
-            AfbExportResponse::Converter(export) => export,
-            _ => return afb_error!("afb_response::push", "invalid data type"),
-        };
-
-        match Self::insert(&mut param, &mut data) {
-            Ok(()) => Ok(param),
-            Err(error) => Err(error),
+        match AfbParams::export(data_in) {
+            AfbExportResponse::Converter(mut export) => match Self::insert(&mut param, &mut export)
+            {
+                Ok(()) => Ok(param),
+                Err(error) => Err(error),
+            },
+            AfbExportResponse::Copy(export) => match Self::insert_copy(&mut param, &export) {
+                Ok(()) => Ok(param),
+                Err(error) => Err(error),
+            },
+            _ => afb_error!("afb_response::push", "invalid data type"),
         }
     }
 
@@ -1127,21 +1141,45 @@ impl AfbParams {
         }
     }
 
+    fn insert_copy(&mut self, data: &AfbExportCopyData) -> Result<(), AfbError> {
+        // push copied data into libafb and retrieve its handle
+        let mut data_handle: cglue::afb_data_t = 0 as cglue::afb_data_t;
+        let status = unsafe {
+            cglue::afb_create_data_copy(
+                &mut data_handle as *mut cglue::afb_data_t,
+                data.typev4,
+                data.buffer.as_ptr() as *const c_void,
+                data.buffer.len(),
+            )
+        };
+        if status != 0 {
+            afb_error!(data.uid, "Failed to export copied data: {}", data.uid)
+        } else {
+            self.arguments.push(data_handle);
+            Ok(())
+        }
+    }
+
     #[track_caller]
     pub fn convert<T>(data_in: T) -> Result<AfbParams, AfbError>
     where
         AfbParams: ConvertResponse<T>,
     {
         // convert response data depending on type
-        let mut data = match AfbParams::export(data_in) {
-            AfbExportResponse::Response(response) => return Ok(response),
-            AfbExportResponse::Converter(export) => export,
-        };
-
         let mut response = AfbParams::new();
-        match AfbParams::insert(&mut response, &mut data) {
-            Ok(()) => Ok(response),
-            Err(error) => Err(error),
+        match AfbParams::export(data_in) {
+            AfbExportResponse::Response(response) => Ok(response),
+            AfbExportResponse::Converter(mut export) => {
+                match AfbParams::insert(&mut response, &mut export) {
+                    Ok(()) => Ok(response),
+                    Err(error) => Err(error),
+                }
+            },
+            AfbExportResponse::Copy(export) => match AfbParams::insert_copy(&mut response, &export)
+            {
+                Ok(()) => Ok(response),
+                Err(error) => Err(error),
+            },
         }
     }
 
@@ -1151,14 +1189,16 @@ impl AfbParams {
         AfbParams: ConvertResponse<T>,
     {
         // convert response data depending on type
-        let mut data = match AfbParams::export(data_in) {
-            AfbExportResponse::Converter(export) => export,
-            _ => return afb_error!("afb_response::push", "invalid data type"),
-        };
-
-        match Self::insert(self, &mut data) {
-            Ok(()) => Ok(self),
-            Err(error) => Err(error),
+        match AfbParams::export(data_in) {
+            AfbExportResponse::Converter(mut export) => match Self::insert(self, &mut export) {
+                Ok(()) => Ok(self),
+                Err(error) => Err(error),
+            },
+            AfbExportResponse::Copy(export) => match Self::insert_copy(self, &export) {
+                Ok(()) => Ok(self),
+                Err(error) => Err(error),
+            },
+            _ => afb_error!("afb_response::push", "invalid data type"),
         }
     }
 }
