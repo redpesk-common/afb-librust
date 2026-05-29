@@ -938,10 +938,21 @@ impl ConvertResponse<JsoncObj> for AfbParams {
 impl ConvertResponse<&JsoncObj> for AfbParams {
     #[track_caller]
     fn export(data: &JsoncObj) -> AfbExportResponse {
+        let raw = data.as_raw();
+
+        /*
+         * data is borrowed by Rust, but libafb receives a free_jsonc_cb.
+         * Give libafb its own json-c reference so dropping the Rust value and
+         * releasing the AFB reply are independent operations.
+         */
+        unsafe {
+            cglue::json_object_get(raw);
+        }
+
         let export = AfbExportData {
             uid: "export:builtin-&JsoncObj",
             typev4: unsafe { (*cglue::afbBindingV4r1_itfptr).type_json_c },
-            buffer_ptr: data.into_raw() as *const _ as *mut std::ffi::c_void,
+            buffer_ptr: raw as *const _ as *mut std::ffi::c_void,
             buffer_len: 0, // auto
             freecb: Some(free_jsonc_cb),
         };
