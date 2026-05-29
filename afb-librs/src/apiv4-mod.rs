@@ -2182,7 +2182,8 @@ impl<C: 'static> DoSubcallAsync<AfbRqtV4, RqtCallback, C> for AfbSubCall {
                 verbname.into_raw(),
                 params.arguments.len() as u32,
                 params.arguments.as_slice().as_ptr(),
-                cglue::afb_req_subcall_flags_afb_req_subcall_catch_events as i32,
+                cglue::afb_req_subcall_flags_afb_req_subcall_catch_events as i32
+                    | cglue::afb_req_subcall_flags_afb_req_subcall_api_session as i32,
                 Some(afb_async_rqt_callback),
                 cbhandle as *mut std::ffi::c_void,
             )
@@ -2209,7 +2210,8 @@ impl DoSubcallSync<AfbRqtV4> for AfbSubCall {
                 verbname.clone().into_raw(),
                 params.arguments.len() as u32,
                 params.arguments.as_slice().as_ptr(),
-                cglue::afb_req_subcall_flags_afb_req_subcall_catch_events as i32,
+                cglue::afb_req_subcall_flags_afb_req_subcall_catch_events as i32
+                    | cglue::afb_req_subcall_flags_afb_req_subcall_api_session as i32,
                 &mut status,
                 &mut nreplies,
                 replies.as_mut_ptr(),
