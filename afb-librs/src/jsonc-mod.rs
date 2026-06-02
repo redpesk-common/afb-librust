@@ -27,6 +27,7 @@ use std::ffi::{CStr, CString};
 use std::fmt;
 use std::os::raw::c_char;
 use std::str;
+use std::sync::{Mutex, OnceLock};
 
 #[derive(Debug, PartialEq)]
 pub enum Jtype {
@@ -56,9 +57,17 @@ pub enum Jequal {
     Partial,
 }
 
+static STATIC_STRINGS: OnceLock<Mutex<Vec<&'static str>>> = OnceLock::new();
+
 #[track_caller]
 pub fn to_static_str(value: String) -> &'static str {
-    Box::leak(value.into_boxed_str())
+    let text = Box::leak(value.into_boxed_str());
+    STATIC_STRINGS
+        .get_or_init(|| Mutex::new(Vec::new()))
+        .lock()
+        .expect("static string registry is poisoned")
+        .push(text);
+    text
 }
 
 pub fn bytes_to_str(data: &[u8]) -> Result<&str, AfbError> {

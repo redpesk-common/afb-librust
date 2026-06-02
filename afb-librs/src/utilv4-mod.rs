@@ -1044,6 +1044,8 @@ pub enum AfbPermission {
     None(),
 }
 
+static AFB_PERMISSION_NONE: AfbPermission = AfbPermission::None();
+
 impl From<&'static str> for AfbPermission {
     fn from(value: &'static str) -> Self {
         AfbPermission::Require(value)
@@ -1071,6 +1073,10 @@ impl From<i32> for AfbPermission {
 }
 
 impl AfbPermission {
+    pub fn none() -> &'static AfbPermission {
+        &AFB_PERMISSION_NONE
+    }
+
     pub fn from<T>(value: T) -> AfbPermission
     where
         T: Into<AfbPermission>,
