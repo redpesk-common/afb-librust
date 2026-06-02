@@ -560,17 +560,17 @@ impl AfbLogMsg {
         match info {
             Some(dbg) => {
                 let line = dbg.line;
-                let file = CString::new(dbg.file).expect("Invalid filename string").into_raw();
-                let func = CString::new(dbg.name).expect("Invalid func_name string").into_raw();
-                let format = CString::new(message).expect("Invalid message string").into_raw();
+                let file = CString::new(dbg.file).expect("Invalid filename string");
+                let func = CString::new(dbg.name).expect("Invalid func_name string");
+                let format = CString::new(message).expect("Invalid message string");
                 unsafe {
                     <Self as DoSendLog<H>>::print_log(
                         log_level as i32,
                         handle,
-                        file,
+                        file.as_ptr(),
                         line,
-                        func,
-                        format,
+                        func.as_ptr(),
+                        format.as_ptr(),
                     );
                 }
             },
@@ -578,7 +578,7 @@ impl AfbLogMsg {
                 let line = 0;
                 let file = std::ptr::null::<Cchar>();
                 let func = std::ptr::null::<Cchar>();
-                let format = CString::new(message).expect("Invalid message string").into_raw();
+                let format = CString::new(message).expect("Invalid message string");
                 unsafe {
                     <Self as DoSendLog<H>>::print_log(
                         log_level as i32,
@@ -586,7 +586,7 @@ impl AfbLogMsg {
                         file,
                         line,
                         func,
-                        format,
+                        format.as_ptr(),
                     );
                 }
             },

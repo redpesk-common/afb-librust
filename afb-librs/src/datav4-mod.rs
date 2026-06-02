@@ -86,6 +86,10 @@ macro_rules! AfbDataConverter {
                 }
             }
 
+            pub(super) unsafe extern "C" fn free(context: *mut std::ffi::c_void) {
+                drop(Box::<$datat>::from_raw(context as *mut $datat));
+            }
+
             #[track_caller]
             pub fn decode(json_string: &str) -> Result<Box<dyn Any>, AfbError> {
                 match serde_json::from_str::<$datat>(json_string) {
@@ -177,14 +181,14 @@ macro_rules! AfbDataConverter {
                     },
                     ConverterBox(Some(value)) => value.typev4,
                 };
-                let uid = concat!("export:", stringify!($user_type));
-                let boxe = Box::new(data);
+                let uid = concat!("export:", stringify!($uid));
+                let raw = Box::into_raw(Box::new(data));
                 afbv4::datav4::AfbExportResponse::Converter(AfbExportData {
                     uid: uid,
-                    buffer_ptr: Box::leak(boxe) as *const _ as *mut std::ffi::c_void,
+                    buffer_ptr: raw as *const _ as *mut std::ffi::c_void,
                     typev4: typev4,
                     buffer_len: 0, // auto
-                    freecb: None,  // auto
+                    freecb: Some($uid::free),
                 })
             }
         }
@@ -506,13 +510,18 @@ impl AfbConverter {
     #[allow(clippy::mut_from_ref)]
     pub fn new(uid: &'static str) -> Result<&'static mut Self, AfbError> {
         // register new type within libafb
-        let cuid = CString::new(uid).expect("Invalid converter uid key").into_raw();
+        let cuid = CString::new(uid).expect("Invalid converter uid key");
         let mut typev4 = 0 as cglue::afb_type_t;
         let status = unsafe {
-            if cglue::afb_type_lookup(&mut typev4 as *mut cglue::afb_type_t, cuid) == 0 {
+            if cglue::afb_type_lookup(&mut typev4 as *mut cglue::afb_type_t, cuid.as_ptr()) == 0 {
                 0
             } else {
-                cglue::afb_type_register(&mut typev4 as *mut cglue::afb_type_t, cuid, 0)
+                let raw_uid = cuid.into_raw();
+                let status = cglue::afb_type_register(&mut typev4 as *mut cglue::afb_type_t, raw_uid, 0);
+                if status != 0 {
+                    drop(CString::from_raw(raw_uid));
+                }
+                status
             }
         };
 
@@ -594,7 +603,7 @@ pub fn get_type(uid: &'static str) -> Result<&'static mut AfbConverter, AfbError
     let cuid = CString::new(uid).expect("Invalid converter uid key");
 
     let status =
-        unsafe { cglue::afb_type_lookup(&mut typev4 as *mut cglue::afb_type_t, cuid.into_raw()) };
+        unsafe { cglue::afb_type_lookup(&mut typev4 as *mut cglue::afb_type_t, cuid.as_ptr()) };
 
     if status < 0 {
         afb_error!(uid, "type lookup failed")
