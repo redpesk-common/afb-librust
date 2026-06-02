@@ -2076,8 +2076,8 @@ impl<C: 'static> DoSubcallAsync<AfbApiV4, ApiCallback, C> for AfbSubCall {
         unsafe {
             cglue::afb_api_call(
                 apiv4,
-                apiname.into_raw(),
-                verbname.into_raw(),
+                apiname.as_ptr(),
+                verbname.as_ptr(),
                 params.arguments.len() as u32,
                 params.arguments.as_slice().as_ptr(),
                 Some(afb_async_api_callback),
@@ -2103,8 +2103,8 @@ impl DoSubcallSync<AfbApiV4> for AfbSubCall {
         let rc = unsafe {
             cglue::afb_api_call_sync(
                 apiv4,
-                apiname.clone().into_raw(),
-                verbname.clone().into_raw(),
+                apiname.as_ptr(),
+                verbname.as_ptr(),
                 params.arguments.len() as u32,
                 params.arguments.as_slice().as_ptr(),
                 &mut status,
@@ -2178,8 +2178,8 @@ impl<C: 'static> DoSubcallAsync<AfbRqtV4, RqtCallback, C> for AfbSubCall {
         unsafe {
             cglue::afb_req_subcall(
                 rqtv4,
-                apiname.into_raw(),
-                verbname.into_raw(),
+                apiname.as_ptr(),
+                verbname.as_ptr(),
                 params.arguments.len() as u32,
                 params.arguments.as_slice().as_ptr(),
                 cglue::afb_req_subcall_flags_afb_req_subcall_catch_events as i32
@@ -2206,8 +2206,8 @@ impl DoSubcallSync<AfbRqtV4> for AfbSubCall {
         let rc = unsafe {
             cglue::afb_req_subcall_sync(
                 rqtv4,
-                apiname.clone().into_raw(),
-                verbname.clone().into_raw(),
+                apiname.as_ptr(),
+                verbname.as_ptr(),
                 params.arguments.len() as u32,
                 params.arguments.as_slice().as_ptr(),
                 cglue::afb_req_subcall_flags_afb_req_subcall_catch_events as i32
@@ -2265,7 +2265,15 @@ impl AfbSubCall {
 
         let apistr = CString::new(apiname).expect("Invalid apiname");
         let verbstr = CString::new(verbname).expect("Invalid verbname");
-        AfbSubCall::subcall_sync(handle, apistr, verbstr, &params)
+        let result = AfbSubCall::subcall_sync(handle, apistr, verbstr, &params);
+
+        // AfbParams::convert() creates caller-owned afb_data_t handles.
+        // afb_*_call_sync() only borrows those handles for the duration of the
+        // call, so release the Rust-side references after the synchronous
+        // subcall returns. The returned AfbRqtData owns the reply handles.
+        params.unref();
+
+        result
     }
 
     #[track_caller]
