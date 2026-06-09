@@ -517,7 +517,8 @@ impl AfbConverter {
                 0
             } else {
                 let raw_uid = cuid.into_raw();
-                let status = cglue::afb_type_register(&mut typev4 as *mut cglue::afb_type_t, raw_uid, 0);
+                let status =
+                    cglue::afb_type_register(&mut typev4 as *mut cglue::afb_type_t, raw_uid, 0);
                 if status != 0 {
                     drop(CString::from_raw(raw_uid));
                 }
@@ -694,10 +695,6 @@ impl ConvertQuery<JsoncObj> for AfbRqtData {
             }
 
             let cbuffer = cglue::afb_data_ro_pointer(argument);
-            if cbuffer.is_null() {
-                cglue::afb_data_unref(argument);
-                return afb_error!(uid, "null json-c pointer args[{}]", index);
-            }
             let result = JsoncObj::import(cbuffer);
 
             cglue::afb_data_unref(argument);

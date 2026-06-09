@@ -148,10 +148,8 @@ impl Drop for JsoncObj {
 
 impl Clone for JsoncObj {
     fn clone(&self) -> Self {
-        if !self.jso.is_null() {
-            unsafe {
-                cglue::json_object_get(self.jso);
-            }
+        unsafe {
+            cglue::json_object_get(self.jso);
         }
         JsoncObj { jso: self.jso }
     }
@@ -772,11 +770,9 @@ impl JsoncImport<*const *const JsoncJso> for JsoncObj {
 impl JsoncImport<*mut std::ffi::c_void> for JsoncObj {
     #[track_caller]
     fn import(value: *mut std::ffi::c_void) -> Result<Self, AfbError> {
-        let jso: &mut cglue::json_object = unsafe { &mut *(value as *mut cglue::json_object) };
-        unsafe {
-            let jsonc = JsoncObj { jso: cglue::json_object_get(jso) };
-            Ok(jsonc)
-        }
+        let jso = value as *mut cglue::json_object;
+        let jsonc = unsafe { JsoncObj { jso: cglue::json_object_get(jso) } };
+        Ok(jsonc)
     }
 }
 
@@ -1267,20 +1263,24 @@ impl JsoncObj {
 
     #[track_caller]
     pub fn parse(json_str: &str) -> Result<JsoncObj, AfbError> {
+        let cjson = match CString::new(json_str) {
+            Ok(value) => value,
+            Err(_) => {
+                return afb_error!("jsonc-parse-fail", "JSON string contains an embedded NUL byte")
+            },
+        };
+
         unsafe {
             let tok = cglue::json_tokener_new();
             let jso = cglue::json_tokener_parse_ex(
                 tok,
-                json_str.as_bytes().as_ptr() as *mut c_char,
-                json_str.len() as i32,
+                cjson.as_ptr() as *mut c_char,
+                cjson.as_bytes_with_nul().len() as i32,
             );
             let jerr = cglue::json_tokener_get_error(tok);
 
-            let result = if jerr != cglue::json_tokener_error_json_tokener_success || jso.is_null()
-            {
-                if !jso.is_null() {
-                    cglue::json_object_put(jso);
-                }
+            let result = if jerr != cglue::json_tokener_error_json_tokener_success {
+                cglue::json_object_put(jso);
                 afb_error!("jsonc-parse-fail", json_str)
             } else {
                 /*
