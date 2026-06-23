@@ -19,6 +19,18 @@ fn parse_json() {
 }
 
 #[test]
+fn parse_json_null() {
+    let jvalue = JsoncObj::parse("null").unwrap();
+    assert!(jvalue.is_type(Jtype::Null), "parsed value is not JSON null");
+
+    let cloned = jvalue.clone();
+    assert!(cloned.is_type(Jtype::Null), "cloned value is not JSON null");
+
+    let imported = JsoncObj::import(std::ptr::null_mut::<std::ffi::c_void>()).unwrap();
+    assert!(imported.is_type(Jtype::Null), "imported value is not JSON null");
+}
+
+#[test]
 fn equal_full_json() -> Result<(), AfbError> {
     let query = "{
                 'transfer_mode':'dc_extended',

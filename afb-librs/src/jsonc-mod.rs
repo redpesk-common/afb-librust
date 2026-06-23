@@ -27,6 +27,7 @@ use std::ffi::{CStr, CString};
 use std::fmt;
 use std::os::raw::c_char;
 use std::str;
+use std::sync::{Mutex, OnceLock};
 
 #[derive(Debug, PartialEq)]
 pub enum Jtype {
@@ -56,9 +57,17 @@ pub enum Jequal {
     Partial,
 }
 
+static STATIC_STRINGS: OnceLock<Mutex<Vec<&'static str>>> = OnceLock::new();
+
 #[track_caller]
 pub fn to_static_str(value: String) -> &'static str {
-    Box::leak(value.into_boxed_str())
+    let text = Box::leak(value.into_boxed_str());
+    STATIC_STRINGS
+        .get_or_init(|| Mutex::new(Vec::new()))
+        .lock()
+        .expect("static string registry is poisoned")
+        .push(text);
+    text
 }
 
 pub fn bytes_to_str(data: &[u8]) -> Result<&str, AfbError> {
@@ -140,9 +149,9 @@ impl Drop for JsoncObj {
 impl Clone for JsoncObj {
     fn clone(&self) -> Self {
         unsafe {
-            // Clone by bumping refcount
-            JsoncObj { jso: cglue::json_object_get(self.jso) }
+            cglue::json_object_get(self.jso);
         }
+        JsoncObj { jso: self.jso }
     }
 }
 
@@ -380,7 +389,7 @@ impl ImportJso<&str> for JsoncObj {
 
             if cglue::json_object_object_get_ex(
                 jso,
-                skey.into_raw(),
+                skey.as_ptr(),
                 &jslot as *const _ as *mut *mut cglue::json_object,
             ) == 0
             {
@@ -670,7 +679,7 @@ impl JsonImport<&[u8]> for JsoncObj {
     fn add(&self, key: &str, value: &[u8]) {
         let sval = CString::new(value).expect("Invalid jsonc key bytes");
         unsafe {
-            let object = cglue::json_object_new_string(sval.into_raw());
+            let object = cglue::json_object_new_string(sval.as_ptr());
             self.add_to_object(key, object);
         }
     }
@@ -678,7 +687,7 @@ impl JsonImport<&[u8]> for JsoncObj {
     fn append(&self, value: &[u8]) {
         let sval = CString::new(value).expect("Invalid jsonc key bytes");
         unsafe {
-            let object = cglue::json_object_new_string(sval.into_raw());
+            let object = cglue::json_object_new_string(sval.as_ptr());
             self.append_to_array(object);
         }
     }
@@ -686,7 +695,7 @@ impl JsonImport<&[u8]> for JsoncObj {
     fn insert(&self, idx: usize, value: &[u8]) {
         let sval = CString::new(value).expect("Invalid jsonc key bytes");
         unsafe {
-            let object = cglue::json_object_new_string(sval.into_raw());
+            let object = cglue::json_object_new_string(sval.as_ptr());
             self.insert_to_array(idx, object);
         }
     }
@@ -697,7 +706,7 @@ impl JsonImport<&str> for JsoncObj {
     fn add(&self, key: &str, value: &str) {
         let sval = CString::new(value).expect("Invalid jsonc key string");
         unsafe {
-            let object = cglue::json_object_new_string(sval.into_raw());
+            let object = cglue::json_object_new_string(sval.as_ptr());
             self.add_to_object(key, object);
         }
     }
@@ -705,7 +714,7 @@ impl JsonImport<&str> for JsoncObj {
     fn append(&self, value: &str) {
         let sval = CString::new(value).expect("Invalid jsonc key string");
         unsafe {
-            let object = cglue::json_object_new_string(sval.into_raw());
+            let object = cglue::json_object_new_string(sval.as_ptr());
             self.append_to_array(object);
         }
     }
@@ -713,7 +722,7 @@ impl JsonImport<&str> for JsoncObj {
     fn insert(&self, idx: usize, value: &str) {
         let sval = CString::new(value).expect("Invalid jsonc key string");
         unsafe {
-            let object = cglue::json_object_new_string(sval.into_raw());
+            let object = cglue::json_object_new_string(sval.as_ptr());
             self.insert_to_array(idx, object);
         }
     }
@@ -761,11 +770,9 @@ impl JsoncImport<*const *const JsoncJso> for JsoncObj {
 impl JsoncImport<*mut std::ffi::c_void> for JsoncObj {
     #[track_caller]
     fn import(value: *mut std::ffi::c_void) -> Result<Self, AfbError> {
-        let jso: &mut cglue::json_object = unsafe { &mut *(value as *mut cglue::json_object) };
-        unsafe {
-            let jsonc = JsoncObj { jso: cglue::json_object_get(jso) };
-            Ok(jsonc)
-        }
+        let jso = value as *mut cglue::json_object;
+        let jsonc = unsafe { JsoncObj { jso: cglue::json_object_get(jso) } };
+        Ok(jsonc)
     }
 }
 
@@ -797,7 +804,7 @@ impl JsoncImport<&str> for JsoncObj {
         } else {
             let sval = CString::new(value).expect("Invalid jsonc key string");
             unsafe {
-                let jsonc = JsoncObj { jso: cglue::json_object_new_string(sval.into_raw()) };
+                let jsonc = JsoncObj { jso: cglue::json_object_new_string(sval.as_ptr()) };
                 Ok(jsonc)
             }
         }
@@ -809,7 +816,7 @@ impl JsoncImport<&String> for JsoncObj {
     fn import(value: &String) -> Result<Self, AfbError> {
         let sval = CString::new(value.as_str()).expect("Invalid jsonc key string");
         unsafe {
-            let jsonc = JsoncObj { jso: cglue::json_object_new_string(sval.into_raw()) };
+            let jsonc = JsoncObj { jso: cglue::json_object_new_string(sval.as_ptr()) };
             Ok(jsonc)
         }
     }
@@ -822,6 +829,10 @@ impl Default for JsoncObj {
 }
 
 impl JsoncObj {
+    pub fn as_raw(&self) -> *mut cglue::json_object {
+        self.jso
+    }
+
     #[track_caller]
     pub fn new() -> JsoncObj {
         unsafe {
@@ -1012,7 +1023,7 @@ impl JsoncObj {
     fn add_to_object(&self, key: &str, jval: *mut cglue::json_object) {
         let skey = CString::new(key).expect("Invalid jsonc key string");
         unsafe {
-            cglue::json_object_object_add(self.jso, skey.into_raw(), jval);
+            cglue::json_object_object_add(self.jso, skey.as_ptr(), jval);
         }
     }
 
@@ -1252,22 +1263,33 @@ impl JsoncObj {
 
     #[track_caller]
     pub fn parse(json_str: &str) -> Result<JsoncObj, AfbError> {
+        let cjson = match CString::new(json_str) {
+            Ok(value) => value,
+            Err(_) => {
+                return afb_error!("jsonc-parse-fail", "JSON string contains an embedded NUL byte")
+            },
+        };
+
         unsafe {
             let tok = cglue::json_tokener_new();
             let jso = cglue::json_tokener_parse_ex(
                 tok,
-                json_str.as_bytes().as_ptr() as *mut c_char,
-                json_str.len() as i32,
+                cjson.as_ptr() as *mut c_char,
+                cjson.as_bytes_with_nul().len() as i32,
             );
-            let jsonc = JsoncObj { jso: cglue::json_object_get(jso) };
-
             let jerr = cglue::json_tokener_get_error(tok);
 
-            // warning no ';'
             let result = if jerr != cglue::json_tokener_error_json_tokener_success {
+                cglue::json_object_put(jso);
                 afb_error!("jsonc-parse-fail", json_str)
             } else {
-                Ok(jsonc)
+                /*
+                 * json_tokener_parse_ex() returns a new json-c object with one
+                 * owned reference. JsoncObj owns that reference and Drop releases it.
+                 * Do not call json_object_get() here, otherwise each parse leaks
+                 * one json-c reference.
+                 */
+                Ok(JsoncObj { jso })
             };
 
             cglue::json_tokener_free(tok);

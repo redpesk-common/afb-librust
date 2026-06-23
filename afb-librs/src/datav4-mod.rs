@@ -86,6 +86,10 @@ macro_rules! AfbDataConverter {
                 }
             }
 
+            pub(super) unsafe extern "C" fn free(context: *mut std::ffi::c_void) {
+                drop(Box::<$datat>::from_raw(context as *mut $datat));
+            }
+
             #[track_caller]
             pub fn decode(json_string: &str) -> Result<Box<dyn Any>, AfbError> {
                 match serde_json::from_str::<$datat>(json_string) {
@@ -142,15 +146,13 @@ macro_rules! AfbDataConverter {
                     None => {
                         let data = {
                             let converter = AfbBuiltinType::get(&AfbBuiltinType::StringZ).typev4;
-                            match self.get_ro(converter, index) {
-                                None => "no readable data found",
-                                Some(cbuffer) => {
-                                    let cstring = unsafe {
-                                        std::ffi::CStr::from_ptr(&mut *(cbuffer as *mut Cchar))
-                                    };
-                                    cstring.to_str().unwrap()
-                                },
-                            }
+                            self.with_ro(converter, index, |cbuffer| {
+                                let cstring = unsafe {
+                                    std::ffi::CStr::from_ptr(&mut *(cbuffer as *mut Cchar))
+                                };
+                                cstring.to_string_lossy().into_owned()
+                            })
+                            .unwrap_or_else(|| "no readable data found".to_string())
                         };
                         afb_error!(
                             concat!("export:", stringify!($uid)),
@@ -179,14 +181,14 @@ macro_rules! AfbDataConverter {
                     },
                     ConverterBox(Some(value)) => value.typev4,
                 };
-                let uid = concat!("export:", stringify!($user_type));
-                let boxe = Box::new(data);
+                let uid = concat!("export:", stringify!($uid));
+                let raw = Box::into_raw(Box::new(data));
                 afbv4::datav4::AfbExportResponse::Converter(AfbExportData {
                     uid: uid,
-                    buffer_ptr: Box::leak(boxe) as *const _ as *mut std::ffi::c_void,
+                    buffer_ptr: raw as *const _ as *mut std::ffi::c_void,
                     typev4: typev4,
                     buffer_len: 0, // auto
-                    freecb: None,  // auto
+                    freecb: Some($uid::free),
                 })
             }
         }
@@ -508,13 +510,19 @@ impl AfbConverter {
     #[allow(clippy::mut_from_ref)]
     pub fn new(uid: &'static str) -> Result<&'static mut Self, AfbError> {
         // register new type within libafb
-        let cuid = CString::new(uid).expect("Invalid converter uid key").into_raw();
-        let typev4 = 0 as cglue::afb_type_t;
+        let cuid = CString::new(uid).expect("Invalid converter uid key");
+        let mut typev4 = 0 as cglue::afb_type_t;
         let status = unsafe {
-            if cglue::afb_type_lookup(&typev4 as *const _ as *mut cglue::afb_type_t, cuid) == 0 {
+            if cglue::afb_type_lookup(&mut typev4 as *mut cglue::afb_type_t, cuid.as_ptr()) == 0 {
                 0
             } else {
-                cglue::afb_type_register(&typev4 as *const _ as *mut cglue::afb_type_t, cuid, 0)
+                let raw_uid = cuid.into_raw();
+                let status =
+                    cglue::afb_type_register(&mut typev4 as *mut cglue::afb_type_t, raw_uid, 0);
+                if status != 0 {
+                    drop(CString::from_raw(raw_uid));
+                }
+                status
             }
         };
 
@@ -592,12 +600,11 @@ impl AfbConverter {
 #[track_caller]
 #[allow(clippy::mut_from_ref)]
 pub fn get_type(uid: &'static str) -> Result<&'static mut AfbConverter, AfbError> {
-    let typev4: cglue::afb_type_t = 0 as cglue::afb_type_t;
+    let mut typev4: cglue::afb_type_t = 0 as cglue::afb_type_t;
     let cuid = CString::new(uid).expect("Invalid converter uid key");
 
-    let status = unsafe {
-        cglue::afb_type_lookup(&typev4 as *const _ as *mut cglue::afb_type_t, cuid.into_raw())
-    };
+    let status =
+        unsafe { cglue::afb_type_lookup(&mut typev4 as *mut cglue::afb_type_t, cuid.as_ptr()) };
 
     if status < 0 {
         afb_error!(uid, "type lookup failed")
@@ -614,18 +621,18 @@ macro_rules! _register_query_converter {
             #[track_caller]
             fn import(&self, index: usize) -> Result<$rust_type, AfbError> {
                 let converter = unsafe { (*cglue::afbBindingV4r1_itfptr).$afb_builtin_type };
-                match self.get_ro(converter, index) {
+                match self
+                    .with_ro(converter, index, |cbuffer| unsafe { *(cbuffer as *mut $rust_type) })
+                {
                     None => {
                         let data = {
                             let converter = AfbBuiltinType::get(&AfbBuiltinType::StringZ).typev4;
-                            match self.get_ro(converter, index) {
-                                None => "no readable data found",
-                                Some(cbuffer) => {
-                                    let cstring =
-                                        unsafe { CStr::from_ptr(&mut *(cbuffer as *mut Cchar)) };
-                                    cstring.to_str().unwrap()
-                                },
-                            }
+                            self.with_ro(converter, index, |cbuffer| {
+                                let cstring =
+                                    unsafe { CStr::from_ptr(&mut *(cbuffer as *mut Cchar)) };
+                                cstring.to_string_lossy().into_owned()
+                            })
+                            .unwrap_or_else(|| "no readable data found".to_string())
                         };
                         afb_error!(
                             concat!("export:", stringify!($afb_builtin_type)),
@@ -634,7 +641,7 @@ macro_rules! _register_query_converter {
                             data
                         )
                     },
-                    Some(cbuffer) => Ok(unsafe { *(cbuffer as *mut $rust_type) }),
+                    Some(value) => Ok(value),
                 }
             }
         }
@@ -651,27 +658,51 @@ impl ConvertQuery<String> for AfbRqtData {
     fn import(&self, index: usize) -> Result<String, AfbError> {
         let uid = "builtin-string";
         let converter = unsafe { (*cglue::afbBindingV4r1_itfptr).type_stringz };
-        match self.get_ro(converter, index) {
+        match self.with_ro(converter, index, |cbuffer| {
+            let cstring = unsafe { CStr::from_ptr(&*(cbuffer as *mut Cchar)) };
+            cstring.to_string_lossy().into_owned()
+        }) {
             None => afb_error!(uid, "invalid converter format args[{}]", index),
-            Some(cbuffer) => {
-                let cstring = unsafe { CStr::from_ptr(&*(cbuffer as *mut Cchar)) };
-                let slice: &str = cstring.to_str().unwrap();
-                Ok(slice.to_owned())
-            },
+            Some(value) => Ok(value),
         }
     }
 }
 
 impl ConvertQuery<JsoncObj> for AfbRqtData {
     fn import(&self, index: usize) -> Result<JsoncObj, AfbError> {
-        // retrieve builtin converter from libafb
+        // Retrieve builtin converter from libafb.
         let uid = "builtin-JsoncObj";
         let converter = unsafe { (*cglue::afbBindingV4r1_itfptr).type_json_c };
 
-        // retrieve c-buffer pointer to argument void* value
-        match self.get_ro(converter, index) {
-            None => afb_error!(uid, "invalid converter format args[{}]", index),
-            Some(cbuffer) => JsoncObj::import(cbuffer),
+        /*
+         * JsoncObj::import(cbuffer) takes its own json-c reference.
+         *
+         * afb_data_convert() returns an afb_data_t wrapper. The pointer returned by
+         * afb_data_ro_pointer() is borrowed from that wrapper, so JsoncObj must retain
+         * it before the temporary afb_data_t is released.
+         *
+         * Do not call json_object_get() here: JsoncObj::import(*mut c_void) already
+         * does it. Adding another json_object_get() here leaks one json-c reference
+         * per request.
+         */
+        unsafe {
+            let source = self.argsv4[index];
+            let mut argument = 0 as cglue::afb_data_t;
+
+            let status = cglue::afb_data_convert(source, converter, &mut argument);
+            if status != 0 || argument.is_null() {
+                return afb_error!(uid, "invalid converter format args[{}]", index);
+            }
+
+            let cbuffer = cglue::afb_data_ro_pointer(argument);
+            let result = JsoncObj::import(cbuffer);
+
+            cglue::afb_data_unref(argument);
+
+            match result {
+                Ok(value) => Ok(value),
+                Err(error) => Err(error),
+            }
         }
     }
 }
@@ -803,6 +834,30 @@ impl AfbRqtData {
     }
 
     #[track_caller]
+    #[allow(clippy::not_unsafe_ptr_arg_deref)]
+    pub fn with_ro<T, F>(&self, typev4: AfbTypeV4, index: usize, func: F) -> Option<T>
+    where
+        F: FnOnce(*mut std::ffi::c_void) -> T,
+    {
+        unsafe {
+            let source = self.argsv4[index];
+            let mut argument = 0 as cglue::afb_data_t;
+
+            let status = cglue::afb_data_convert(source, typev4, &mut argument);
+            if status != 0 || argument.is_null() {
+                return None;
+            }
+
+            let cbuffer = cglue::afb_data_ro_pointer(argument);
+            let result = func(cbuffer);
+
+            cglue::afb_data_unref(argument);
+
+            Some(result)
+        }
+    }
+
+    #[track_caller]
     pub fn to_jsonc(&self) -> JsoncObj {
         let jsonc = JsoncObj::new();
         let jdata = JsoncObj::array();
@@ -835,8 +890,15 @@ pub struct AfbExportData {
     pub freecb: ::std::option::Option<unsafe extern "C" fn(arg1: *mut ::std::os::raw::c_void)>,
 }
 
+pub struct AfbExportCopyData {
+    pub uid: &'static str,
+    pub typev4: AfbTypeV4,
+    pub buffer: Vec<u8>,
+}
+
 pub enum AfbExportResponse {
     Converter(AfbExportData),
+    Copy(AfbExportCopyData),
     Response(AfbParams),
 }
 
@@ -845,32 +907,36 @@ pub trait ConvertResponse<T> {
 }
 
 macro_rules! _register_response_converter {
-    ($rust_type:ty, $afb_builtin_type:ident) => {
+    ($rust_type:ty, $afb_builtin_type:ident, $to_bytes:expr) => {
         impl ConvertResponse<$rust_type> for AfbParams {
             #[track_caller]
             fn export(data: $rust_type) -> AfbExportResponse {
-                // cast integer to c-void*
-                let boxe = Box::new(data);
-                let raw_data = Box::into_raw(boxe) as *mut std::ffi::c_void;
-                let export = AfbExportData {
+                /*
+                 * Scalar builtin values are pure POD data. Export them with
+                 * afb_create_data_copy() instead of afb_create_data_raw().
+                 *
+                 * The raw path is kept for objects with an explicit ownership
+                 * callback, such as JsoncObj and CString. For scalars, copying
+                 * avoids any ambiguity around callback lifetime, buffer ownership
+                 * and libafb-side conversion.
+                 */
+                let buffer = ($to_bytes)(data);
+                AfbExportResponse::Copy(AfbExportCopyData {
                     uid: concat!("export:", stringify!($afb_builtin_type)),
                     typev4: unsafe { (*cglue::afbBindingV4r1_itfptr).$afb_builtin_type },
-                    buffer_ptr: raw_data,
-                    buffer_len: 0, // auto
-                    freecb: Some(free_box_cb),
-                };
-                AfbExportResponse::Converter(export)
+                    buffer,
+                })
             }
         }
     };
 }
 // converters with Rust/C equal binary representation
-_register_response_converter!(i64, type_i64);
-_register_response_converter!(i32, type_i32);
-_register_response_converter!(u64, type_u64);
-_register_response_converter!(u32, type_u32);
-_register_response_converter!(bool, type_bool);
-_register_response_converter!(f64, type_double);
+_register_response_converter!(i64, type_i64, |value: i64| value.to_ne_bytes().to_vec());
+_register_response_converter!(i32, type_i32, |value: i32| value.to_ne_bytes().to_vec());
+_register_response_converter!(u64, type_u64, |value: u64| value.to_ne_bytes().to_vec());
+_register_response_converter!(u32, type_u32, |value: u32| value.to_ne_bytes().to_vec());
+_register_response_converter!(bool, type_bool, |value: bool| vec![u8::from(value)]);
+_register_response_converter!(f64, type_double, |value: f64| value.to_ne_bytes().to_vec());
 
 impl ConvertResponse<JsoncObj> for AfbParams {
     #[track_caller]
@@ -889,10 +955,21 @@ impl ConvertResponse<JsoncObj> for AfbParams {
 impl ConvertResponse<&JsoncObj> for AfbParams {
     #[track_caller]
     fn export(data: &JsoncObj) -> AfbExportResponse {
+        let raw = data.as_raw();
+
+        /*
+         * data is borrowed by Rust, but libafb receives a free_jsonc_cb.
+         * Give libafb its own json-c reference so dropping the Rust value and
+         * releasing the AFB reply are independent operations.
+         */
+        unsafe {
+            cglue::json_object_get(raw);
+        }
+
         let export = AfbExportData {
             uid: "export:builtin-&JsoncObj",
             typev4: unsafe { (*cglue::afbBindingV4r1_itfptr).type_json_c },
-            buffer_ptr: data.into_raw() as *const _ as *mut std::ffi::c_void,
+            buffer_ptr: raw as *const _ as *mut std::ffi::c_void,
             buffer_len: 0, // auto
             freecb: Some(free_jsonc_cb),
         };
@@ -1030,14 +1107,17 @@ impl AfbParams {
     {
         let mut param = AfbParams::new();
         // convert response data depending on type
-        let mut data = match AfbParams::export(data_in) {
-            AfbExportResponse::Converter(export) => export,
-            _ => return afb_error!("afb_response::push", "invalid data type"),
-        };
-
-        match Self::insert(&mut param, &mut data) {
-            Ok(()) => Ok(param),
-            Err(error) => Err(error),
+        match AfbParams::export(data_in) {
+            AfbExportResponse::Converter(mut export) => match Self::insert(&mut param, &mut export)
+            {
+                Ok(()) => Ok(param),
+                Err(error) => Err(error),
+            },
+            AfbExportResponse::Copy(export) => match Self::insert_copy(&mut param, &export) {
+                Ok(()) => Ok(param),
+                Err(error) => Err(error),
+            },
+            _ => afb_error!("afb_response::push", "invalid data type"),
         }
     }
 
@@ -1047,11 +1127,11 @@ impl AfbParams {
             data.freecb = Some(free_box_cb);
         }
 
-        // push data into libafb and retrieve it's handle
-        let data_handle: cglue::afb_data_t = 0 as cglue::afb_data_t;
+        // push data into libafb and retrieve its handle
+        let mut data_handle: cglue::afb_data_t = 0 as cglue::afb_data_t;
         let status = unsafe {
             cglue::afb_create_data_raw(
-                &data_handle as *const _ as *mut cglue::afb_data_t,
+                &mut data_handle as *mut cglue::afb_data_t,
                 data.typev4,
                 data.buffer_ptr,
                 data.buffer_len,
@@ -1067,21 +1147,45 @@ impl AfbParams {
         }
     }
 
+    fn insert_copy(&mut self, data: &AfbExportCopyData) -> Result<(), AfbError> {
+        // push copied data into libafb and retrieve its handle
+        let mut data_handle: cglue::afb_data_t = 0 as cglue::afb_data_t;
+        let status = unsafe {
+            cglue::afb_create_data_copy(
+                &mut data_handle as *mut cglue::afb_data_t,
+                data.typev4,
+                data.buffer.as_ptr() as *const c_void,
+                data.buffer.len(),
+            )
+        };
+        if status != 0 {
+            afb_error!(data.uid, "Failed to export copied data: {}", data.uid)
+        } else {
+            self.arguments.push(data_handle);
+            Ok(())
+        }
+    }
+
     #[track_caller]
     pub fn convert<T>(data_in: T) -> Result<AfbParams, AfbError>
     where
         AfbParams: ConvertResponse<T>,
     {
         // convert response data depending on type
-        let mut data = match AfbParams::export(data_in) {
-            AfbExportResponse::Response(response) => return Ok(response),
-            AfbExportResponse::Converter(export) => export,
-        };
-
         let mut response = AfbParams::new();
-        match AfbParams::insert(&mut response, &mut data) {
-            Ok(()) => Ok(response),
-            Err(error) => Err(error),
+        match AfbParams::export(data_in) {
+            AfbExportResponse::Response(response) => Ok(response),
+            AfbExportResponse::Converter(mut export) => {
+                match AfbParams::insert(&mut response, &mut export) {
+                    Ok(()) => Ok(response),
+                    Err(error) => Err(error),
+                }
+            },
+            AfbExportResponse::Copy(export) => match AfbParams::insert_copy(&mut response, &export)
+            {
+                Ok(()) => Ok(response),
+                Err(error) => Err(error),
+            },
         }
     }
 
@@ -1091,14 +1195,16 @@ impl AfbParams {
         AfbParams: ConvertResponse<T>,
     {
         // convert response data depending on type
-        let mut data = match AfbParams::export(data_in) {
-            AfbExportResponse::Converter(export) => export,
-            _ => return afb_error!("afb_response::push", "invalid data type"),
-        };
-
-        match Self::insert(self, &mut data) {
-            Ok(()) => Ok(self),
-            Err(error) => Err(error),
+        match AfbParams::export(data_in) {
+            AfbExportResponse::Converter(mut export) => match Self::insert(self, &mut export) {
+                Ok(()) => Ok(self),
+                Err(error) => Err(error),
+            },
+            AfbExportResponse::Copy(export) => match Self::insert_copy(self, &export) {
+                Ok(()) => Ok(self),
+                Err(error) => Err(error),
+            },
+            _ => afb_error!("afb_response::push", "invalid data type"),
         }
     }
 }

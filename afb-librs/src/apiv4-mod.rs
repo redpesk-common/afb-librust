@@ -728,7 +728,7 @@ impl AfbApi {
             class: "",
             version: "",
             verbosity: 0,
-            permission: AfbPermission::new(0),
+            permission: AfbPermission::none(),
             do_concurrency: true,
             ctrlbox: None,
             verbs: Vec::new(),
@@ -979,7 +979,7 @@ impl AfbVerb {
             name: uid,
             info: "",
             verbosity: 0,
-            permission: AfbPermission::new(0),
+            permission: AfbPermission::none(),
             usage: None,
             samples: JsoncObj::array(),
             actions: JsoncObj::array(),
@@ -1202,11 +1202,11 @@ impl AfbRequest {
     #[allow(clippy::mut_from_ref)]
     #[track_caller]
     pub fn get_session(&self) -> Result<&mut dyn AfbRqtSession, AfbError> {
-        let session = std::ptr::null_mut::<::std::os::raw::c_void>();
+        let mut session = std::ptr::null_mut::<::std::os::raw::c_void>();
         let status = unsafe {
             cglue::afb_req_context_get(
                 self.get_rqtv4(),
-                &session as *const _ as *mut *mut ::std::os::raw::c_void,
+                &mut session as *mut *mut ::std::os::raw::c_void,
             )
         };
         if status < 0 {
@@ -1299,6 +1299,13 @@ impl AfbRequest {
             },
             Ok(data) => data,
         };
+        /*
+         * afb_req_reply() keeps the response data after returning. Keep one
+         * reference for the libafb reply lifecycle, then release only the
+         * Rust-local references created by AfbParams::convert().
+         */
+        params.addref();
+
         unsafe {
             cglue::afb_req_reply(
                 self._rqtv4,
@@ -1307,6 +1314,11 @@ impl AfbRequest {
                 params.arguments.as_slice().as_ptr(),
             )
         };
+
+        // Release the Rust-owned references created by AfbParams::convert().
+        // afb_req_reply() does not consume the caller-side afb_data_t references.
+        // The extra reference above remains owned by libafb.
+        params.unref();
     }
 }
 
@@ -1746,7 +1758,7 @@ impl AfbGroup {
             _uid: uid,
             info: "",
             verbosity: 0,
-            permission: AfbPermission::new(0),
+            permission: AfbPermission::none(),
             prefix: "",
             separator: "/",
             verbs: Vec::new(),
@@ -2064,8 +2076,8 @@ impl<C: 'static> DoSubcallAsync<AfbApiV4, ApiCallback, C> for AfbSubCall {
         unsafe {
             cglue::afb_api_call(
                 apiv4,
-                apiname.into_raw(),
-                verbname.into_raw(),
+                apiname.as_ptr(),
+                verbname.as_ptr(),
                 params.arguments.len() as u32,
                 params.arguments.as_slice().as_ptr(),
                 Some(afb_async_api_callback),
@@ -2086,18 +2098,18 @@ impl DoSubcallSync<AfbApiV4> for AfbSubCall {
     ) -> Result<AfbRqtData, AfbError> {
         let mut status = 0_i32;
         let mut nreplies = MAX_CALL_ARGS;
-        let replies = [0 as cglue::afb_data_t; MAX_CALL_ARGS as usize];
+        let mut replies = [0 as cglue::afb_data_t; MAX_CALL_ARGS as usize];
 
         let rc = unsafe {
             cglue::afb_api_call_sync(
                 apiv4,
-                apiname.clone().into_raw(),
-                verbname.clone().into_raw(),
+                apiname.as_ptr(),
+                verbname.as_ptr(),
                 params.arguments.len() as u32,
                 params.arguments.as_slice().as_ptr(),
                 &mut status,
                 &mut nreplies,
-                replies.as_ref() as *const _ as *mut cglue::afb_data_t,
+                replies.as_mut_ptr(),
             )
         };
         if rc < 0 || nreplies > MAX_CALL_ARGS || status < 0 {
@@ -2166,11 +2178,12 @@ impl<C: 'static> DoSubcallAsync<AfbRqtV4, RqtCallback, C> for AfbSubCall {
         unsafe {
             cglue::afb_req_subcall(
                 rqtv4,
-                apiname.into_raw(),
-                verbname.into_raw(),
+                apiname.as_ptr(),
+                verbname.as_ptr(),
                 params.arguments.len() as u32,
                 params.arguments.as_slice().as_ptr(),
-                cglue::afb_req_subcall_flags_afb_req_subcall_catch_events as i32,
+                cglue::afb_req_subcall_flags_afb_req_subcall_catch_events as i32
+                    | cglue::afb_req_subcall_flags_afb_req_subcall_api_session as i32,
                 Some(afb_async_rqt_callback),
                 cbhandle as *mut std::ffi::c_void,
             )
@@ -2188,19 +2201,20 @@ impl DoSubcallSync<AfbRqtV4> for AfbSubCall {
     ) -> Result<AfbRqtData, AfbError> {
         let mut status = 0_i32;
         let mut nreplies = MAX_CALL_ARGS;
-        let replies = [0 as cglue::afb_data_t; MAX_CALL_ARGS as usize];
+        let mut replies = [0 as cglue::afb_data_t; MAX_CALL_ARGS as usize];
 
         let rc = unsafe {
             cglue::afb_req_subcall_sync(
                 rqtv4,
-                apiname.clone().into_raw(),
-                verbname.clone().into_raw(),
+                apiname.as_ptr(),
+                verbname.as_ptr(),
                 params.arguments.len() as u32,
                 params.arguments.as_slice().as_ptr(),
-                cglue::afb_req_subcall_flags_afb_req_subcall_catch_events as i32,
+                cglue::afb_req_subcall_flags_afb_req_subcall_catch_events as i32
+                    | cglue::afb_req_subcall_flags_afb_req_subcall_api_session as i32,
                 &mut status,
                 &mut nreplies,
-                replies.as_ref() as *const _ as *mut cglue::afb_data_t,
+                replies.as_mut_ptr(),
             )
         };
         if rc < 0 || nreplies > MAX_CALL_ARGS || status < 0 {
@@ -2251,7 +2265,15 @@ impl AfbSubCall {
 
         let apistr = CString::new(apiname).expect("Invalid apiname");
         let verbstr = CString::new(verbname).expect("Invalid verbname");
-        AfbSubCall::subcall_sync(handle, apistr, verbstr, &params)
+        let result = AfbSubCall::subcall_sync(handle, apistr, verbstr, &params);
+
+        // AfbParams::convert() creates caller-owned afb_data_t handles.
+        // afb_*_call_sync() only borrows those handles for the duration of the
+        // call, so release the Rust-side references after the synchronous
+        // subcall returns. The returned AfbRqtData owns the reply handles.
+        params.unref();
+
+        result
     }
 
     #[track_caller]
