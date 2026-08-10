@@ -4,7 +4,7 @@
 
 WARNING: as of today afb-librust remains in early access phase and binary versions are not public. Alpha testers should build it from source.
 
-* Declare redpesk repository: [(see doc)]({% chapter_link host-configuration-doc.setup-your-build-host %})
+* Declare redpesk repository: [(see doc)]({% chapter_link rp-cli-quickstart-doc.installation %})
 
 * redpesk: `sudo dnf install afb-librust afb-ui-devtools`
 * Fedora: `sudo dnf install afb-librust afb-ui-devtools`
@@ -18,7 +18,7 @@ WARNING: as of today afb-librust remains in early access phase and binary versio
 afb-librust requires GCC to compile the glue between libafb/C and libafb/Rust. This glue is generated automatically through bindgen
 but nevertheless requires a GCC/C compiler.
 
-* Declare redpesk repository: [(see doc)]({% chapter_link host-configuration-doc.setup-your-build-host %})
+* Declare redpesk repository: [(see doc)]({% chapter_link rp-cli-quickstart-doc.installation %})
 
 * gcc
   * afb-libafb
