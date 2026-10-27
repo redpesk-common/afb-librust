@@ -8,7 +8,7 @@
 
 [package]
 name = "afbv4"
-version = "5.1.1"
+version = "5.2.2"
 authors = ["fulup@iot.bzh"]
 publish = false
 build = "capi/build.rs"
